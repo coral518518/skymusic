@@ -32,7 +32,8 @@ class SkyAccessibilityService : AccessibilityService() {
 
             try {
                 val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
-                val enabledList = am?.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+                // -1 匹配所有无障碍反馈类型
+                val enabledList = am?.getEnabledAccessibilityServiceList(-1)
                 if (enabledList != null) {
                     for (info in enabledList) {
                         if (info.resolveInfo?.serviceInfo?.packageName == context.packageName) {
@@ -71,19 +72,6 @@ class SkyAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        try {
-            val info = serviceInfo ?: AccessibilityServiceInfo()
-            info.apply {
-                eventTypes = AccessibilityEvent.TYPES_ALL_MASK
-                feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-                flags = flags or AccessibilityServiceInfo.FLAG_DEFAULT or
-                        AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
-                notificationTimeout = 50
-            }
-            serviceInfo = info
-        } catch (e: Throwable) {
-            Log.e(TAG, "配置 serviceInfo 异常", e)
-        }
         Log.i(TAG, "光遇无障碍自动弹琴服务已连接绑定")
     }
 

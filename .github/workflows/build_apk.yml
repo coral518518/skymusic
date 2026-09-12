@@ -34,6 +34,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.6'
+          cache-disabled: true
 
       - name: 5. 编译生成 Android Debug APK
         run: |
@@ -65,6 +66,7 @@ jobs:
 
             ### 🌟 核心特性
             - **免 ROOT / 免电脑激活**：开启系统无障碍服务即可自动精准弹琴。
+            - **安卓 15 原生兼容**：修复 Android 14/15 下无障碍服务异常问题。
             - **多音和弦支持**：支持双音、三音等复杂和弦同时并发敲击。
             - **15 键屏幕自适应与校准**：适配全面屏、16:9、平板等任意分辨率，游戏内半透明光圈直观校准。
             - **乐谱零门槛导入**：支持海量流行歌曲 MIDI (.mid) 文件、Sky Studio JSON 乐谱、纯文本简谱。
