@@ -74,7 +74,7 @@ class SkyAccessibilityService : AccessibilityService() {
         try {
             val info = serviceInfo ?: AccessibilityServiceInfo()
             info.apply {
-                eventTypes = AccessibilityEvent.TYPE_ALL_MASK
+                eventTypes = AccessibilityEvent.TYPES_ALL_MASK
                 feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
                 flags = flags or AccessibilityServiceInfo.FLAG_DEFAULT or
                         AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
