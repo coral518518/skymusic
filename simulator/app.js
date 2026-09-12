@@ -2,7 +2,7 @@
  * SkyMusic 光遇 15 键弹琴模拟器与乐谱解析引擎
  */
 
-// 1. Web Audio 光遇钢琴/竖琴音效合成器
+// 1. Web Audio 光遇大钢琴物理声学合成引擎 (光遇高保真大三角钢琴音色)
 class SkyAudioSynth {
   constructor() {
     this.ctx = null;
@@ -24,53 +24,274 @@ class SkyAudioSynth {
       987.77, // 13: B5 (Si)
       1046.50 // 14: C6 (Do)
     ];
+
+    // 高保真钢琴采样缓存表 (物理声学建模预渲染)
+    this.sampleCache = new Map();
+    this.masterCompressor = null;
+    this.dryGain = null;
+    this.reverbConvolver = null;
+    this.wetGain = null;
+    this.isPreheating = false;
   }
 
   init() {
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AudioCtx();
+      this.setupMasterAudioChain();
+      this.preheatPresets();
     }
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
   }
 
+  setupMasterAudioChain() {
+    // 1. 动态范围压限器：防止快速和弦或多声部重叠时破音/爆音
+    this.masterCompressor = this.ctx.createDynamicsCompressor();
+    this.masterCompressor.threshold.setValueAtTime(-16, this.ctx.currentTime);
+    this.masterCompressor.knee.setValueAtTime(12, this.ctx.currentTime);
+    this.masterCompressor.ratio.setValueAtTime(3.5, this.ctx.currentTime);
+    this.masterCompressor.attack.setValueAtTime(0.003, this.ctx.currentTime);
+    this.masterCompressor.release.setValueAtTime(0.18, this.ctx.currentTime);
+    this.masterCompressor.connect(this.ctx.destination);
+
+    // 2. 直达声音量总线
+    this.dryGain = this.ctx.createGain();
+    this.dryGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
+    this.dryGain.connect(this.masterCompressor);
+
+    // 3. 光遇专属空灵大厅 / 琴房声学混响总线 (立体声脉冲卷积混响)
+    try {
+      this.reverbConvolver = this.ctx.createConvolver();
+      this.reverbConvolver.buffer = this.buildReverbImpulse(1.6, 2.2);
+      this.wetGain = this.ctx.createGain();
+      this.wetGain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+      this.reverbConvolver.connect(this.wetGain);
+      this.wetGain.connect(this.masterCompressor);
+    } catch (e) {
+      console.warn("混响卷积初始化降级:", e);
+      this.reverbConvolver = null;
+    }
+  }
+
+  // 生成温暖通透的遇境大殿/木质共鸣箱立体声混响脉冲
+  buildReverbImpulse(duration = 1.6, decay = 2.2) {
+    const sampleRate = this.ctx.sampleRate || 44100;
+    const length = Math.floor(duration * sampleRate);
+    const impulse = this.ctx.createBuffer(2, length, sampleRate);
+    const left = impulse.getChannelData(0);
+    const right = impulse.getChannelData(1);
+
+    for (let i = 0; i < length; i++) {
+      const t = i / sampleRate;
+      const env = Math.exp(-decay * t);
+      left[i] = (Math.random() * 2 - 1) * env;
+      right[i] = (Math.random() * 2 - 1) * env;
+    }
+
+    // 模拟木质材料的高频阻尼吸收滤波
+    let lpL = 0, lpR = 0;
+    const alpha = 0.28;
+    for (let i = 0; i < length; i++) {
+      lpL += alpha * (left[i] - lpL);
+      lpR += alpha * (right[i] - lpR);
+      left[i] = lpL;
+      right[i] = lpR;
+    }
+
+    return impulse;
+  }
+
+  // 物理声学建模：合成真实大钢琴琴弦与共鸣箱敲击波形
+  synthesizePianoSample(freq) {
+    const sampleRate = this.ctx ? this.ctx.sampleRate : 44100;
+    // 低音延音长，高音衰减快 (C4约3.2秒，C6约2.0秒)
+    const duration = Math.min(3.4, Math.max(1.8, 3.2 / Math.pow(freq / 261.63, 0.35)));
+    const N = Math.floor(duration * sampleRate);
+    const buffer = this.ctx.createBuffer(1, N, sampleRate);
+    const out = buffer.getChannelData(0);
+
+    // 1. 刚性琴弦非谐波系数 (Inharmonicity B factor, 钢琴特有的清亮微拉伸倍频)
+    const B = 0.00018 * Math.pow(freq / 261.63, 0.45);
+
+    // 2. 真实大三角钢琴泛音振幅分布 (基频 + 12个泛音列)
+    const harmonicWeights = [
+      0,
+      1.00,  // 1: 基频
+      0.68,  // 2: 八度
+      0.44,  // 3: 十二度 (五度)
+      0.30,  // 4: 双八度
+      0.19,  // 5: 双八度加三度
+      0.12,  // 6: 双八度加五度
+      0.075, // 7: 双八度加小七度
+      0.048, // 8: 三八度
+      0.030, // 9
+      0.018, // 10
+      0.010, // 11
+      0.005  // 12
+    ];
+
+    const baseSustain = duration * 0.95;
+
+    // 3. 弦组同音弦微调耦合 (Trichord Detuning: 3根琴弦微小失谐干涉产生的丰满合唱与缓拍)
+    for (let k = 1; k < harmonicWeights.length; k++) {
+      const amp = harmonicWeights[k];
+      const partialFreq = k * freq * Math.sqrt(1 + B * k * k);
+      if (partialFreq > sampleRate * 0.46) break;
+
+      // 高频泛音能量耗散衰减速度远快于低频基音 (钢琴标志性的音色明亮 -> 温暖圆润演化)
+      const decayRate = (1.0 / baseSustain) * (1.0 + 0.33 * (k - 1) + 0.036 * (k - 1) * (k - 1));
+
+      let detunes, weights;
+      if (k <= 3) {
+        detunes = [1.0, 1.0008, 0.9992];
+        weights = [0.44, 0.28, 0.28];
+      } else if (k <= 6) {
+        detunes = [1.0004, 0.9996];
+        weights = [0.5, 0.5];
+      } else {
+        detunes = [1.0];
+        weights = [1.0];
+      }
+
+      for (let s = 0; s < detunes.length; s++) {
+        const f = partialFreq * detunes[s];
+        const w = (2 * Math.PI * f) / sampleRate;
+        const cosW = Math.cos(w), sinW = Math.sin(w);
+        const strW = weights[s] * amp;
+
+        let r = 1.0, im = 0.0;
+        const stepDecay = Math.exp(-decayRate / sampleRate);
+        let curAmp = strW;
+
+        for (let i = 0; i < N; i++) {
+          const nr = r * cosW - im * sinW;
+          const nim = r * sinW + im * cosW;
+          r = nr; im = nim;
+          out[i] += curAmp * r;
+          curAmp *= stepDecay;
+        }
+      }
+    }
+
+    // 4. 钢琴毛毡琴槌敲击瞬态与共鸣板木质冲击 (Hammer Strike & Soundboard Thump)
+    for (let i = 0; i < N; i++) {
+      const t = i / sampleRate;
+      if (t > 0.07) break;
+      // 琴槌毛毡撞击杂音 (接触摩擦衰减)
+      const feltNoise = (Math.random() * 2 - 1) * Math.exp(-t * 240) * 0.28;
+      // 木质琴板与琴桥低频共振冲击 (~140 Hz)
+      const knock = Math.sin(2 * Math.PI * 140 * t) * Math.exp(-t * 85) * 0.38;
+      // 钢弦击点瞬态高频碰触音 (~3000 Hz)
+      const strike = Math.sin(2 * Math.PI * 3000 * t) * Math.exp(-t * 320) * 0.20;
+      out[i] += (feltNoise + knock + strike) * 0.32;
+    }
+
+    // 5. 毫秒级防爆音平滑击键曲线 (2.0ms 击键启动)
+    const attackSamples = Math.floor(0.002 * sampleRate);
+    for (let i = 0; i < attackSamples; i++) {
+      out[i] *= (i / attackSamples);
+    }
+
+    // 6. 物理双阶段衰减 (Prompt Sound 能量骤放 + Singing Sustain 悠长吟唱)
+    for (let i = 0; i < N; i++) {
+      const t = i / sampleRate;
+      out[i] *= (1.0 + 0.45 * Math.exp(-t * 22));
+    }
+
+    // 7. 标准化增益 (防止单音过载，保持音量一致且动态充沛)
+    let peak = 0;
+    for (let i = 0; i < N; i++) {
+      if (Math.abs(out[i]) > peak) peak = Math.abs(out[i]);
+    }
+    if (peak > 0) {
+      const normGain = 0.84 / peak;
+      for (let i = 0; i < N; i++) {
+        out[i] *= normGain;
+      }
+    }
+
+    return buffer;
+  }
+
+  // 获取或实时预渲染单音缓存
+  getAudioBuffer(freq) {
+    const key = Math.round(freq * 100) / 100;
+    if (!this.sampleCache.has(key)) {
+      const buf = this.synthesizePianoSample(freq);
+      this.sampleCache.set(key, buf);
+    }
+    return this.sampleCache.get(key);
+  }
+
+  // 异步预热预加载 15 个钢琴常用键，确保弹奏与播放时 0 延迟、0 卡顿
+  preheatPresets() {
+    if (this.isPreheating) return;
+    this.isPreheating = true;
+    let idx = 0;
+    const scheduleNext = () => {
+      if (idx >= this.frequencies.length) return;
+      this.getAudioBuffer(this.frequencies[idx]);
+      idx++;
+      if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(scheduleNext, { timeout: 100 });
+      } else {
+        setTimeout(scheduleNext, 16);
+      }
+    };
+    scheduleNext();
+  }
+
+  // 播放单音：支持 15 键键盘、移调与多声部自然复音
   playKey(keyIndex, transpose = 0) {
     this.init();
     if (!this.ctx) return;
 
+    // 调性偏移计算
     const shiftedKey = keyIndex + transpose;
-    if (shiftedKey < 0 || shiftedKey >= this.frequencies.length) return;
+    let freq;
+    if (shiftedKey >= 0 && shiftedKey < this.frequencies.length) {
+      freq = this.frequencies[shiftedKey];
+    } else {
+      // 超出 15 键范围时优雅推导自然音高，避免按键哑音
+      const baseFreq = this.frequencies[Math.max(0, Math.min(14, keyIndex))];
+      freq = baseFreq * Math.pow(2, transpose / 7);
+    }
 
-    const freq = this.frequencies[shiftedKey];
     const now = this.ctx.currentTime;
+    const buffer = this.getAudioBuffer(freq);
 
-    // 光遇空灵钟琴双振荡器叠加 (正弦波基频 + 泛音)
-    const osc1 = this.ctx.createOscillator();
-    const osc2 = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
+    // 音频源节点
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
 
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(freq, now);
+    // 单音独立包络控制器
+    const voiceGain = this.ctx.createGain();
+    voiceGain.gain.setValueAtTime(0.9, now);
 
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(freq * 2, now); // 高八度微弱泛音
+    // 大钢琴 88 键声场自然立体声微展宽 (左低音 -> 右高音)
+    if (this.ctx.createStereoPanner) {
+      const panner = this.ctx.createStereoPanner();
+      const panValue = -0.22 + (Math.max(0, Math.min(14, keyIndex)) / 14) * 0.44;
+      panner.pan.setValueAtTime(panValue, now);
 
-    // 音量包络：极速敲击，柔和衰减 (光遇标志性泛音)
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.exponentialRampToValueAtTime(0.35, now + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.2);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+      source.connect(voiceGain);
+      voiceGain.connect(panner);
 
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(this.ctx.destination);
+      panner.connect(this.dryGain);
+      if (this.reverbConvolver) {
+        panner.connect(this.reverbConvolver);
+      }
+    } else {
+      source.connect(voiceGain);
+      voiceGain.connect(this.dryGain);
+      if (this.reverbConvolver) {
+        voiceGain.connect(this.reverbConvolver);
+      }
+    }
 
-    osc1.start(now);
-    osc2.start(now);
-    osc1.stop(now + 1.3);
-    osc2.stop(now + 1.3);
+    source.start(now);
   }
 }
 

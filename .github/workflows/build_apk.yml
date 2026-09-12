@@ -3,8 +3,18 @@ name: Build SkyMusic Android APK
 on:
   push:
     branches: [ "**" ]
+    paths-ignore:
+      - 'midi_downloads/**'
+      - 'downloaded_*.txt'
+      - 'midishow/**'
+      - '.github/workflows/download_midi.yml'
   pull_request:
     branches: [ "**" ]
+    paths-ignore:
+      - 'midi_downloads/**'
+      - 'downloaded_*.txt'
+      - 'midishow/**'
+      - '.github/workflows/download_midi.yml'
   workflow_dispatch:
 
 # 授予创建与更新 GitHub Releases 的写入权限
