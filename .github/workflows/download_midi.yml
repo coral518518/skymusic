@@ -48,8 +48,10 @@ jobs:
       - name: 3. 安装 Playwright 与浏览器依赖
         run: |
           python -m pip install --upgrade pip
-          pip install playwright
+          pip install playwright playwright-stealth
           playwright install chromium --with-deps
+          # 安装 Xvfb 虚拟显示器（让浏览器以非 headless 模式运行，绕过 CF Turnstile 检测）
+          sudo apt-get install -y xvfb
       
       - name: Setup V2rayN Node (Failover Enabled)
         env:
@@ -160,10 +162,15 @@ jobs:
           MAX_PAGE: ${{ github.event.inputs.max_page || '500000' }}
           PUSH_INTERVAL: ${{ github.event.inputs.push_interval || '10' }}
           MIDISHOW_COOKIE: ${{ github.event.inputs.cookie || secrets.MIDISHOW_COOKIE }}
-          HEADLESS: 'true'
+          # 使用 Xvfb 虚拟显示器 + 非 headless 模式，让 CF Turnstile 正常渲染并通过验证
+          HEADLESS: 'false'
           AUTO_GIT_PUSH: 'true'
           PROXY_SERVER: 'http://127.0.0.1:4066'
+          DISPLAY: ':99'
         run: |
+          # 启动虚拟显示器（1920x1080 24位色深）
+          Xvfb :99 -screen 0 1920x1080x24 &
+          sleep 2
           python midishow/downmidi.py
 
       - name: 5. 兜底保存未提交的 MIDI 文件与日志

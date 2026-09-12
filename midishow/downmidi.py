@@ -471,20 +471,24 @@ def main():
                     context, page = ensure_page_ready(browser, context, page)
                     # 1. 打开歌曲详情页
                     page.goto(song_url, wait_until="domcontentloaded", timeout=25000)
-                    handle_cf_challenge(page)
+
+                    # CF 穿透：失败则立即跳过该曲目，避免无效等待
+                    if not handle_cf_challenge(page):
+                        raise Exception("Cloudflare 拦截未能穿透，跳过该歌曲")
+
                     page.evaluate("window._midiQueue = [];")  # 清空队列
 
                     # 2. 定位并点击当前可见的播放按钮
                     play_btn = page.locator("button.j-play:visible, button.ms-player-play:visible").first
                     try:
-                        play_btn.wait_for(state="visible", timeout=6000)
+                        play_btn.wait_for(state="visible", timeout=8000)
                         play_btn.click()
                     except Exception:
                         # 兜底：直接通过 JS 触发点击
                         page.evaluate("document.querySelector('button.j-play, button.ms-player-play')?.click()")
 
-                    # 3. 等待 Hook 截获到数据（最多等待 10 秒）
-                    page.wait_for_function("window._midiQueue && window._midiQueue.length > 0", timeout=10000)
+                    # 3. 等待 Hook 截获到数据（最多等待 15 秒）
+                    page.wait_for_function("window._midiQueue && window._midiQueue.length > 0", timeout=15000)
                     midi_data = page.evaluate("window._midiQueue.shift()")
 
                     # 4. 写入本地文件
