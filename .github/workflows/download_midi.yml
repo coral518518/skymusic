@@ -11,7 +11,7 @@ on:
       max_page:
         description: '结束页码 (Max Page)'
         required: false
-        default: '50'
+        default: '500000'
         type: string
       push_interval:
         description: '每隔多少页保存并推送到仓库 (Push Interval)'
@@ -44,7 +44,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
       - name: 3. 安装 Playwright 与浏览器依赖
         run: |
@@ -55,7 +54,7 @@ jobs:
       - name: 4. 执行自动抓取与分段保存
         env:
           START_PAGE: ${{ github.event.inputs.start_page || '1' }}
-          MAX_PAGE: ${{ github.event.inputs.max_page || '50' }}
+          MAX_PAGE: ${{ github.event.inputs.max_page || '500000' }}
           PUSH_INTERVAL: ${{ github.event.inputs.push_interval || '10' }}
           MIDISHOW_COOKIE: ${{ github.event.inputs.cookie || secrets.MIDISHOW_COOKIE }}
           HEADLESS: 'true'
