@@ -5,7 +5,6 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Handler
@@ -14,6 +13,7 @@ import android.os.Looper
 import android.util.Log
 import android.view.*
 import android.widget.*
+import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.app.NotificationCompat
 import com.skymusic.player.MainActivity
 import com.skymusic.player.R
@@ -79,14 +79,14 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         layoutManager = KeyLayoutManager.getInstance(this)
         playEngine.listener = this
 
-        // 使用应用主题包装器，防止 Service 充气 MaterialComponents 控件时崩溃
+        // 使用 AppCompat 主题包装器，防止在 Service 中解析 MaterialComponents 控件时抛出异常
         themedContext = ContextThemeWrapper(this, R.style.Theme_SkyMusicPlayer)
         themedInflater = LayoutInflater.from(themedContext)
 
-        // Android 14/15 前台服务兼容处理 (SpecialUse)
+        // 安全启动前台通知，避免 Android 14/15 抛出 FGS 异常中断服务初始化
         safeStartForeground()
 
-        // 仅添加金色悬浮小球，面板与校准层按需动态挂载，杜绝隐形全屏遮挡与权限异常
+        // 仅在屏幕添加金色悬浮小球，控制面板与校准层按需动态显示与移除
         initFloatingBall()
     }
 
@@ -119,18 +119,7 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
     private fun safeStartForeground() {
         try {
             val notification = createNotification()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                // API 34+ Android 14/15 需指定 specialUse 类型
-                startForeground(
-                    1001,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-                )
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(1001, notification, 0)
-            } else {
-                startForeground(1001, notification)
-            }
+            startForeground(1001, notification)
         } catch (e: Throwable) {
             Log.e(TAG, "safeStartForeground error: ${e.message}", e)
         }
