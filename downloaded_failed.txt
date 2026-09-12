@@ -10,3 +10,9 @@
 259216	UNKNOWN	2026-09-12 15:19:58	Page.wait_for_function: Timeout 10000ms exceeded.
 259185	UNKNOWN	2026-09-12 15:21:13	Page.wait_for_function: Timeout 10000ms exceeded.
 259183	UNKNOWN	2026-09-12 15:22:26	Page.wait_for_function: Timeout 10000ms exceeded.
+259303	UNKNOWN	2026-09-12 15:38:43	Cloudflare 拦截未能穿透，跳过该歌曲
+259302	UNKNOWN	2026-09-12 15:39:41	Cloudflare 拦截未能穿透，跳过该歌曲
+259226	UNKNOWN	2026-09-12 15:40:41	Cloudflare 拦截未能穿透，跳过该歌曲
+259216	UNKNOWN	2026-09-12 15:41:40	Cloudflare 拦截未能穿透，跳过该歌曲
+259185	UNKNOWN	2026-09-12 15:42:37	Cloudflare 拦截未能穿透，跳过该歌曲
+259183	UNKNOWN	2026-09-12 15:43:37	Cloudflare 拦截未能穿透，跳过该歌曲
