@@ -24,9 +24,17 @@ PROXY_SERVER = os.environ.get("PROXY_SERVER") or os.environ.get("http_proxy") or
 
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# Cookie 字符串：支持环境变量优先传入（适用于 GitHub Secrets）
-DEFAULT_COOKIE_STR = "_gid=GA1.2.910328204.1789212463; PHPSESSID=et8mol59odq7tj6f7k04oukepp; _csrf=35368ea1bd944a2594f915aa83947bf96babc6ba9bd55f09c586df4ecc4966d0a%3A2%3A%7Bi%3A0%3Bs%3A5%3A%22_csrf%22%3Bi%3A1%3Bs%3A32%3A%22Z1D9rdpnzbXqeefx0Z1Gun2zyrMtI2jD%22%3B%7D; _language=4be5658c4b69d6d6d0f856ff1d2abd82d33f89ab530702899ed361532fae4a24a%3A2%3A%7Bi%3A0%3Bs%3A9%3A%22_language%22%3Bi%3A1%3Bs%3A2%3A%22zh%22%3B%7D; cf_clearance=.cw0mXqs9AwIbj859e6N26QVBuEP_glhQrPpVDsNkWQ-1789220812-1.2.1.1-q382P4LnVwbrJw0dLvZc.TgVPKjDxX6RD.UnQFyPfkSGUyn0TavNL..r3uWKw.KcXcgSOLANvwfcEUFHdJBry06J7CjwMMIryGM4Q6BccbatMfxcs.qK95uA5o2V6ovZRbN_lVahZnlmr7PkcGzKJ9mSxSwdkNNpg60DSZB3jzX8_I.JEY391VQeHvUwOkNYXfumJzBKrzO87gL77LYHmy_K_rtVSIHFB7brEJLQnHC2wlLAUIR6EQPtwNhyDuLqZMDCbwGo.CCxeKW9XwaxvswXUkkvMLZhORjy_6pl5H0yoZ8NpyGtttV8fw8HulUZxYmilKYdSDyR.5ygligp44T3u09Fys_B5pWxVAbXOKIHZa9ZkTMPx8nWHemDn53u_rWP5v3B2f003JcI8UVTwQs5ok8bRIn_onMvc3ajdDiFY2m8CNTrzoNna7Wp.VrT; _gat_gtag_UA_21955665_1=1; _ga_BTCGHXH3SZ=GS2.1.s1789218561$o3$g1$t1789221481$j41$l0$h0; _ga=GA1.2.504136511.1789212463"
+# Cookie 字符串：默认保留有效登录会话，支持环境变量传入最新 cf_clearance (适用于 GitHub Secrets)
+DEFAULT_COOKIE_STR = "PHPSESSID=et8mol59odq7tj6f7k04oukepp; _csrf=35368ea1bd944a2594f915aa83947bf96babc6ba9bd55f09c586df4ecc4966d0a%3A2%3A%7Bi%3A0%3Bs%3A5%3A%22_csrf%22%3Bi%3A1%3Bs%3A32%3A%22Z1D9rdpnzbXqeefx0Z1Gun2zyrMtI2jD%22%3B%7D; _language=4be5658c4b69d6d6d0f856ff1d2abd82d33f89ab530702899ed361532fae4a24a%3A2%3A%7Bi%3A0%3Bs%3A9%3A%22_language%22%3Bi%3A1%3Bs%3A2%3A%22zh%22%3B%7D"
 COOKIE_STR = os.environ.get("MIDISHOW_COOKIE") or DEFAULT_COOKIE_STR
+
+# 抹除自动化浏览器特征指纹
+STEALTH_SCRIPT = """
+Object.defineProperty(navigator, 'webdriver', {
+    get: () => undefined
+});
+window.chrome = { runtime: {} };
+"""
 
 # 核心 Hook 脚本：在页面初始化阶段注入，拦截 JZZ 解析时的二进制数据
 HOOK_SCRIPT = """
@@ -127,6 +135,59 @@ def git_commit_and_push(page_num, is_final=False):
     except Exception as e:
         print(f"[Git] ! 自动提交流程异常 (跳过继续下载): {e}\n")
 
+def handle_cf_challenge(page, max_retries=3):
+    """检测并穿透 Cloudflare 挑战页（参考 UC 模式思想：多特征识别 + 真实坐标模拟点击）"""
+    for attempt in range(max_retries):
+        title = ""
+        try:
+            title = page.title().lower()
+        except Exception:
+            pass
+            
+        cur_url = page.url.lower()
+        body_text = ""
+        try:
+            body_text = page.evaluate("() => document.body ? document.body.innerText.slice(0, 300).toLowerCase() : ''")
+        except Exception:
+            pass
+            
+        is_cf = (
+            "just a moment" in title
+            or "checking your browser" in body_text
+            or "challenges.cloudflare.com" in cur_url
+            or "cf-wrapper" in body_text
+            or "ray id" in body_text
+        )
+        
+        if not is_cf:
+            return True
+            
+        print(f"  [CF] 检测到 Cloudflare 验证挑战 (第 {attempt + 1}/{max_retries} 次)，尝试自动穿透...")
+        time.sleep(2)
+        
+        # 查找 Turnstile 验证框 iframe 并用真实鼠标坐标点击 (类似 uc_gui_click_captcha)
+        clicked = False
+        for frame in page.frames:
+            if "challenges.cloudflare.com" in frame.url:
+                try:
+                    cb = frame.locator('input[type="checkbox"], .ctp-checkbox-label, #challenge-stage').first
+                    if cb.count() > 0:
+                        box = cb.bounding_box()
+                        if box:
+                            print(f"  [CF] 找到 Turnstile 复选框，坐标 ({int(box['x'])}, {int(box['y'])})，触发真实物理点击...")
+                            page.mouse.click(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+                            clicked = True
+                            time.sleep(5)
+                            break
+                except Exception as e:
+                    pass
+                    
+        if not clicked:
+            time.sleep(3)
+            
+    final_title = page.title().lower()
+    return "just a moment" not in final_title
+
 def create_browser_context(browser):
     """创建统一配置的浏览器上下文（包含视口、代理与 Cookie）"""
     context_kwargs = {
@@ -145,10 +206,12 @@ def ensure_page_ready(browser, context, page):
     try:
         if page is None or page.is_closed():
             page = context.new_page()
+            page.add_init_script(STEALTH_SCRIPT)
             page.add_init_script(HOOK_SCRIPT)
     except Exception:
         context = create_browser_context(browser)
         page = context.new_page()
+        page.add_init_script(STEALTH_SCRIPT)
         page.add_init_script(HOOK_SCRIPT)
     return context, page
 
@@ -159,7 +222,13 @@ def main():
     if PROXY_SERVER:
         print(f"[*] 网络代理已启用: {PROXY_SERVER}")
 
-    launch_kwargs = {"headless": HEADLESS}
+    launch_kwargs = {
+        "headless": HEADLESS,
+        "args": [
+            "--disable-blink-features=AutomationControlled",
+            "--no-sandbox"
+        ]
+    }
     if PROXY_SERVER:
         launch_kwargs["proxy"] = {"server": PROXY_SERVER}
 
@@ -167,6 +236,7 @@ def main():
         browser = p.chromium.launch(**launch_kwargs)
         context = create_browser_context(browser)
         page = context.new_page()
+        page.add_init_script(STEALTH_SCRIPT)
         page.add_init_script(HOOK_SCRIPT)
 
         consecutive_cf_blocks = 0
@@ -182,17 +252,13 @@ def main():
                     context, page = ensure_page_ready(browser, context, page)
                     page.goto(list_url, wait_until="domcontentloaded", timeout=30000)
                     
-                    # 检查是否命中 Cloudflare 盾
-                    if "Just a moment" in page.title() or "Cloudflare" in page.title():
-                        print(f"  [*] 触发 Cloudflare 验证盾 (页面标题: {page.title()})，等待 5 秒检测是否自动通过...")
-                        time.sleep(5)
-                        
-                    if "Just a moment" in page.title():
-                        print(f"  [!] 第 {current_page} 页仍处于 Cloudflare 拦截中 (尝试 {retry + 1}/3)")
-                        time.sleep(3)
-                    else:
+                    # 检测并穿透 Cloudflare 盾
+                    if handle_cf_challenge(page):
                         loaded_list = True
                         break
+                    else:
+                        print(f"  [!] 第 {current_page} 页未能穿透 Cloudflare 拦截 (尝试 {retry + 1}/3)")
+                        time.sleep(3)
                 except Exception as e:
                     print(f"[!] 访问列表页失败 (尝试 {retry + 1}/3): {e}")
                     time.sleep(3)
@@ -243,6 +309,7 @@ def main():
                     context, page = ensure_page_ready(browser, context, page)
                     # 1. 打开歌曲详情页
                     page.goto(song_url, wait_until="domcontentloaded", timeout=25000)
+                    handle_cf_challenge(page)
                     page.evaluate("window._midiQueue = [];")  # 清空队列
 
                     # 2. 定位并点击当前可见的播放按钮
