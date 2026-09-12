@@ -20,6 +20,7 @@ MAX_PAGE = int(os.environ.get("MAX_PAGE", 500000))
 PUSH_INTERVAL = int(os.environ.get("PUSH_INTERVAL", 10))
 HEADLESS = os.environ.get("HEADLESS", "true" if os.environ.get("CI") else "false").lower() == "true"
 AUTO_GIT_PUSH = os.environ.get("AUTO_GIT_PUSH", "true").lower() == "true"
+PROXY_SERVER = os.environ.get("PROXY_SERVER") or os.environ.get("http_proxy") or os.environ.get("HTTP_PROXY")
 
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
@@ -126,6 +127,19 @@ def git_commit_and_push(page_num, is_final=False):
     except Exception as e:
         print(f"[Git] ! 自动提交流程异常 (跳过继续下载): {e}\n")
 
+def create_browser_context(browser):
+    """创建统一配置的浏览器上下文（包含视口、代理与 Cookie）"""
+    context_kwargs = {
+        "viewport": {'width': 1920, 'height': 1080},
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+    }
+    if PROXY_SERVER:
+        context_kwargs["proxy"] = {"server": PROXY_SERVER}
+    context = browser.new_context(**context_kwargs)
+    if COOKIE_STR.strip():
+        context.add_cookies(parse_cookies(COOKIE_STR))
+    return context
+
 def ensure_page_ready(browser, context, page):
     """页面健康检查与自愈机制：若页面意外关闭则自动恢复"""
     try:
@@ -133,12 +147,7 @@ def ensure_page_ready(browser, context, page):
             page = context.new_page()
             page.add_init_script(HOOK_SCRIPT)
     except Exception:
-        context = browser.new_context(
-            viewport={'width': 1920, 'height': 1080},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
-        )
-        if COOKIE_STR.strip():
-            context.add_cookies(parse_cookies(COOKIE_STR))
+        context = create_browser_context(browser)
         page = context.new_page()
         page.add_init_script(HOOK_SCRIPT)
     return context, page
@@ -147,17 +156,20 @@ def main():
     done_ids = load_done_ids()
     print(f"[*] 已成功下载 {len(done_ids)} 首，开始自动运行...")
     print(f"[*] 抓取范围: 第 {START_PAGE} 页 至 第 {MAX_PAGE} 页 (每 {PUSH_INTERVAL} 页自动提交一次)")
+    if PROXY_SERVER:
+        print(f"[*] 网络代理已启用: {PROXY_SERVER}")
+
+    launch_kwargs = {"headless": HEADLESS}
+    if PROXY_SERVER:
+        launch_kwargs["proxy"] = {"server": PROXY_SERVER}
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=HEADLESS)
-        context = browser.new_context(
-            viewport={'width': 1920, 'height': 1080},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
-        )
-        if COOKIE_STR.strip():
-            context.add_cookies(parse_cookies(COOKIE_STR))
+        browser = p.chromium.launch(**launch_kwargs)
+        context = create_browser_context(browser)
         page = context.new_page()
         page.add_init_script(HOOK_SCRIPT)
+
+        consecutive_cf_blocks = 0
 
         for current_page in range(START_PAGE, MAX_PAGE + 1):
             print(f"\n===== 开始抓取第 {current_page} 页 =====")
@@ -169,14 +181,36 @@ def main():
                 try:
                     context, page = ensure_page_ready(browser, context, page)
                     page.goto(list_url, wait_until="domcontentloaded", timeout=30000)
-                    loaded_list = True
-                    break
+                    
+                    # 检查是否命中 Cloudflare 盾
+                    if "Just a moment" in page.title() or "Cloudflare" in page.title():
+                        print(f"  [*] 触发 Cloudflare 验证盾 (页面标题: {page.title()})，等待 5 秒检测是否自动通过...")
+                        time.sleep(5)
+                        
+                    if "Just a moment" in page.title():
+                        print(f"  [!] 第 {current_page} 页仍处于 Cloudflare 拦截中 (尝试 {retry + 1}/3)")
+                        time.sleep(3)
+                    else:
+                        loaded_list = True
+                        break
                 except Exception as e:
                     print(f"[!] 访问列表页失败 (尝试 {retry + 1}/3): {e}")
                     time.sleep(3)
 
             if not loaded_list:
-                print(f"[!] 第 {current_page} 页连续多次访问失败，跳过该页。")
+                consecutive_cf_blocks += 1
+                print(f"[!] 第 {current_page} 页被 Cloudflare 拦截或无法访问 (连续 {consecutive_cf_blocks} 次)。")
+                if consecutive_cf_blocks >= 5:
+                    print("\n" + "=" * 65)
+                    print("[!] 致命提示：已连续 5 页被 Cloudflare 验证盾拦截！")
+                    print("[!] 原因：当前 Cookie 中的 cf_clearance 已失效，或云端 IP 触发安全防护。")
+                    print("[!] 解决方案：")
+                    print("    1. 在浏览器登录 midishow.com，按 F12 -> Application -> Cookies")
+                    print("    2. 复制最新的完整 Cookie (必须包含 cf_clearance 和 PHPSESSID)")
+                    print("    3. 在 GitHub 仓库 Settings -> Secrets -> Actions 中更新 MIDISHOW_COOKIE")
+                    print("    4. 或在 Action 页面手动触发时，在 '自定义 Cookie' 输入框中粘贴")
+                    print("=" * 65 + "\n")
+                    break
                 continue
 
             # 提取本页所有歌曲链接
@@ -189,9 +223,14 @@ def main():
                     page_ids.append(match.group(1))
 
             if not page_ids:
-                print(f"[!] 第 {current_page} 页未提取到歌曲 ID，继续下一页。")
+                consecutive_cf_blocks += 1
+                print(f"[!] 第 {current_page} 页未提取到歌曲 ID (可能被盾拦截或已是最后一页)。")
+                if consecutive_cf_blocks >= 5:
+                    print("\n[!] 连续 5 页未解析到歌曲，提前终止任务以防空跑。请检查 Cookie 或网络。")
+                    break
                 continue
 
+            consecutive_cf_blocks = 0
             print(f"[*] 解析到 {len(page_ids)} 首歌曲")
 
             for idx, mid in enumerate(page_ids, start=1):

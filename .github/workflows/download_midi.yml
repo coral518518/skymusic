@@ -16,7 +16,7 @@ on:
       push_interval:
         description: '每隔多少页保存并推送到仓库 (Push Interval)'
         required: false
-        default: '10'
+        default: '100'
         type: string
       cookie:
         description: '自定义 Cookie (留空则优先使用 Secrets.MIDISHOW_COOKIE 或脚本默认值)'
@@ -50,6 +50,109 @@ jobs:
           python -m pip install --upgrade pip
           pip install playwright
           playwright install chromium --with-deps
+      
+      - name: Setup V2rayN Node (Failover Enabled)
+        env:
+            # 注意：现在需要传入一个包含多个配置的 JSON 数组
+          XRAY_CONFIGS: ${{ secrets.XRAY_CONFIGS }}
+        run: |
+          MAX_RETRIES=10
+          RETRY_DELAY=10
+          DOWNLOAD_SUCCESS=false
+
+          for ((j=1; j<=MAX_RETRIES; j++)); do
+            echo "⬇️ Fetching latest Xray-core (尝试 $j/$MAX_RETRIES)..."
+            VERSION=$(curl -fsSL "https://d1.coral001.de5.net/common_data/kvselect/githubxray" 2>/dev/null | tr -d '\r\n')
+            [ -z "$VERSION" ] && VERSION="v26.1.18"
+            echo "📌 使用版本号: $VERSION"
+            
+            if [ -n "$VERSION" ]; then
+              echo "📌 成功获取版本号: $VERSION"
+              DOWNLOAD_URL="https://github.com/XTLS/Xray-core/releases/download/${VERSION}/Xray-linux-64.zip"          
+              
+              echo "⬇️ 开始下载压缩包..."
+              curl -sL -o xray.zip "$DOWNLOAD_URL"
+              
+              if unzip -qo xray.zip -d xray_folder; then
+                chmod +x ./xray_folder/xray
+                echo "✅ Xray-core 下载并解压成功！"
+                DOWNLOAD_SUCCESS=true
+                break
+              else
+                echo "⚠️ 解压失败 (文件可能已损坏或遭遇 API 限制)。清理并准备重试..."
+                rm -f xray.zip
+                rm -rf xray_folder
+              fi
+            else
+              echo "⚠️ 未能获取到版本号 (可能触发了 GitHub 接口频率限制)。"
+            fi
+            
+            echo "⏳ 等待 $RETRY_DELAY 秒后进行下一次尝试..."
+            sleep $RETRY_DELAY
+          done
+
+          if [ "$DOWNLOAD_SUCCESS" = false ]; then
+            echo "❌ 致命错误：重试 $MAX_RETRIES 次后依然无法下载并配置 Xray-core！"
+            exit 1
+          fi
+          # ====================================================
+
+          TMP_CONFIGS=$(curl -fsSL "https://d1.coral001.de5.net/common_data/kvselect/githubvry" 2>/dev/null)
+          [ -n "$TMP_CONFIGS" ] && XRAY_CONFIGS="$TMP_CONFIGS"
+          CONFIG_COUNT=$(echo "$XRAY_CONFIGS" | jq '. | length')
+            
+          if [ -z "$CONFIG_COUNT" ] || [ "$CONFIG_COUNT" -eq 0 ]; then
+            echo "❌ 错误: 未能在 Secrets 中找到有效的节点配置数组！"
+            exit 1
+          fi
+
+          echo "🔍 检测到 $CONFIG_COUNT 个备用节点，开始进行连通性测试..."
+          SUCCESS=false
+            
+            # 遍历所有节点配置
+          for i in $(seq 0 $(($CONFIG_COUNT - 1))); do
+            echo "----------------------------------------"
+            echo "⚙️ 正在测试节点配置 (索引: $i)..."
+              
+              # 提取当前的配置并写入 config.json
+            echo "$XRAY_CONFIGS" | jq -c ".[$i]" > config.json
+              
+              # 清理可能残留的上一轮 Xray 进程
+            pkill -f "./xray_folder/xray" || true
+              
+              # 后台启动 Xray
+            ./xray_folder/xray -c config.json > xray.log 2>&1 &
+              
+            echo "⏳ 等待 5 秒让代理初始化..."
+            sleep 5
+
+            echo "🔍 检查代理进程状态..."
+            ps aux | grep xray | grep -v grep || true
+            ss -tlnp | grep 4066 || echo "❌ 端口 4066 未在监听！"
+
+            echo "📋 Xray 启动日志："
+            cat xray.log || true
+            
+            echo "📡 正在测试与 Google 的连通性..."
+              # 使用 curl 测试连通性：
+              # -m 10 : 最大超时时间设置为 10 秒，防止死节点导致 Action 卡住
+              # -w "%{http_code}" : 仅提取 HTTP 状态码
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 10 -x http://127.0.0.1:4066 https://www.google.com 2>/dev/null) || HTTP_STATUS="000"
+            if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "301" ] || [ "$HTTP_STATUS" = "302" ]; then
+              echo "🎉 测试成功！节点 $i 可用，将使用此节点继续后续任务。"
+              SUCCESS=true
+              break
+            else
+              echo "⚠️ 节点 $i 连接失败 (状态码或超时: $HTTP_STATUS)。准备切换下一个..."
+                # 可选：如果你想排错，可以取消下面这行的注释来查看 Xray 报错日志
+                # tail -n 5 xray.log 
+            fi
+          done
+            
+          if [ "$SUCCESS" = false ]; then
+            echo "❌ 致命错误：所有 $CONFIG_COUNT 个节点均不可用！Action 被终止。"
+            exit 1
+          fi
 
       - name: 4. 执行自动抓取与分段保存
         env:
@@ -59,6 +162,7 @@ jobs:
           MIDISHOW_COOKIE: ${{ github.event.inputs.cookie || secrets.MIDISHOW_COOKIE }}
           HEADLESS: 'true'
           AUTO_GIT_PUSH: 'true'
+          PROXY_SERVER: 'http://127.0.0.1:4066'
         run: |
           python midishow/downmidi.py
 
