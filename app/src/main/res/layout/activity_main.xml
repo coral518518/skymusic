@@ -90,6 +90,55 @@
                         android:textStyle="bold"
                         android:layout_marginBottom="12dp" />
 
+                    <!-- Root 底层触控模式 (防游戏检测) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Root 底层触控 (推荐·防检测)"
+                                android:textColor="@color/sky_text_primary"
+                                android:textSize="15sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvRootStatusDesc"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="KernelSU / APatch / Magisk 底层注入，免无障碍"
+                                android:textColor="@color/sky_text_secondary"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+
+                        <Button
+                            android:id="@+id/btnRootPerm"
+                            style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:text="开启Root"
+                            android:textSize="12sp"
+                            android:textColor="#000"
+                            android:backgroundTint="@color/sky_accent"
+                            app:cornerRadius="18dp" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/sky_card_dark_stroke"
+                        android:layout_marginBottom="12dp" />
+
                     <!-- 无障碍权限 -->
                     <LinearLayout
                         android:layout_width="match_parent"

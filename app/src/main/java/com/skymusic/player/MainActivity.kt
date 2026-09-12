@@ -9,16 +9,19 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.tabs.TabLayout
 import com.skymusic.player.databinding.ActivityMainBinding
 import com.skymusic.player.engine.KeyLayoutManager
+import com.skymusic.player.engine.RootTouchController
 import com.skymusic.player.model.Song
 import com.skymusic.player.parser.SheetImporter
 import com.skymusic.player.service.FloatingOverlayService
 import com.skymusic.player.ui.SongAdapter
 import com.skymusic.player.util.PermissionHelper
 import com.skymusic.player.util.PresetSongs
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -66,6 +69,30 @@ class MainActivity : AppCompatActivity() {
 
     private fun initViews() {
         // 权限按钮跳转
+        binding.btnRootPerm.setOnClickListener {
+            val isRoot = RootTouchController.isRootModeEnabled(this)
+            if (isRoot) {
+                RootTouchController.setRootModeEnabled(this, false)
+                Toast.makeText(this, "已切回无障碍模拟点击模式", Toast.LENGTH_SHORT).show()
+                updatePermissionStatus()
+            } else {
+                Toast.makeText(this, "正在向系统请求 Root 权限...", Toast.LENGTH_SHORT).show()
+                lifecycleScope.launch {
+                    val granted = RootTouchController.requestRootPermission()
+                    if (granted) {
+                        RootTouchController.setRootModeEnabled(this@MainActivity, true)
+                        Toast.makeText(this@MainActivity, "Root 授权成功！已启用底层防检测触控", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "未获得 Root 权限，请在 KernelSU / APatch / Magisk 中允许授权",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    updatePermissionStatus()
+                }
+            }
+        }
         binding.btnAccessibilityPerm.setOnClickListener {
             PermissionHelper.requestAccessibilityPermission(this)
         }
@@ -148,8 +175,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updatePermissionStatus() {
+        val isRoot = RootTouchController.isRootModeEnabled(this)
         val hasAcc = PermissionHelper.hasAccessibilityPermission(this)
         val hasFloat = PermissionHelper.hasFloatingPermission(this)
+
+        if (isRoot) {
+            binding.btnRootPerm.text = "已启用Root"
+            binding.btnRootPerm.setBackgroundColor(getColor(R.color.status_green))
+            binding.tvRootStatusDesc.text = "底层 su 注入已就绪，防检测安全模式（免开无障碍）"
+        } else {
+            binding.btnRootPerm.text = "开启Root"
+            binding.btnRootPerm.setBackgroundColor(getColor(R.color.sky_accent))
+            binding.tvRootStatusDesc.text = "KernelSU / APatch / Magisk 底层注入，免无障碍"
+        }
 
         if (hasAcc) {
             binding.btnAccessibilityPerm.text = getString(R.string.status_enabled)
@@ -189,8 +227,9 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        if (!PermissionHelper.hasAccessibilityPermission(this)) {
-            Toast.makeText(this, "请先开启「无障碍模拟点击」服务", Toast.LENGTH_SHORT).show()
+        val isRoot = RootTouchController.isRootModeEnabled(this)
+        if (!isRoot && !PermissionHelper.hasAccessibilityPermission(this)) {
+            Toast.makeText(this, "请先开启「无障碍模拟点击」或启用「Root底层模式」", Toast.LENGTH_SHORT).show()
             PermissionHelper.requestAccessibilityPermission(this)
             return
         }

@@ -77,27 +77,27 @@ class SkyAudioSynth {
 // 2. 屏幕布局自适应与校准管理器
 class LayoutManager {
   constructor() {
-    this.centerX = 0.50;
-    this.centerY = 0.54;
+    this.centerX = 0.475; // 往左微调5下: 0.50 -> 0.475
+    this.centerY = 0.440; // 往上微调20下: 0.54 -> 0.440
     this.spacingX = 0.082;
     this.spacingY = 0.150;
-    this.scale = 1.0;
+    this.scale = 1.09;    // 放大3下: 1.00 -> 1.09
   }
 
   setAspectRatioPreset(w, h) {
     const ratio = w / h;
     if (ratio >= 2.1) {
-      this.centerX = 0.50; this.centerY = 0.55; this.spacingX = 0.076; this.spacingY = 0.155;
+      this.centerX = 0.475; this.centerY = 0.450; this.spacingX = 0.076; this.spacingY = 0.155;
     } else if (ratio >= 1.9) {
-      this.centerX = 0.50; this.centerY = 0.54; this.spacingX = 0.082; this.spacingY = 0.150;
+      this.centerX = 0.475; this.centerY = 0.440; this.spacingX = 0.082; this.spacingY = 0.150;
     } else if (ratio >= 1.85) {
-      this.centerX = 0.50; this.centerY = 0.54; this.spacingX = 0.086; this.spacingY = 0.152;
+      this.centerX = 0.475; this.centerY = 0.440; this.spacingX = 0.086; this.spacingY = 0.152;
     } else if (ratio >= 1.7) {
-      this.centerX = 0.50; this.centerY = 0.53; this.spacingX = 0.093; this.spacingY = 0.150;
+      this.centerX = 0.475; this.centerY = 0.430; this.spacingX = 0.093; this.spacingY = 0.150;
     } else {
-      this.centerX = 0.50; this.centerY = 0.52; this.spacingX = 0.110; this.spacingY = 0.135;
+      this.centerX = 0.475; this.centerY = 0.420; this.spacingX = 0.110; this.spacingY = 0.135;
     }
-    this.scale = 1.0;
+    this.scale = 1.09;
   }
 
   getKeyPercentPosition(keyIndex) {

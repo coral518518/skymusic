@@ -110,15 +110,19 @@ class KeyLayoutManager private constructor(private val context: Context) {
     }
 
     private fun loadConfig(): KeyLayoutConfig {
+        val configVersion = prefs.getInt("key_config_version", 0)
         val json = prefs.getString(KEY_CONFIG, null)
-        return if (!json.isNullOrEmpty()) {
+        return if (!json.isNullOrEmpty() && configVersion >= 2) {
             try {
                 gson.fromJson(json, KeyLayoutConfig::class.java)
             } catch (e: Exception) {
                 KeyLayoutConfig()
             }
         } else {
-            KeyLayoutConfig()
+            // 首次使用或升级到校准优化版 v2：加载全新默认居中定位与缩放
+            val defaultCfg = KeyLayoutConfig()
+            prefs.edit().putInt("key_config_version", 2).apply()
+            defaultCfg
         }
     }
 }

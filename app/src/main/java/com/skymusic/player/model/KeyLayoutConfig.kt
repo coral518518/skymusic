@@ -9,11 +9,11 @@ import android.graphics.PointF
 data class KeyLayoutConfig(
     var screenWidth: Int = 2400,
     var screenHeight: Int = 1080,
-    var centerXPercent: Float = 0.50f,   // 键盘中心 X 比例 (50% 屏幕宽度)
-    var centerYPercent: Float = 0.54f,   // 键盘中心 Y 比例 (54% 屏幕高度)
+    var centerXPercent: Float = 0.475f,   // 键盘中心 X 比例 (往左微调5下：0.50f -> 0.475f)
+    var centerYPercent: Float = 0.440f,   // 键盘中心 Y 比例 (往上微调20下：0.54f -> 0.440f)
     var spacingXPercent: Float = 0.082f, // 列间距比例 (约 8.2% 屏幕宽)
     var spacingYPercent: Float = 0.150f, // 行间距比例 (约 15% 屏幕高)
-    var scale: Float = 1.0f,             // 整体缩放系数
+    var scale: Float = 1.09f,            // 整体缩放系数 (放大3下：1.00f -> 1.09f)
     var keyRadiusDp: Float = 26f         // 光圈视觉半径 dp
 ) {
     /**
@@ -58,40 +58,40 @@ data class KeyLayoutConfig(
         when {
             // 超宽长屏 20:9 ~ 21:9 (如 2400x1080, 2460x1080)
             aspectRatio >= 2.1f -> {
-                centerXPercent = 0.50f
-                centerYPercent = 0.55f
+                centerXPercent = 0.475f
+                centerYPercent = 0.450f
                 spacingXPercent = 0.076f
                 spacingYPercent = 0.155f
             }
             // 主流全面屏 19:9 ~ 20:9 (如 2340x1080, 2400x1080)
             aspectRatio >= 1.9f -> {
-                centerXPercent = 0.50f
-                centerYPercent = 0.54f
+                centerXPercent = 0.475f
+                centerYPercent = 0.440f
                 spacingXPercent = 0.082f
                 spacingYPercent = 0.150f
             }
             // 传统 18:9 (2:1)
             aspectRatio >= 1.85f -> {
-                centerXPercent = 0.50f
-                centerYPercent = 0.54f
+                centerXPercent = 0.475f
+                centerYPercent = 0.440f
                 spacingXPercent = 0.086f
                 spacingYPercent = 0.152f
             }
             // 传统 16:9 (如 1920x1080, 1280x720)
             aspectRatio >= 1.7f -> {
-                centerXPercent = 0.50f
-                centerYPercent = 0.53f
+                centerXPercent = 0.475f
+                centerYPercent = 0.430f
                 spacingXPercent = 0.093f
                 spacingYPercent = 0.150f
             }
             // 平板 16:10 或 4:3 (如 2560x1600, 2048x1536)
             else -> {
-                centerXPercent = 0.50f
-                centerYPercent = 0.52f
+                centerXPercent = 0.475f
+                centerYPercent = 0.420f
                 spacingXPercent = 0.110f
                 spacingYPercent = 0.135f
             }
         }
-        scale = 1.0f
+        scale = 1.09f
     }
 }

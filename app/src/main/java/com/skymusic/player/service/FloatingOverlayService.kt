@@ -15,15 +15,18 @@ import android.view.*
 import android.widget.*
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.skymusic.player.MainActivity
 import com.skymusic.player.R
 import com.skymusic.player.SkyMusicApp
 import com.skymusic.player.engine.KeyLayoutManager
 import com.skymusic.player.engine.PlayEngine
 import com.skymusic.player.engine.PlayState
+import com.skymusic.player.engine.RootTouchController
 import com.skymusic.player.model.Song
 import com.skymusic.player.ui.KeyVisualizerView
 import com.skymusic.player.util.PresetSongs
+import kotlinx.coroutines.*
 
 class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
 
@@ -69,6 +72,11 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
     private var btnPlayPause: ImageButton? = null
     private var tvSpeedVal: TextView? = null
     private var tvPitchVal: TextView? = null
+    private var btnDelayRange: Button? = null
+    private var btnTouchMode: Button? = null
+
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val delayOptions = intArrayOf(0, 5, 10, 20, 30)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -78,6 +86,10 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         layoutManager = KeyLayoutManager.getInstance(this)
         playEngine.listener = this
+
+        // 读取防检测延迟设置
+        val sp = getSharedPreferences("skymusic_settings", Context.MODE_PRIVATE)
+        playEngine.randomDelayRangeMs = sp.getInt("pref_random_delay_ms", 10)
 
         // 使用 AppCompat 主题包装器，防止在 Service 中解析 MaterialComponents 控件时抛出异常
         themedContext = ContextThemeWrapper(this, R.style.Theme_SkyMusicPlayer)
@@ -310,6 +322,20 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         // 彻底关闭悬浮窗与后台服务
         panelView?.findViewById<View>(R.id.btnFloatHideAll)?.setOnClickListener {
             stopSelf()
+        }
+
+        // 随机延迟微抖动调节
+        btnDelayRange = panelView?.findViewById(R.id.btnFloatDelayRange)
+        updateDelayRangeButtonText()
+        btnDelayRange?.setOnClickListener {
+            cycleDelayRange()
+        }
+
+        // 触控模式切换 (无障碍 vs Root)
+        btnTouchMode = panelView?.findViewById(R.id.btnFloatTouchMode)
+        updateTouchModeButton()
+        btnTouchMode?.setOnClickListener {
+            toggleTouchMode()
         }
 
         // 拖动进度条
@@ -558,12 +584,70 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         }
     }
 
+    private fun updateDelayRangeButtonText() {
+        val delay = playEngine.randomDelayRangeMs
+        btnDelayRange?.text = if (delay == 0) "抖动: 关闭" else "抖动: ±${delay}ms"
+    }
+
+    private fun cycleDelayRange() {
+        val current = playEngine.randomDelayRangeMs
+        val currentIndex = delayOptions.indexOf(current)
+        val nextIndex = if (currentIndex == -1) 2 else (currentIndex + 1) % delayOptions.size
+        val nextDelay = delayOptions[nextIndex]
+        playEngine.randomDelayRangeMs = nextDelay
+
+        val sp = getSharedPreferences("skymusic_settings", Context.MODE_PRIVATE)
+        sp.edit().putInt("pref_random_delay_ms", nextDelay).apply()
+
+        updateDelayRangeButtonText()
+        val desc = if (nextDelay == 0) "已关闭随机延迟" else "按键间隔随机抖动: ±${nextDelay}ms"
+        Toast.makeText(this, desc, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun updateTouchModeButton() {
+        val isRoot = RootTouchController.isRootModeEnabled(this)
+        btnTouchMode?.text = if (isRoot) "模式: Root" else "模式: 无障碍"
+        btnTouchMode?.setTextColor(
+            ContextCompat.getColor(this, if (isRoot) R.color.sky_accent else R.color.sky_primary)
+        )
+    }
+
+    private fun toggleTouchMode() {
+        val currentlyRoot = RootTouchController.isRootModeEnabled(this)
+        if (currentlyRoot) {
+            RootTouchController.setRootModeEnabled(this, false)
+            updateTouchModeButton()
+            Toast.makeText(this, "已切回「无障碍模拟点击」模式", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "正在请求 Root 权限并建立底层通道...", Toast.LENGTH_SHORT).show()
+            serviceScope.launch {
+                val granted = RootTouchController.requestRootPermission()
+                if (granted) {
+                    RootTouchController.setRootModeEnabled(this@FloatingOverlayService, true)
+                    updateTouchModeButton()
+                    Toast.makeText(this@FloatingOverlayService, "Root 授权成功！已启用底层防检测触控", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(
+                        this@FloatingOverlayService,
+                        "未获取到 Root 权限，请在 KernelSU/APatch/Magisk 中允许授权",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+
     // ----------------------------------------------------------------
     // 4. PlayEngine.PlaybackListener 演奏事件响应
     // ----------------------------------------------------------------
     override fun onNoteTriggered(keys: List<Int>) {
-        // 调度系统无障碍服务进行真实模拟点击
-        SkyAccessibilityService.instance?.clickKeys(keys, layoutManager)
+        if (RootTouchController.isRootModeEnabled(this)) {
+            // Root 底层输入注入模式 (KernelSU / APatch / Magisk，完全绕过无障碍检测)
+            RootTouchController.clickKeys(keys, layoutManager)
+        } else {
+            // 调度系统无障碍服务进行真实模拟点击
+            SkyAccessibilityService.instance?.clickKeys(keys, layoutManager)
+        }
 
         // 在主线程刷新校准层高亮反馈 (仅在校准层处于打开状态时)
         mainHandler.post {
@@ -607,6 +691,7 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
     override fun onDestroy() {
         super.onDestroy()
         isRunning = false
+        serviceScope.cancel()
         playEngine.stop()
         playEngine.listener = null
 

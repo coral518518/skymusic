@@ -39,6 +39,8 @@ class PlayEngine {
 
     var transpose: Int = 0 // 键盘半音/移调偏移 (-7 到 +7)
 
+    var randomDelayRangeMs: Int = 10 // 两次按键点击之间的随机时间间隔抖动范围 (ms)，防机械式检测
+
     private var playbackJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
@@ -129,7 +131,12 @@ class PlayEngine {
                 // 计算当前需要等待的时长（根据倍速换算）
                 val songDelta = targetSongTime - currentSongPositionMs
                 if (songDelta > 0) {
-                    val realWaitMs = (songDelta / speed).toLong()
+                    val baseWaitMs = (songDelta / speed).toLong()
+                    // 随机微延迟防检测 (两次点击之间的间隔在 ±randomDelayRangeMs 内随机浮动)
+                    val jitter = if (randomDelayRangeMs > 0) {
+                        (-randomDelayRangeMs..randomDelayRangeMs).random()
+                    } else 0
+                    val realWaitMs = (baseWaitMs + jitter).coerceAtLeast(3L)
                     if (realWaitMs > 0) {
                         delay(realWaitMs)
                     }
