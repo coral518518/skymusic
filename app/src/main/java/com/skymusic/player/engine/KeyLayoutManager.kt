@@ -39,17 +39,35 @@ class KeyLayoutManager private constructor(private val context: Context) {
      * 检测屏幕真实尺寸（统一转换为横屏高宽）
      */
     fun detectAndInitScreen() {
-        val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        val metrics = DisplayMetrics()
-        @Suppress("DEPRECATION")
-        wm.defaultDisplay.getRealMetrics(metrics)
+        try {
+            val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+            var landscapeW = 2400
+            var landscapeH = 1080
 
-        val landscapeW = maxOf(metrics.widthPixels, metrics.heightPixels)
-        val landscapeH = minOf(metrics.widthPixels, metrics.heightPixels)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && wm != null) {
+                val bounds = wm.currentWindowMetrics.bounds
+                landscapeW = maxOf(bounds.width(), bounds.height())
+                landscapeH = minOf(bounds.width(), bounds.height())
+            } else if (wm != null) {
+                val metrics = DisplayMetrics()
+                @Suppress("DEPRECATION")
+                wm.defaultDisplay.getRealMetrics(metrics)
+                landscapeW = maxOf(metrics.widthPixels, metrics.heightPixels)
+                landscapeH = minOf(metrics.widthPixels, metrics.heightPixels)
+            } else {
+                val dm = context.resources.displayMetrics
+                landscapeW = maxOf(dm.widthPixels, dm.heightPixels)
+                landscapeH = minOf(dm.widthPixels, dm.heightPixels)
+            }
 
-        if (config.screenWidth != landscapeW || config.screenHeight != landscapeH) {
-            config.autoFit(landscapeW, landscapeH)
-            saveConfig()
+            if (landscapeW > 0 && landscapeH > 0) {
+                if (config.screenWidth != landscapeW || config.screenHeight != landscapeH) {
+                    config.autoFit(landscapeW, landscapeH)
+                    saveConfig()
+                }
+            }
+        } catch (e: Throwable) {
+            e.printStackTrace()
         }
     }
 

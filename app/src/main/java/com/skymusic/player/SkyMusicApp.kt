@@ -16,7 +16,11 @@ class SkyMusicApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
-        createNotificationChannel()
+        try {
+            createNotificationChannel()
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
     }
 
     private fun createNotificationChannel() {

@@ -1,6 +1,7 @@
 package com.skymusic.player.service
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.GestureDescription
 import android.content.Context
 import android.graphics.Path
@@ -8,6 +9,7 @@ import android.provider.Settings
 import android.text.TextUtils
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityManager
 import com.skymusic.player.engine.KeyLayoutManager
 
 class SkyAccessibilityService : AccessibilityService() {
@@ -26,21 +28,42 @@ class SkyAccessibilityService : AccessibilityService() {
          * 检查系统无障碍服务是否已对本应用开启
          */
         fun isServiceEnabled(context: Context): Boolean {
-            val expectedServiceName = "${context.packageName}/${SkyAccessibilityService::class.java.canonicalName}"
-            val enabledServicesSetting = Settings.Secure.getString(
-                context.contentResolver,
-                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-            ) ?: return false
+            if (instance != null) return true
 
-            val colonSplitter = TextUtils.SimpleStringSplitter(':')
-            colonSplitter.setString(enabledServicesSetting)
-
-            while (colonSplitter.hasNext()) {
-                val componentName = colonSplitter.next()
-                if (componentName.equals(expectedServiceName, ignoreCase = true)) {
-                    return true
+            try {
+                val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
+                val enabledList = am?.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+                if (enabledList != null) {
+                    for (info in enabledList) {
+                        if (info.resolveInfo?.serviceInfo?.packageName == context.packageName) {
+                            return true
+                        }
+                    }
                 }
+            } catch (e: Throwable) {
+                e.printStackTrace()
             }
+
+            try {
+                val enabledServicesSetting = Settings.Secure.getString(
+                    context.contentResolver,
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                ) ?: return false
+
+                val colonSplitter = TextUtils.SimpleStringSplitter(':')
+                colonSplitter.setString(enabledServicesSetting)
+
+                while (colonSplitter.hasNext()) {
+                    val componentName = colonSplitter.next()
+                    if (componentName.contains(context.packageName, ignoreCase = true) &&
+                        componentName.contains("SkyAccessibilityService", ignoreCase = true)) {
+                        return true
+                    }
+                }
+            } catch (e: Throwable) {
+                e.printStackTrace()
+            }
+
             return false
         }
     }
@@ -48,11 +71,24 @@ class SkyAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        try {
+            val info = serviceInfo ?: AccessibilityServiceInfo()
+            info.apply {
+                eventTypes = AccessibilityEvent.TYPE_ALL_MASK
+                feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
+                flags = flags or AccessibilityServiceInfo.FLAG_DEFAULT or
+                        AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
+                notificationTimeout = 50
+            }
+            serviceInfo = info
+        } catch (e: Throwable) {
+            Log.e(TAG, "配置 serviceInfo 异常", e)
+        }
         Log.i(TAG, "光遇无障碍自动弹琴服务已连接绑定")
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // 纯模拟手势触控，无需处理界面内容事件
+        // 纯模拟手势触控，无需额外拦截或读取界面内容事件
     }
 
     override fun onInterrupt() {
