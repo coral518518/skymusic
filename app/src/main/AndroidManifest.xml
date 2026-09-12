@@ -6,6 +6,7 @@
 
     <!-- 前台服务权限：确保在游戏运行期间，后台乐谱调度与悬浮窗不被系统回收 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <!-- 存储权限：用于从手机内部存储导入 MIDI、JSON 乐谱文件 -->
@@ -55,7 +56,11 @@
             android:name=".service.FloatingOverlayService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Floating game overlay and music assistant for Sky: Children of the Light" />
+        </service>
 
     </application>
 

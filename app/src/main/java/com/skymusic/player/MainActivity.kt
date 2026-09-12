@@ -181,7 +181,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun toggleFloatingService() {
+    private fun toggleFloatingService(songToLoad: Song? = null) {
         if (!PermissionHelper.hasFloatingPermission(this)) {
             Toast.makeText(this, "请先授予「游戏悬浮窗」权限", Toast.LENGTH_SHORT).show()
             PermissionHelper.requestFloatingPermission(this)
@@ -201,17 +201,32 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "悬浮窗已关闭", Toast.LENGTH_SHORT).show()
         } else {
             serviceIntent.action = FloatingOverlayService.ACTION_START
-            selectedSong?.let { serviceIntent.putExtra(FloatingOverlayService.EXTRA_SONG_ID, it.id) }
-            ContextCompat.startForegroundService(this, serviceIntent)
-            Toast.makeText(this, "悬浮窗已启动！可打开《光遇》游戏弹琴", Toast.LENGTH_LONG).show()
+            val song = songToLoad ?: selectedSong
+            song?.let { serviceIntent.putExtra(FloatingOverlayService.EXTRA_SONG_ID, it.id) }
+
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(serviceIntent)
+                } else {
+                    startService(serviceIntent)
+                }
+                Toast.makeText(this, "悬浮窗已启动！可在屏幕侧边找到金色悬浮小球", Toast.LENGTH_LONG).show()
+            } catch (e: Throwable) {
+                try {
+                    startService(serviceIntent)
+                    Toast.makeText(this, "悬浮窗已启动！可在屏幕侧边找到金色悬浮小球", Toast.LENGTH_LONG).show()
+                } catch (e2: Throwable) {
+                    Toast.makeText(this, "启动悬浮窗失败: ${e2.message}", Toast.LENGTH_LONG).show()
+                }
+            }
         }
 
-        updateFloatingServiceButton()
+        binding.root.postDelayed({ updateFloatingServiceButton() }, 300)
     }
 
     private fun startOrUpdateFloatingWithSong(song: Song) {
         if (!FloatingOverlayService.isRunning) {
-            toggleFloatingService()
+            toggleFloatingService(song)
         } else {
             FloatingOverlayService.playEngine.loadSong(song)
             FloatingOverlayService.playEngine.play()

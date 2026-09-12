@@ -9,8 +9,9 @@
     android:padding="14dp"
     android:elevation="16dp">
 
-    <!-- 顶部标题栏与收起按钮 -->
+    <!-- 顶部标题栏与收起按钮 (可拖动移动面板) -->
     <LinearLayout
+        android:id="@+id/llFloatHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"

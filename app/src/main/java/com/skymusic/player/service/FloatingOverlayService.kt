@@ -5,11 +5,13 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import android.view.*
 import android.widget.*
 import androidx.core.app.NotificationCompat
@@ -26,6 +28,7 @@ import com.skymusic.player.util.PresetSongs
 class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
 
     companion object {
+        private const val TAG = "FloatingOverlayService"
         const val ACTION_START = "action_start_floating"
         const val ACTION_STOP = "action_stop_floating"
         const val EXTRA_SONG_ID = "extra_song_id"
@@ -39,19 +42,24 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
 
     private lateinit var windowManager: WindowManager
     private lateinit var layoutManager: KeyLayoutManager
+    private lateinit var themedContext: Context
+    private lateinit var themedInflater: LayoutInflater
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    // 悬浮小球视图
+    // 悬浮小球视图与参数
     private var ballView: View? = null
     private var ballParams: WindowManager.LayoutParams? = null
+    private var isBallAdded = false
 
-    // 播放器面板视图
+    // 播放器面板视图与参数
     private var panelView: View? = null
     private var panelParams: WindowManager.LayoutParams? = null
+    private var isPanelAdded = false
 
-    // 校准全屏浮层视图
+    // 校准全屏浮层视图与参数
     private var calibrateView: View? = null
     private var calibrateParams: WindowManager.LayoutParams? = null
+    private var isCalibrateAdded = false
 
     // 悬浮窗控件引用
     private var tvSongTitle: TextView? = null
@@ -71,17 +79,25 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         layoutManager = KeyLayoutManager.getInstance(this)
         playEngine.listener = this
 
-        startForeground(1001, createNotification())
+        // 使用应用主题包装器，防止 Service 充气 MaterialComponents 控件时崩溃
+        themedContext = ContextThemeWrapper(this, R.style.Theme_SkyMusicPlayer)
+        themedInflater = LayoutInflater.from(themedContext)
 
+        // Android 14/15 前台服务兼容处理 (SpecialUse)
+        safeStartForeground()
+
+        // 仅添加金色悬浮小球，面板与校准层按需动态挂载，杜绝隐形全屏遮挡与权限异常
         initFloatingBall()
-        initControlPanel()
-        initCalibrateOverlay()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             stopSelf()
             return START_NOT_STICKY
+        }
+
+        if (currentSongList.isEmpty()) {
+            currentSongList.addAll(PresetSongs.getPresetList())
         }
 
         val songId = intent?.getStringExtra(EXTRA_SONG_ID)
@@ -100,6 +116,26 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         return START_STICKY
     }
 
+    private fun safeStartForeground() {
+        try {
+            val notification = createNotification()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                // API 34+ Android 14/15 需指定 specialUse 类型
+                startForeground(
+                    1001,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(1001, notification, 0)
+            } else {
+                startForeground(1001, notification)
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "safeStartForeground error: ${e.message}", e)
+        }
+    }
+
     private fun createNotification(): Notification {
         val pendingIntent = PendingIntent.getActivity(
             this,
@@ -109,18 +145,22 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         )
 
         return NotificationCompat.Builder(this, SkyMusicApp.CHANNEL_ID)
-            .setContentTitle("光遇自动弹琴助手运行中")
-            .setContentText("悬浮窗已就绪，点击返回控制台")
+            .setContentTitle("光遇自动弹琴助手已就绪")
+            .setContentText("悬浮小球已显示在屏幕上，点击可打开游戏控制台")
             .setSmallIcon(R.drawable.ic_music_note)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }
 
     // ----------------------------------------------------------------
-    // 1. 极简悬浮小球
+    // 1. 极简高亮金色悬浮小球 (支持拖拽与点击展开)
     // ----------------------------------------------------------------
     private fun initFloatingBall() {
+        val density = resources.displayMetrics.density
+        val ballSizePx = (56 * density).toInt()
+
         val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         } else {
@@ -129,18 +169,18 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         }
 
         ballParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            ballSizePx,
+            ballSizePx,
             layoutType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 40
-            y = 300
+            x = (20 * density).toInt()
+            y = (220 * density).toInt()
         }
 
-        ballView = LayoutInflater.from(this).inflate(R.layout.layout_floating_ball, null)
+        ballView = themedInflater.inflate(R.layout.layout_floating_ball, null)
 
         var initialX = 0
         var initialY = 0
@@ -151,8 +191,8 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         ballView?.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    initialX = ballParams!!.x
-                    initialY = ballParams!!.y
+                    initialX = ballParams?.x ?: 0
+                    initialY = ballParams?.y ?: 0
                     initialTouchX = event.rawX
                     initialTouchY = event.rawY
                     isMoved = false
@@ -163,15 +203,19 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
                     val dy = (event.rawY - initialTouchY).toInt()
                     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
                         isMoved = true
-                        ballParams!!.x = initialX + dx
-                        ballParams!!.y = initialY + dy
-                        windowManager.updateViewLayout(ballView, ballParams)
+                        ballParams?.x = initialX + dx
+                        ballParams?.y = initialY + dy
+                        if (isBallAdded && ballView != null && ballParams != null) {
+                            try {
+                                windowManager.updateViewLayout(ballView, ballParams)
+                            } catch (_: Throwable) {}
+                        }
                     }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
                     if (!isMoved) {
-                        // 单击展开控制面板
+                        // 单击小球，展开控制面板
                         showControlPanel()
                     }
                     true
@@ -180,13 +224,24 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
             }
         }
 
-        windowManager.addView(ballView, ballParams)
+        try {
+            windowManager.addView(ballView, ballParams)
+            isBallAdded = true
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed to add ballView to windowManager", e)
+            Toast.makeText(
+                this,
+                "悬浮球显示受阻：请在系统设置中为本应用开启「显示悬浮窗」与「后台弹出界面」权限",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     // ----------------------------------------------------------------
-    // 2. 展开式播放控制面板
+    // 2. 展开式播放控制面板 (按需挂载，支持拖拽与完整控制)
     // ----------------------------------------------------------------
     private fun initControlPanel() {
+        val density = resources.displayMetrics.density
         val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         } else {
@@ -194,8 +249,9 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
             WindowManager.LayoutParams.TYPE_PHONE
         }
 
+        val panelWidthPx = (330 * density).toInt()
         panelParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            panelWidthPx,
             WindowManager.LayoutParams.WRAP_CONTENT,
             layoutType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
@@ -204,7 +260,7 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
             gravity = Gravity.CENTER
         }
 
-        panelView = LayoutInflater.from(this).inflate(R.layout.layout_floating_control, null)
+        panelView = themedInflater.inflate(R.layout.layout_floating_control, null)
 
         tvSongTitle = panelView?.findViewById(R.id.tvFloatSongTitle)
         sbProgress = panelView?.findViewById(R.id.sbFloatProgress)
@@ -213,6 +269,9 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         btnPlayPause = panelView?.findViewById(R.id.btnFloatPlayPause)
         tvSpeedVal = panelView?.findViewById(R.id.tvFloatSpeedVal)
         tvPitchVal = panelView?.findViewById(R.id.tvFloatPitchVal)
+
+        // 绑定标题栏拖拽面板
+        setupPanelDrag()
 
         // 收起面板
         panelView?.findViewById<View>(R.id.btnFloatMinimize)?.setOnClickListener {
@@ -259,7 +318,7 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
             showSongPickerMenu()
         }
 
-        // 隐藏整个悬浮球
+        // 彻底关闭悬浮窗与后台服务
         panelView?.findViewById<View>(R.id.btnFloatHideAll)?.setOnClickListener {
             stopSelf()
         }
@@ -277,19 +336,80 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        // 默认面板先处于收起状态
-        panelView?.visibility = View.GONE
-        windowManager.addView(panelView, panelParams)
+        // 若已有加载的歌曲，回显当前信息
+        playEngine.currentSong?.let { updatePanelSongInfo(it) }
+    }
+
+    private fun setupPanelDrag() {
+        val header = panelView?.findViewById<View>(R.id.llFloatHeader) ?: return
+        var startX = 0
+        var startY = 0
+        var touchDownX = 0f
+        var touchDownY = 0f
+
+        header.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    startX = panelParams?.x ?: 0
+                    startY = panelParams?.y ?: 0
+                    touchDownX = event.rawX
+                    touchDownY = event.rawY
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = (event.rawX - touchDownX).toInt()
+                    val dy = (event.rawY - touchDownY).toInt()
+                    panelParams?.x = startX + dx
+                    panelParams?.y = startY + dy
+                    if (isPanelAdded && panelView != null && panelParams != null) {
+                        try {
+                            windowManager.updateViewLayout(panelView, panelParams)
+                        } catch (_: Throwable) {}
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
     }
 
     private fun showControlPanel() {
-        panelView?.visibility = View.VISIBLE
-        ballView?.visibility = View.GONE
+        if (panelView == null) {
+            initControlPanel()
+        }
+        if (!isPanelAdded && panelView != null && panelParams != null) {
+            try {
+                windowManager.addView(panelView, panelParams)
+                isPanelAdded = true
+                // 打开面板时隐藏小球，避免遮挡
+                if (isBallAdded && ballView != null) {
+                    windowManager.removeView(ballView)
+                    isBallAdded = false
+                }
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to show control panel", e)
+            }
+        }
     }
 
     private fun hideControlPanel() {
-        panelView?.visibility = View.GONE
-        ballView?.visibility = View.VISIBLE
+        if (isPanelAdded && panelView != null) {
+            try {
+                windowManager.removeView(panelView)
+                isPanelAdded = false
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to hide control panel", e)
+            }
+        }
+        // 恢复金色小球
+        if (!isBallAdded && ballView != null && ballParams != null) {
+            try {
+                windowManager.addView(ballView, ballParams)
+                isBallAdded = true
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to restore ballView", e)
+            }
+        }
     }
 
     private fun togglePlayPause() {
@@ -332,10 +452,11 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
 
     private fun showSongPickerMenu() {
         if (currentSongList.isEmpty()) {
-            Toast.makeText(this, "曲库暂无乐谱，请先在应用内导入", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "曲库暂无乐谱，请先在主界面导入", Toast.LENGTH_SHORT).show()
             return
         }
-        val popup = PopupMenu(ContextThemeWrapper(this, R.style.Theme_SkyMusicPlayer), panelView?.findViewById(R.id.btnFloatSelectSong)!!)
+        val anchor = panelView?.findViewById<View>(R.id.btnFloatSelectSong) ?: return
+        val popup = PopupMenu(themedContext, anchor)
         currentSongList.forEachIndexed { index, song ->
             popup.menu.add(0, index, index, "${index + 1}. ${song.title}")
         }
@@ -351,7 +472,7 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
     }
 
     // ----------------------------------------------------------------
-    // 3. 屏幕按键对齐校准全屏浮层
+    // 3. 屏幕按键对齐校准全屏浮层 (按需挂载，保存后即移除)
     // ----------------------------------------------------------------
     private fun initCalibrateOverlay() {
         val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -369,7 +490,7 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
             PixelFormat.TRANSLUCENT
         )
 
-        calibrateView = LayoutInflater.from(this).inflate(R.layout.layout_floating_calibrate, null)
+        calibrateView = themedInflater.inflate(R.layout.layout_floating_calibrate, null)
         val visualizer = calibrateView?.findViewById<KeyVisualizerView>(R.id.keyVisualizerView)
 
         // 上下左右微调
@@ -404,7 +525,7 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         calibrateView?.findViewById<View>(R.id.btnCalibrateAutoFit)?.setOnClickListener {
             layoutManager.autoFitCurrentScreen()
             visualizer?.refreshLayout()
-            Toast.makeText(this, "已自适应当前横屏分辨率", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "已自适应当前屏幕分辨率", Toast.LENGTH_SHORT).show()
         }
 
         // 重置
@@ -420,31 +541,45 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
             showControlPanel()
             Toast.makeText(this, "按键校准位置已保存", Toast.LENGTH_SHORT).show()
         }
-
-        calibrateView?.visibility = View.GONE
-        windowManager.addView(calibrateView, calibrateParams)
     }
 
     private fun showCalibrateOverlay() {
-        calibrateView?.visibility = View.VISIBLE
-        calibrateView?.findViewById<KeyVisualizerView>(R.id.keyVisualizerView)?.refreshLayout()
+        if (calibrateView == null) {
+            initCalibrateOverlay()
+        }
+        if (!isCalibrateAdded && calibrateView != null && calibrateParams != null) {
+            try {
+                windowManager.addView(calibrateView, calibrateParams)
+                isCalibrateAdded = true
+                calibrateView?.findViewById<KeyVisualizerView>(R.id.keyVisualizerView)?.refreshLayout()
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to show calibrate overlay", e)
+            }
+        }
     }
 
     private fun hideCalibrateOverlay() {
-        calibrateView?.visibility = View.GONE
+        if (isCalibrateAdded && calibrateView != null) {
+            try {
+                windowManager.removeView(calibrateView)
+                isCalibrateAdded = false
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to hide calibrate overlay", e)
+            }
+        }
     }
 
     // ----------------------------------------------------------------
     // 4. PlayEngine.PlaybackListener 演奏事件响应
     // ----------------------------------------------------------------
     override fun onNoteTriggered(keys: List<Int>) {
-        // 调度系统无障碍服务进行真实点击模拟
+        // 调度系统无障碍服务进行真实模拟点击
         SkyAccessibilityService.instance?.clickKeys(keys, layoutManager)
 
-        // 在主线程刷新高亮视觉反馈
+        // 在主线程刷新校准层高亮反馈 (仅在校准层处于打开状态时)
         mainHandler.post {
-            val visualizer = calibrateView?.findViewById<KeyVisualizerView>(R.id.keyVisualizerView)
-            if (calibrateView?.visibility == View.VISIBLE) {
+            if (isCalibrateAdded && calibrateView != null) {
+                val visualizer = calibrateView?.findViewById<KeyVisualizerView>(R.id.keyVisualizerView)
                 visualizer?.setActiveKeys(keys)
                 mainHandler.postDelayed({ visualizer?.clearActiveKeys() }, 60)
             }
@@ -486,8 +621,17 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         playEngine.stop()
         playEngine.listener = null
 
-        ballView?.let { windowManager.removeView(it) }
-        panelView?.let { windowManager.removeView(it) }
-        calibrateView?.let { windowManager.removeView(it) }
+        if (isBallAdded && ballView != null) {
+            try { windowManager.removeView(ballView) } catch (_: Throwable) {}
+            isBallAdded = false
+        }
+        if (isPanelAdded && panelView != null) {
+            try { windowManager.removeView(panelView) } catch (_: Throwable) {}
+            isPanelAdded = false
+        }
+        if (isCalibrateAdded && calibrateView != null) {
+            try { windowManager.removeView(calibrateView) } catch (_: Throwable) {}
+            isCalibrateAdded = false
+        }
     }
 }

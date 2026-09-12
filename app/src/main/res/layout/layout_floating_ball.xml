@@ -2,17 +2,17 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/floatingBallRoot"
-    android:layout_width="52dp"
-    android:layout_height="52dp"
-    android:background="@drawable/bg_floating_ball"
-    android:elevation="12dp">
+    android:layout_width="56dp"
+    android:layout_height="56dp"
+    android:background="@drawable/bg_floating_ball">
 
     <ImageView
         android:id="@+id/ivFloatingIcon"
-        android:layout_width="28dp"
-        android:layout_height="28dp"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
         android:layout_gravity="center"
         android:src="@drawable/ic_music_note"
-        app:tint="#000000" />
+        android:tint="#1E293B"
+        app:tint="#1E293B" />
 
 </FrameLayout>
