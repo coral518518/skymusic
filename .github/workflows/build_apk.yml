@@ -7,6 +7,10 @@ on:
     branches: [ "**" ]
   workflow_dispatch:
 
+# 授予创建与更新 GitHub Releases 的写入权限
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Compile and Package APK
@@ -35,12 +39,40 @@ jobs:
         run: |
           echo "开始打包光遇自动弹琴 App..."
           gradle assembleDebug --stacktrace
-          ls -la app/build/outputs/apk/debug/
+          # 复制并重命名为友好的安装包名称
+          cp app/build/outputs/apk/debug/app-debug.apk ./SkyMusic-v1.0.apk
+          ls -la ./SkyMusic-v1.0.apk
 
-      - name: 6. 上传 APK 安装包至 GitHub 附件
+      - name: 6. 上传备份至 Actions Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: SkyMusic-v1.0-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: ./SkyMusic-v1.0.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: 7. 自动发布并上传至 GitHub Releases (免解压直接下载)
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: SkyMusic 琴灵 v1.0.${{ github.run_number }}
+          body: |
+            ## ✨ SkyMusic 光遇自动弹琴助手 APK 已发布！
+
+            ### 📱 安装包直链下载
+            在下方 **Assets** 列表中点击 **`SkyMusic-v1.0.apk`** 即可直接下载到手机安装（无需解压）。
+
+            ### 🌟 核心特性
+            - **免 ROOT / 免电脑激活**：开启系统无障碍服务即可自动精准弹琴。
+            - **多音和弦支持**：支持双音、三音等复杂和弦同时并发敲击。
+            - **15 键屏幕自适应与校准**：适配全面屏、16:9、平板等任意分辨率，游戏内半透明光圈直观校准。
+            - **乐谱零门槛导入**：支持海量流行歌曲 MIDI (.mid) 文件、Sky Studio JSON 乐谱、纯文本简谱。
+            - **游戏悬浮控制器**：实时进度、0.5x~2.5x 变速、移调与快捷切歌。
+            - **内置示范曲目**：《小星星》、《千与千寻·永远同在》、《天空之城》、《卡农》、《起风了》。
+
+            *由 GitHub Actions 云端全自动编译生成。*
+          files: |
+            ./SkyMusic-v1.0.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
