@@ -1,0 +1,659 @@
+:root {
+  --primary-gold: #FFD54F;
+  --primary-gold-hover: #FFE082;
+  --accent-cyan: #80D8FF;
+  --accent-blue: #40C4FF;
+  --bg-deep: #0D111A;
+  --bg-card: rgba(23, 30, 48, 0.75);
+  --bg-card-border: rgba(128, 216, 255, 0.2);
+  --text-main: #FFFFFF;
+  --text-muted: #9BB0D0;
+  --radius-lg: 16px;
+  --radius-md: 10px;
+  --font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-deep);
+  color: var(--text-main);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* 背景星空与晨光动画 */
+.sky-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(circle at 50% 15%, #1B2845 0%, #0A0D16 80%);
+  overflow: hidden;
+}
+
+.sky-background .stars {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(2px 2px at 40px 60px, #ffffff, rgba(0,0,0,0)),
+    radial-gradient(1.5px 1.5px at 120px 180px, #FFD54F, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 280px 100px, #80D8FF, rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 420px 240px, #ffffff, rgba(0,0,0,0)),
+    radial-gradient(2.5px 2.5px at 600px 80px, #FFE082, rgba(0,0,0,0)),
+    radial-gradient(1.5px 1.5px at 800px 300px, #ffffff, rgba(0,0,0,0)),
+    radial-gradient(2px 2px at 1050px 140px, #80D8FF, rgba(0,0,0,0));
+  background-repeat: repeat;
+  background-size: 1100px 500px;
+  opacity: 0.65;
+  animation: starTwinkle 6s ease-in-out infinite alternate;
+}
+
+@keyframes starTwinkle {
+  0% { opacity: 0.45; }
+  100% { opacity: 0.85; }
+}
+
+.app-container {
+  position: relative;
+  z-index: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* 顶部导航 */
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo-icon {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #FFE082, #FFA000);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 0 20px rgba(255, 213, 79, 0.4);
+}
+
+.logo-text h1 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: linear-gradient(90deg, #FFFFFF, #FFD54F);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.badge {
+  font-size: 11px;
+  color: var(--accent-cyan);
+  background: rgba(128, 216, 255, 0.12);
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid rgba(128, 216, 255, 0.25);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-import-header {
+  cursor: pointer;
+  background: linear-gradient(135deg, #FFD54F, #FFB300);
+  color: #121212;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 10px 18px;
+  border-radius: 22px;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 14px rgba(255, 179, 0, 0.35);
+  display: inline-block;
+}
+
+.btn-import-header:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(255, 179, 0, 0.5);
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 13px;
+  padding: 9px 16px;
+  border-radius: 22px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* 主展示工作台 */
+.main-stage {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 24px;
+  margin-top: 22px;
+  flex: 1;
+}
+
+@media (max-width: 1080px) {
+  .main-stage {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 模拟手机横屏容器 */
+.phone-screen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 20 / 9; /* 默认 20:9 比例 */
+  background: radial-gradient(ellipse at center, #1E283F 0%, #111524 100%);
+  border-radius: 24px;
+  border: 4px solid #303B56;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(128, 216, 255, 0.15);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: aspect-ratio 0.4s ease;
+}
+
+.game-view-bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background-image: radial-gradient(circle at 50% 60%, rgba(255, 213, 79, 0.15), transparent 70%);
+  pointer-events: none;
+}
+
+.sky-realm-badge {
+  position: absolute;
+  top: 14px;
+  left: 20px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 1px;
+}
+
+.ratio-indicator {
+  position: absolute;
+  bottom: 12px;
+  right: 18px;
+  font-size: 11px;
+  color: var(--accent-cyan);
+  background: rgba(13, 17, 26, 0.7);
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--bg-card-border);
+}
+
+/* 悬浮窗控制器组件 */
+.floating-controller {
+  position: absolute;
+  top: 14px;
+  left: 20px;
+  z-index: 10;
+  width: 290px;
+  background: rgba(18, 24, 40, 0.88);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(128, 216, 255, 0.35);
+  border-radius: 16px;
+  padding: 12px 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.floating-controller.minimized {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: linear-gradient(135deg, #FFD54F, #FFA000);
+  box-shadow: 0 0 18px rgba(255, 213, 79, 0.6);
+}
+
+.floating-controller.minimized * {
+  display: none;
+}
+
+.floating-controller.minimized::after {
+  content: "🎵";
+  font-size: 20px;
+  display: block;
+}
+
+.float-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.float-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary-gold);
+  box-shadow: 0 0 8px var(--primary-gold);
+}
+
+.float-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-mini-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+}
+
+.float-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.time-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  min-width: 32px;
+}
+
+.custom-slider {
+  flex: 1;
+  height: 4px;
+  accent-color: var(--primary-gold);
+  cursor: pointer;
+}
+
+.float-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.btn-control {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.btn-control:hover {
+  background: rgba(255, 255, 255, 0.18);
+  transform: scale(1.06);
+}
+
+.btn-control.btn-play {
+  background: linear-gradient(135deg, #FFD54F, #FFB300);
+  color: #000;
+  width: 44px;
+  height: 44px;
+  font-size: 16px;
+  font-weight: bold;
+  box-shadow: 0 0 16px rgba(255, 213, 79, 0.4);
+}
+
+.float-adjust-row {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 8px;
+  font-size: 11px;
+}
+
+.adjust-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-stepper {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.val-badge {
+  color: var(--primary-gold);
+  font-weight: 600;
+  min-width: 28px;
+  text-align: center;
+}
+
+/* 光遇 15 键钢琴按键矩阵 */
+.piano-board {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sky-key {
+  position: absolute;
+  width: 58px;
+  height: 58px;
+  transform: translate(-50%, -50%) rotate(45deg); /* 光遇经典菱形按键 */
+  background: rgba(255, 213, 79, 0.12);
+  border: 2px solid rgba(255, 213, 79, 0.6);
+  border-radius: 12px;
+  box-shadow: 0 0 14px rgba(255, 213, 79, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.08s ease, background-color 0.08s ease, box-shadow 0.08s ease;
+  user-select: none;
+}
+
+.sky-key:hover {
+  background: rgba(255, 213, 79, 0.25);
+  border-color: var(--primary-gold);
+}
+
+.sky-key-inner {
+  transform: rotate(-45deg); /* 把文字摆正 */
+  font-size: 13px;
+  font-weight: 700;
+  color: #FFF;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+}
+
+/* 按键被触发时的发光打击效果 */
+.sky-key.active {
+  background: rgba(128, 216, 255, 0.85);
+  border-color: #FFFFFF;
+  box-shadow: 0 0 30px rgba(128, 216, 255, 0.95), 0 0 10px #FFF;
+  transform: translate(-50%, -50%) rotate(45deg) scale(1.18);
+}
+
+.sky-key.active .sky-key-inner {
+  color: #00223D;
+  text-shadow: none;
+}
+
+/* 右侧边栏 */
+.control-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.card-glass {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--bg-card-border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.card-glass h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.card-glass .desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.preset-resolutions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.btn-chip {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-chip:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.btn-chip.active {
+  background: rgba(128, 216, 255, 0.2);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.calibration-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.slider-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.slider-item input {
+  width: 58%;
+  height: 4px;
+  accent-color: var(--accent-cyan);
+}
+
+.btn-outline-gold {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--primary-gold);
+  color: var(--primary-gold);
+  font-weight: 600;
+  font-size: 12px;
+  padding: 8px 0;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-outline-gold:hover {
+  background: rgba(255, 213, 79, 0.12);
+}
+
+/* 曲库列表 */
+.section-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.count-badge {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.song-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.song-item {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.song-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 213, 79, 0.3);
+}
+
+.song-item.selected {
+  background: rgba(255, 213, 79, 0.12);
+  border-color: var(--primary-gold);
+}
+
+.song-meta-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.song-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.song-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.song-tag {
+  font-size: 10px;
+  background: rgba(128, 216, 255, 0.15);
+  color: var(--accent-cyan);
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+/* Modal 弹窗 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.show {
+  display: flex;
+}
+
+.modal-dialog {
+  background: #192033;
+  border: 1px solid var(--bg-card-border);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 540px;
+  padding: 26px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+}
+
+.modal-dialog h2 {
+  font-size: 18px;
+  margin-bottom: 16px;
+  color: var(--primary-gold);
+}
+
+.modal-body {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+.modal-body h4 {
+  color: #fff;
+  margin: 12px 0 4px 0;
+}
+
+.modal-body code {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 5px;
+  border-radius: 4px;
+  color: var(--accent-cyan);
+}
+
+.btn-primary-gold {
+  width: 100%;
+  background: linear-gradient(135deg, #FFD54F, #FFA000);
+  border: none;
+  color: #000;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 10px 0;
+  border-radius: 22px;
+  cursor: pointer;
+}

@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/calibrateOverlayRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#26000000">
+
+    <!-- 15键光圈绘制层 -->
+    <com.skymusic.player.ui.KeyVisualizerView
+        android:id="@+id/keyVisualizerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- 顶部提示文字 -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/bg_floating_panel"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:elevation="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="按键校准模式：请调整光圈对准光遇游戏内的15个钢琴键"
+            android:textColor="@color/sky_primary"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- 底部校准调节工具条 -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:orientation="vertical"
+        android:background="@drawable/bg_floating_panel"
+        android:padding="12dp"
+        android:elevation="20dp">
+
+        <!-- 调节控制器：左右微调、上下微调、缩放 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <Button
+                android:id="@+id/btnCalibrateMoveLeft"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="40dp"
+                android:layout_height="36dp"
+                android:padding="0dp"
+                android:text="←"
+                android:textColor="@color/sky_text_primary"
+                app:strokeColor="@color/sky_card_dark_stroke" />
+
+            <Button
+                android:id="@+id/btnCalibrateMoveRight"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="40dp"
+                android:layout_height="36dp"
+                android:padding="0dp"
+                android:text="→"
+                android:textColor="@color/sky_text_primary"
+                app:strokeColor="@color/sky_card_dark_stroke"
+                android:layout_marginStart="4dp" />
+
+            <Button
+                android:id="@+id/btnCalibrateMoveUp"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="40dp"
+                android:layout_height="36dp"
+                android:padding="0dp"
+                android:text="↑"
+                android:textColor="@color/sky_text_primary"
+                app:strokeColor="@color/sky_card_dark_stroke"
+                android:layout_marginStart="8dp" />
+
+            <Button
+                android:id="@+id/btnCalibrateMoveDown"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="40dp"
+                android:layout_height="36dp"
+                android:padding="0dp"
+                android:text="↓"
+                android:textColor="@color/sky_text_primary"
+                app:strokeColor="@color/sky_card_dark_stroke"
+                android:layout_marginStart="4dp" />
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="24dp"
+                android:background="@color/sky_card_dark_stroke"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="缩放:"
+                android:textColor="@color/sky_text_secondary"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnCalibrateZoomOut"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:padding="0dp"
+                android:text="-"
+                android:textColor="@color/sky_text_primary"
+                app:strokeColor="@color/sky_card_dark_stroke"
+                android:layout_marginStart="4dp" />
+
+            <Button
+                android:id="@+id/btnCalibrateZoomIn"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:padding="0dp"
+                android:text="+"
+                android:textColor="@color/sky_text_primary"
+                app:strokeColor="@color/sky_card_dark_stroke"
+                android:layout_marginStart="4dp" />
+        </LinearLayout>
+
+        <!-- 底部快捷动作：自动适配、保存、完成退出 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <Button
+                android:id="@+id/btnCalibrateAutoFit"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="一键自动对齐"
+                android:textSize="12sp"
+                android:textColor="@color/sky_accent"
+                app:strokeColor="@color/sky_accent"
+                app:cornerRadius="18dp" />
+
+            <Button
+                android:id="@+id/btnCalibrateReset"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="重置"
+                android:textSize="12sp"
+                android:textColor="@color/sky_text_secondary"
+                android:layout_marginStart="8dp" />
+
+            <Button
+                android:id="@+id/btnCalibrateDone"
+                style="@style/Widget.MaterialComponents.Button.UnelevatedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="保存并完成"
+                android:textSize="12sp"
+                android:textColor="#000000"
+                android:backgroundTint="@color/sky_primary"
+                app:cornerRadius="18dp"
+                android:layout_marginStart="12dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+</FrameLayout>

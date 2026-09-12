@@ -1,0 +1,100 @@
+package com.skymusic.player.service
+
+import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
+import android.content.Context
+import android.graphics.Path
+import android.provider.Settings
+import android.text.TextUtils
+import android.util.Log
+import android.view.accessibility.AccessibilityEvent
+import com.skymusic.player.engine.KeyLayoutManager
+
+class SkyAccessibilityService : AccessibilityService() {
+
+    companion object {
+        private const val TAG = "SkyAccessibility"
+
+        @Volatile
+        var instance: SkyAccessibilityService? = null
+            private set
+
+        val isRunning: Boolean
+            get() = instance != null
+
+        /**
+         * 检查系统无障碍服务是否已对本应用开启
+         */
+        fun isServiceEnabled(context: Context): Boolean {
+            val expectedServiceName = "${context.packageName}/${SkyAccessibilityService::class.java.canonicalName}"
+            val enabledServicesSetting = Settings.Secure.getString(
+                context.contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            ) ?: return false
+
+            val colonSplitter = TextUtils.SimpleStringSplitter(':')
+            colonSplitter.setString(enabledServicesSetting)
+
+            while (colonSplitter.hasNext()) {
+                val componentName = colonSplitter.next()
+                if (componentName.equals(expectedServiceName, ignoreCase = true)) {
+                    return true
+                }
+            }
+            return false
+        }
+    }
+
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        instance = this
+        Log.i(TAG, "光遇无障碍自动弹琴服务已连接绑定")
+    }
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // 纯模拟手势触控，无需处理界面内容事件
+    }
+
+    override fun onInterrupt() {
+        Log.w(TAG, "无障碍服务被中断")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        instance = null
+        Log.i(TAG, "无障碍服务已销毁")
+    }
+
+    /**
+     * 并发点击一个或多个光遇按键（支持和弦）
+     * 采用 dispatchGesture 原生手势模拟，免 Root 免激活
+     */
+    fun clickKeys(keys: List<Int>, layoutManager: KeyLayoutManager) {
+        if (keys.isEmpty()) return
+
+        try {
+            val gestureBuilder = GestureDescription.Builder()
+            var validStrokes = 0
+
+            // 限制单次手势最多 10 个同时触控点（Android 系统上限）
+            for (keyIndex in keys.take(10)) {
+                val point = layoutManager.getKeyPosition(keyIndex)
+                if (point.x > 0 && point.y > 0) {
+                    val path = Path().apply {
+                        moveTo(point.x, point.y)
+                    }
+                    // 触控持续 35ms，既能确保游戏底层触控采样率识别，又极其迅速不粘滞
+                    val stroke = GestureDescription.StrokeDescription(path, 0L, 35L)
+                    gestureBuilder.addStroke(stroke)
+                    validStrokes++
+                }
+            }
+
+            if (validStrokes > 0) {
+                dispatchGesture(gestureBuilder.build(), null, null)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "dispatchGesture 点击执行异常: ${e.message}")
+        }
+    }
+}

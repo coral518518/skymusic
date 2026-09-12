@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 光遇风格主题配色：星空深蓝、光芒琥珀金、云层纯白与半透明磨砂质感 -->
+    <color name="sky_primary">#FFD54F</color>          <!-- 光之羽翼 琥珀亮金 -->
+    <color name="sky_primary_dark">#FFB300</color>     <!-- 深金 -->
+    <color name="sky_accent">#80D8FF</color>           <!-- 霞谷/禁阁 灵光青蓝 -->
+    
+    <color name="sky_bg_dark">#121624</color>          <!-- 遇境夜空基底 -->
+    <color name="sky_card_dark">#1C233A</color>        <!-- 卡片背景深蓝灰 -->
+    <color name="sky_card_dark_stroke">#2F3B60</color> <!-- 卡片描边 -->
+    
+    <color name="sky_text_primary">#FFFFFF</color>     <!-- 白色文字 -->
+    <color name="sky_text_secondary">#9EADC7</color>   <!-- 浅灰蓝次级文字 -->
+    <color name="sky_text_hint">#5E6D8A</color>        <!-- 提示文字 -->
+    
+    <color name="status_green">#00E676</color>         <!-- 正常/开启绿色 -->
+    <color name="status_orange">#FF9100</color>        <!-- 警告橙色 -->
+    <color name="status_red">#FF5252</color>           <!-- 错误红色 -->
+    
+    <!-- 悬浮窗按键与光圈颜色 -->
+    <color name="key_circle_glow">#66FFD54F</color>    <!-- 校准光圈半透明黄 -->
+    <color name="key_circle_stroke">#FFD54F</color>    <!-- 校准光圈外圈金 -->
+    <color name="key_pressed_glow">#AA80D8FF</color>   <!-- 点击触发时的高亮发光蓝 -->
+    
+    <color name="float_bg">#D9151A2E</color>           <!-- 悬浮窗毛玻璃深色背景 85% 透明度 -->
+    <color name="float_border">#5580D8FF</color>       <!-- 悬浮窗微光描边 -->
+</resources>

@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">SkyMusic 琴灵</string>
+    <string name="accessibility_service_description">SkyMusic 自动弹琴无障碍模拟点击服务。用于在《光遇》游戏弹琴时模拟手指触控琴键，无需 Root 与电脑激活。本服务绝不收集或上传任何个人隐私与屏幕信息。</string>
+    
+    <!-- 主界面文本 -->
+    <string name="title_dashboard">光遇自动弹琴助手</string>
+    <string name="subtitle_dashboard">导入乐谱 · 自适应分辨率 · 智能和弦演奏</string>
+    <string name="permission_header">服务权限状态</string>
+    <string name="permission_accessibility_title">无障碍点击服务</string>
+    <string name="permission_accessibility_desc">用于在游戏中自动触控 15 个钢琴按键</string>
+    <string name="permission_float_title">游戏悬浮窗权限</string>
+    <string name="permission_float_desc">用于在光遇游戏上层显示控制浮标与校准层</string>
+    <string name="btn_enable">去开启</string>
+    <string name="status_enabled">已开启</string>
+    <string name="status_disabled">未开启</string>
+    
+    <string name="start_floating_service">启动游戏悬浮窗</string>
+    <string name="stop_floating_service">关闭悬浮窗</string>
+    
+    <string name="tab_preset_songs">内置曲库</string>
+    <string name="tab_custom_songs">我的导入</string>
+    <string name="btn_import_file">导入乐谱 (MIDI / JSON / TXT)</string>
+    <string name="btn_calibrate">屏幕按键校准</string>
+    
+    <!-- 悬浮窗控制 -->
+    <string name="float_play">播放</string>
+    <string name="float_pause">暂停</string>
+    <string name="float_stop">停止</string>
+    <string name="float_speed">播放速度</string>
+    <string name="float_transpose">移调设置</string>
+    <string name="float_calibrate_mode">校准模式</string>
+    <string name="float_exit_calibrate">完成校准</string>
+    <string name="float_auto_align">自动适配当前屏幕</string>
+    <string name="float_reset">重置默认</string>
+    <string name="float_save_pos">保存按键位置</string>
+</resources>

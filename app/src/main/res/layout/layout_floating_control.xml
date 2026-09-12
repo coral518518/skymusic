@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/floatingControlRoot"
+    android:layout_width="320dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_floating_panel"
+    android:padding="14dp"
+    android:elevation="16dp">
+
+    <!-- 顶部标题栏与收起按钮 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="10dp">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_music_note"
+            app:tint="@color/sky_primary" />
+
+        <TextView
+            android:id="@+id/tvFloatSongTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="请选择曲目"
+            android:textColor="@color/sky_text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:layout_marginStart="8dp" />
+
+        <ImageButton
+            android:id="@+id/btnFloatCalibrate"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/ic_tune"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/sky_accent"
+            android:contentDescription="校准" />
+
+        <ImageButton
+            android:id="@+id/btnFloatMinimize"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/ic_stop"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/sky_text_secondary"
+            android:layout_marginStart="4dp"
+            android:contentDescription="收起" />
+    </LinearLayout>
+
+    <!-- 播放进度条 -->
+    <SeekBar
+        android:id="@+id/sbFloatProgress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="1000"
+        android:progress="0"
+        android:progressTint="@color/sky_primary"
+        android:thumbTint="@color/sky_primary" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:id="@+id/tvFloatCurrentTime"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="00:00"
+            android:textColor="@color/sky_text_hint"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/tvFloatTotalTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="00:00"
+            android:textColor="@color/sky_text_hint"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- 播放核心控制按钮 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="10dp">
+
+        <ImageButton
+            android:id="@+id/btnFloatPrev"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:src="@drawable/ic_play_arrow"
+            android:rotation="180"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/sky_text_secondary" />
+
+        <ImageButton
+            android:id="@+id/btnFloatPlayPause"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_play_arrow"
+            android:background="@drawable/bg_floating_ball"
+            app:tint="#000000"
+            android:layout_marginStart="14dp"
+            android:layout_marginEnd="14dp" />
+
+        <ImageButton
+            android:id="@+id/btnFloatNext"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:src="@drawable/ic_play_arrow"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/sky_text_secondary" />
+    </LinearLayout>
+
+    <!-- 速度与移调快捷调节 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="6dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="倍速:"
+            android:textColor="@color/sky_text_secondary"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/btnFloatSpeedSlow"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="34dp"
+            android:layout_height="32dp"
+            android:padding="0dp"
+            android:text="-"
+            android:textColor="@color/sky_text_primary"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/tvFloatSpeedVal"
+            android:layout_width="40dp"
+            android:layout_height="wrap_content"
+            android:text="1.0x"
+            android:gravity="center"
+            android:textColor="@color/sky_primary"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnFloatSpeedFast"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="34dp"
+            android:layout_height="32dp"
+            android:padding="0dp"
+            android:text="+"
+            android:textColor="@color/sky_text_primary"
+            android:textSize="16sp" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="16dp"
+            android:background="@color/sky_card_dark_stroke"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="6dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="移调:"
+            android:textColor="@color/sky_text_secondary"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/btnFloatPitchDown"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="34dp"
+            android:layout_height="32dp"
+            android:padding="0dp"
+            android:text="-"
+            android:textColor="@color/sky_text_primary"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/tvFloatPitchVal"
+            android:layout_width="34dp"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:gravity="center"
+            android:textColor="@color/sky_accent"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnFloatPitchUp"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="34dp"
+            android:layout_height="32dp"
+            android:padding="0dp"
+            android:text="+"
+            android:textColor="@color/sky_text_primary"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <!-- 底部功能切换栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <Button
+            android:id="@+id/btnFloatSelectSong"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:padding="0dp"
+            android:text="选歌"
+            android:textSize="12sp"
+            android:textColor="@color/sky_text_primary"
+            app:strokeColor="@color/sky_card_dark_stroke"
+            app:cornerRadius="16dp"
+            android:layout_marginEnd="6dp" />
+
+        <Button
+            android:id="@+id/btnFloatHideAll"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:padding="0dp"
+            android:text="隐藏悬浮球"
+            android:textSize="12sp"
+            android:textColor="@color/sky_text_secondary"
+            app:strokeColor="@color/sky_card_dark_stroke"
+            app:cornerRadius="16dp" />
+    </LinearLayout>
+
+</LinearLayout>
