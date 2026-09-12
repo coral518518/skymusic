@@ -90,8 +90,8 @@ class SkyAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * 并发点击一个或多个光遇按键（支持和弦）
-     * 采用 dispatchGesture 原生手势模拟，免 Root 免激活
+     * 并发模拟点击光遇按键（支持和弦）
+     * 具备防检测随机微偏移算法：在按键内圈中随机散布，打破固定坐标特征
      */
     fun clickKeys(keys: List<Int>, layoutManager: KeyLayoutManager) {
         if (keys.isEmpty()) return
@@ -100,15 +100,32 @@ class SkyAccessibilityService : AccessibilityService() {
             val gestureBuilder = GestureDescription.Builder()
             var validStrokes = 0
 
+            val density = resources.displayMetrics.density
+            val keyRadius = layoutManager.config.keyRadiusDp * density * layoutManager.config.scale
+            // 防检测随机散布半径：对应校准页面内的青蓝虚线内圈 (45%半径范围)
+            val jitterRadius = keyRadius * 0.45f
+
             // 限制单次手势最多 10 个同时触控点（Android 系统上限）
-            for (keyIndex in keys.take(10)) {
+            for ((index, keyIndex) in keys.take(10).withIndex()) {
                 val point = layoutManager.getKeyPosition(keyIndex)
                 if (point.x > 0 && point.y > 0) {
+                    // 极坐标均匀随机分布，模拟真人手指自然点击散布
+                    val angle = Math.random() * 2.0 * Math.PI
+                    val distance = Math.sqrt(Math.random()) * jitterRadius
+                    val targetX = (point.x + distance * Math.cos(angle)).toFloat()
+                    val targetY = (point.y + distance * Math.sin(angle)).toFloat()
+
                     val path = Path().apply {
-                        moveTo(point.x, point.y)
+                        moveTo(targetX, targetY)
                     }
-                    // 触控持续 35ms，既能确保游戏底层触控采样率识别，又极其迅速不粘滞
-                    val stroke = GestureDescription.StrokeDescription(path, 0L, 35L)
+
+                    // 触控持续时长微抖动 (28ms~42ms)，杜绝机械式恒定时长
+                    val duration = (28L..42L).random()
+
+                    // 和弦多键微落差 (多键时 0~5ms 微错开)，模拟真人手指触屏先后顺序
+                    val startLag = if (index == 0) 0L else (0L..5L).random()
+
+                    val stroke = GestureDescription.StrokeDescription(path, startLag, duration)
                     gestureBuilder.addStroke(stroke)
                     validStrokes++
                 }

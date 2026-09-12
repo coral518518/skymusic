@@ -238,7 +238,7 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
             WindowManager.LayoutParams.TYPE_PHONE
         }
 
-        val panelWidthPx = (330 * density).toInt()
+        val panelWidthPx = (260 * density).toInt()
         panelParams = WindowManager.LayoutParams(
             panelWidthPx,
             WindowManager.LayoutParams.WRAP_CONTENT,
