@@ -5,7 +5,7 @@ on:
     branches: [ "**" ]
   pull_request:
     branches: [ "**" ]
-  workflow_dispatch: # 允许在 GitHub 网页上手动点击按钮一键打包
+  workflow_dispatch:
 
 jobs:
   build:
@@ -16,16 +16,15 @@ jobs:
       - name: 1. 检出仓库代码
         uses: actions/checkout@v4
 
-      - name: 2. 配置 Java 17 开发环境
+      - name: 2. 配置 Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: 3. 配置 Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: 11076708 # 最新 stable 命令行工具
+      - name: 3. 接受 Android SDK 许可
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: 4. 配置 Gradle 8.6
         uses: gradle/actions/setup-gradle@v3

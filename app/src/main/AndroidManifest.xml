@@ -6,7 +6,7 @@
 
     <!-- 前台服务权限：确保在游戏运行期间，后台乐谱调度与悬浮窗不被系统回收 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <!-- 存储权限：用于从手机内部存储导入 MIDI、JSON 乐谱文件 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
@@ -18,9 +18,9 @@
     <application
         android:name=".SkyMusicApp"
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/ic_music_note"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@drawable/bg_floating_ball"
         android:supportsRtl="true"
         android:theme="@style/Theme.SkyMusicPlayer">
 
@@ -54,7 +54,7 @@
             android:name=".service.FloatingOverlayService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="specialUse" />
+            android:foregroundServiceType="mediaPlayback" />
 
     </application>
 
