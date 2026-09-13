@@ -124,7 +124,7 @@ object MidiParser {
     }
 
     fun snapGrid(value: Long, grid: Long): Long {
-        return (value.toDouble() / grid).roundToLong() * grid
+        return Math.rint(value.toDouble() / grid).toLong() * grid
     }
 
     fun pitchClassDistance(a: Int, b: Int): Int {
@@ -333,6 +333,62 @@ object MidiParser {
 
         val allNotes = tracks.flatten()
 
+        // 解析并统一节拍与速度映射
+        val tempoChanges = mutableListOf<TempoChange>()
+        if (rawTempoChanges.isEmpty()) {
+            tempoChanges.add(TempoChange(0L, 500_000L))
+        } else {
+            rawTempoChanges.sortBy { it.tick }
+            val byTick = mutableMapOf<Long, Long>()
+            for (tc in rawTempoChanges) {
+                byTick[tc.tick] = tc.usPerQuarter
+            }
+            for ((tick, us) in byTick.toSortedMap()) {
+                tempoChanges.add(TempoChange(tick, us))
+            }
+            if (tempoChanges.first().tick > 0L) {
+                tempoChanges.add(0, TempoChange(0L, tempoChanges.first().usPerQuarter))
+            }
+        }
+
+        val initialTempoUs = if (tempoChanges.first().tick == 0L && tempoChanges.first().usPerQuarter != 500_000L) {
+            tempoChanges.first().usPerQuarter
+        } else if (tempoChanges.size > 1) {
+            tempoChanges[1].usPerQuarter
+        } else {
+            tempoChanges.first().usPerQuarter
+        }
+        val bpm = (60_000_000.0 / initialTempoUs).roundToInt().coerceIn(30, 300)
+
+        // 智能直通识别：如果传入的 MIDI 所有音符都已经在光遇 15 键 (48..72 白键) 范围内，
+        // 说明这已经是经过 demo.py 转换完成的 15 键成品试听 MIDI (如 sky_preview_v7.mid)，直接直通载入，无需二次分析
+        val isAlreadySkyMidi = allNotes.isNotEmpty() && allNotes.all { it.pitch in SKY_KEYS_MIDI }
+        if (isAlreadySkyMidi) {
+            val timeMap = mutableMapOf<Long, MutableList<Int>>()
+            for (note in allNotes) {
+                val timeMs = tickToMillis(note.start, ppq, tempoChanges)
+                val key = SKY_KEYS_MIDI.indexOf(note.pitch)
+                if (key in 0..14) {
+                    timeMap.getOrPut(timeMs) { mutableListOf() }.add(key)
+                }
+            }
+            val noteEvents = mutableListOf<NoteEvent>()
+            for ((timeMs, rawKeys) in timeMap) {
+                noteEvents.add(NoteEvent(timeMs = timeMs, keys = rawKeys.distinct().sorted()))
+            }
+            noteEvents.sort()
+            val duration = if (noteEvents.isNotEmpty()) noteEvents.last().timeMs + 1000L else 0L
+            return Song(
+                id = UUID.randomUUID().toString(),
+                title = songTitle,
+                artist = "15键成品直通",
+                bpm = bpm,
+                notes = noteEvents,
+                durationMs = duration,
+                type = "MIDI"
+            )
+        }
+
         // 3. 旋律候选池筛选与分离伴奏轨
         val (melodyCandidates, accompaniment) = selectMelody(tracks, ppq)
         if (melodyCandidates.isEmpty()) {
@@ -396,23 +452,6 @@ object MidiParser {
         val finalEvents = mergeEvents(melodyEvents, bassEvents)
 
         // 12. 转换成 Android NoteEvent 时间戳事件集合
-        val tempoChanges = mutableListOf<TempoChange>()
-        if (rawTempoChanges.isEmpty()) {
-            tempoChanges.add(TempoChange(0L, 500_000L))
-        } else {
-            rawTempoChanges.sortBy { it.tick }
-            val byTick = mutableMapOf<Long, Long>()
-            for (tc in rawTempoChanges) {
-                byTick[tc.tick] = tc.usPerQuarter
-            }
-            for ((tick, us) in byTick.toSortedMap()) {
-                tempoChanges.add(TempoChange(tick, us))
-            }
-            if (tempoChanges.first().tick > 0L) {
-                tempoChanges.add(0, TempoChange(0L, 500_000L))
-            }
-        }
-
         val timeMap = mutableMapOf<Long, MutableList<Int>>()
 
         for (event in finalEvents) {
@@ -427,14 +466,6 @@ object MidiParser {
         }
         noteEvents.sort()
 
-        val initialTempoUs = if (tempoChanges.first().tick == 0L && tempoChanges.first().usPerQuarter != 500_000L) {
-            tempoChanges.first().usPerQuarter
-        } else if (tempoChanges.size > 1) {
-            tempoChanges[1].usPerQuarter
-        } else {
-            tempoChanges.first().usPerQuarter
-        }
-        val bpm = (60_000_000.0 / initialTempoUs).roundToInt().coerceIn(30, 300)
         val duration = if (noteEvents.isNotEmpty()) noteEvents.last().timeMs + 1000L else 0L
 
         return Song(

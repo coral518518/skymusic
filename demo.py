@@ -1964,7 +1964,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="MIDI -> 光遇 15 键 V7")
-    parser.add_argument("input", nargs="?", default="起风了.mid", help="输入 MIDI 文件")
+    parser.add_argument("input", nargs="?", default="半壶纱.mid", help="输入 MIDI 文件")
     parser.add_argument("--preview", default="sky_preview_v7.mid", help="试听 MIDI 输出")
     parser.add_argument("--sky", default="sky_sheet_v7.txt", help="15键谱输出")
     parser.add_argument("--simple", default="simple_sheet_v7.txt", help="数字简谱输出")
