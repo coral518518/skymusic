@@ -415,7 +415,7 @@ const ScoreParsers = {
     const ppq = division > 0 ? division : 480;
     offset += 6;
 
-    const rawNotes = [];
+    const tracksNotes = [];
     const tempoChanges = [{ tick: 0, usPerQuarter: 500000 }];
     let title = filename.replace(/\.[^/.]+$/, "");
 
@@ -428,6 +428,8 @@ const ScoreParsers = {
 
       let currentTick = 0;
       let runningStatus = 0;
+      const trackNotes = [];
+      const activeNotes = new Map();
 
       while (offset < endPos && offset < data.byteLength) {
         // Read VLQ
@@ -479,17 +481,64 @@ const ScoreParsers = {
             const pitch = data.getUint8(offset++);
             const vel = data.getUint8(offset++);
             // 过滤 Channel 9 (第10轨道打击乐/鼓点)
-            if (vel > 0 && channel !== 9) {
-              rawNotes.push({ tick: currentTick, pitch: pitch });
+            if (channel !== 9) {
+              const k = `${channel}_${pitch}`;
+              if (vel > 0) {
+                if (activeNotes.has(k)) {
+                  const prev = activeNotes.get(k);
+                  trackNotes.push({ pitch, startTick: prev.startTick, dur: Math.max(1, currentTick - prev.startTick), channel, track: t });
+                }
+                activeNotes.set(k, { startTick: currentTick, vel });
+              } else {
+                if (activeNotes.has(k)) {
+                  const prev = activeNotes.get(k);
+                  activeNotes.delete(k);
+                  trackNotes.push({ pitch, startTick: prev.startTick, dur: Math.max(1, currentTick - prev.startTick), channel, track: t });
+                }
+              }
             }
-          } else if (type === 0x80 || type === 0xA0 || type === 0xB0 || type === 0xE0) {
+          } else if (type === 0x80) { // Note off
+            const pitch = data.getUint8(offset++);
+            data.getUint8(offset++); // vel
+            if (channel !== 9) {
+              const k = `${channel}_${pitch}`;
+              if (activeNotes.has(k)) {
+                const prev = activeNotes.get(k);
+                activeNotes.delete(k);
+                trackNotes.push({ pitch, startTick: prev.startTick, dur: Math.max(1, currentTick - prev.startTick), channel, track: t });
+              }
+            }
+          } else if (type === 0xA0 || type === 0xB0 || type === 0xE0) {
             offset += 2;
           } else if (type === 0xC0 || type === 0xD0) {
             offset += 1;
           }
         }
       }
+
+      for (const [k, prev] of activeNotes.entries()) {
+        const pitch = parseInt(k.split("_")[1]);
+        const ch = parseInt(k.split("_")[0]);
+        trackNotes.push({ pitch, startTick: prev.startTick, dur: ppq, channel: ch, track: t });
+      }
+
+      if (trackNotes.length > 0) {
+        tracksNotes.push(trackNotes);
+      }
+
       offset = endPos;
+    }
+
+    if (tracksNotes.length === 0) {
+      return {
+        id: "midi_" + Date.now(),
+        title: title,
+        artist: "MIDI 自动转写",
+        bpm: 120,
+        notes: [],
+        durationMs: 0,
+        type: "MIDI"
+      };
     }
 
     // Tick to Millis
@@ -509,112 +558,146 @@ const ScoreParsers = {
       return Math.round(elapsedMs);
     }
 
-    // Sky 15-key pitch table (C4 to C6 diatonic)
-    const SKY_PITCHES = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 83, 84];
-    const DIATONIC = new Set([0, 2, 4, 5, 7, 9, 11]);
+    // 光遇 15 键对应的标准音高 (C3=48 ~ C5=72)
+    const SKY_KEYS = [48, 50, 52, 53, 55, 57, 59, 60, 62, 64, 65, 67, 69, 71, 72];
+    const NATURAL_NOTES = new Set([0, 2, 4, 5, 7, 9, 11]);
 
-    // Krumhansl-Schmuckler 调性检测矩阵
-    const MAJOR_PROF = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
-    const MINOR_PROF = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
-
-    const counts = new Array(12).fill(0);
-    rawNotes.forEach(n => { counts[((n.pitch % 12) + 12) % 12]++; });
-
-    function pearson(x, y) {
-      const n = 12;
-      let sx = 0, sy = 0;
-      for (let i = 0; i < n; i++) { sx += x[i]; sy += y[i]; }
-      const mx = sx / n, my = sy / n;
-      let num = 0, dx = 0, dy = 0;
-      for (let i = 0; i < n; i++) {
-        const vx = x[i] - mx, vy = y[i] - my;
-        num += vx * vy;
-        dx += vx * vx;
-        dy += vy * vy;
-      }
-      const den = Math.sqrt(dx * dy);
-      return den === 0 ? 0 : num / den;
-    }
-
-    let bestScore = -999;
+    // 1. 全局移调优化：遍历 -6 到 +6 半音，白键 +1，黑键 -3
+    const allFlatNotes = tracksNotes.flat();
     let bestShift = 0;
-    for (let tonic = 0; tonic < 12; tonic++) {
-      const rot = Array.from({ length: 12 }, (_, i) => counts[(tonic + i) % 12]);
-      const sMaj = pearson(rot, MAJOR_PROF);
-      const sMin = pearson(rot, MINOR_PROF);
-      if (sMaj > bestScore) {
-        bestScore = sMaj;
-        let s = (12 - tonic) % 12;
-        if (s > 6) s -= 12;
-        bestShift = s;
+    let maxScore = -Infinity;
+    for (let s = -6; s <= 6; s++) {
+      let sc = 0;
+      for (const n of allFlatNotes) {
+        const pc = ((n.pitch + s) % 12 + 12) % 12;
+        sc += NATURAL_NOTES.has(pc) ? 1 : -3;
       }
-      if (sMin > bestScore) {
-        bestScore = sMin;
-        let s = (9 - tonic) % 12;
-        if (s > 6) s -= 12;
+      if (sc > maxScore || (sc === maxScore && Math.abs(s) < Math.abs(bestShift))) {
+        maxScore = sc;
         bestShift = s;
       }
     }
 
-    // 备用白键匹配
-    const testHits = rawNotes.filter(n => DIATONIC.has(((n.pitch + bestShift) % 12 + 12) % 12)).length;
-    if (rawNotes.length > 0 && testHits / rawNotes.length < 0.70) {
-      let maxH = -1;
-      for (let s = -6; s <= 6; s++) {
-        const h = rawNotes.filter(n => DIATONIC.has(((n.pitch + s) % 12 + 12) % 12)).length;
-        if (h > maxH) { maxH = h; bestShift = s; }
+    // 2. 启发式主旋律识别与声部分流 (Melody vs Accompaniment)
+    function scoreTrackForMelody(notes) {
+      if (!notes || notes.length === 0) return -1;
+      const avgPitch = notes.reduce((sum, n) => sum + n.pitch, 0) / notes.length;
+      const timePoints = notes.map(n => n.startTick);
+      const overlapCount = timePoints.length - (new Set(timePoints)).size;
+      const polyphonyRate = overlapCount / notes.length;
+      const noteBonus = Math.min(notes.length, 400) * 0.02;
+      return (avgPitch * 0.6) - (polyphonyRate * 50) + noteBonus;
+    }
+
+    let melodyNotes = [];
+    let accompanimentNotes = [];
+
+    if (tracksNotes.length > 1) {
+      const scored = tracksNotes.map((trk, i) => ({ index: i, score: scoreTrackForMelody(trk) }))
+        .sort((a, b) => b.score - a.score);
+      const melIdx = scored[0].index;
+      for (let i = 0; i < tracksNotes.length; i++) {
+        if (i === melIdx) melodyNotes.push(...tracksNotes[i]);
+        else accompanimentNotes.push(...tracksNotes[i]);
+      }
+    } else {
+      const singleTrk = tracksNotes[0];
+      const chs = Array.from(new Set(singleTrk.map(n => n.channel)));
+      if (chs.length > 1) {
+        const chGroups = {};
+        singleTrk.forEach(n => {
+          if (!chGroups[n.channel]) chGroups[n.channel] = [];
+          chGroups[n.channel].push(n);
+        });
+        const scoredCh = Object.keys(chGroups).map(ch => ({
+          ch: Number(ch),
+          notes: chGroups[ch],
+          score: scoreTrackForMelody(chGroups[ch])
+        })).sort((a, b) => b.score - a.score);
+        melodyNotes.push(...scoredCh[0].notes);
+        for (let i = 1; i < scoredCh.length; i++) accompanimentNotes.push(...scoredCh[i].notes);
+      } else {
+        const byStart = new Map();
+        singleTrk.forEach(n => {
+          if (!byStart.has(n.startTick)) byStart.set(n.startTick, []);
+          byStart.get(n.startTick).push(n);
+        });
+        for (const [st, grp] of byStart.entries()) {
+          grp.sort((a, b) => b.pitch - a.pitch);
+          melodyNotes.push(grp[0]);
+          if (grp.length > 1) accompanimentNotes.push(...grp.slice(1));
+        }
       }
     }
 
-    // 计算最佳基准八度偏移 (-24, -12, 0, 12, 24)
-    const transposedPitches = rawNotes.map(n => n.pitch + bestShift);
-    let bestOct = 0;
-    let maxInRange = -1;
-    [-24, -12, 0, 12, 24].forEach(oct => {
-      const cnt = transposedPitches.filter(p => (p + oct) >= 60 && (p + oct) <= 84).length;
-      if (cnt > maxInRange) {
-        maxInRange = cnt;
-        bestOct = oct;
+    // 3. 将音高折叠并强制吸附到光遇 15 键 (0..14)
+    // 旋律区优先保留在 [57..72] (键位 5..14)；伴奏区保留在 [48..60] (键位 0..7)
+    function fitToSkyKey(pitch, isMelody) {
+      let p = pitch;
+      const pc = ((p % 12) + 12) % 12;
+      if (!NATURAL_NOTES.has(pc)) {
+        const downPc = ((pc - 1) % 12 + 12) % 12;
+        p = NATURAL_NOTES.has(downPc) ? p - 1 : p + 1;
       }
-    });
-
-    const timeMap = new Map();
-    rawNotes.forEach(n => {
-      const ms = tickToMs(n.tick);
-      let p = n.pitch + bestShift + bestOct;
-
-      // 智能八度循环折叠 (Octave Folding)
-      while (p < 60) p += 12;
-      while (p > 84) p -= 12;
-
-      // 映射到 15 键
+      if (isMelody) {
+        while (p < 57) p += 12;
+        while (p > 72) p -= 12;
+      } else {
+        while (p < 48) p += 12;
+        while (p > 60) p -= 12;
+      }
       let bestKey = 0;
-      let minDiff = 999;
-      for (let k = 0; k < SKY_PITCHES.length; k++) {
-        const diff = Math.abs(p - SKY_PITCHES[k]);
+      let minDiff = Infinity;
+      for (let i = 0; i < SKY_KEYS.length; i++) {
+        const diff = Math.abs(p - SKY_KEYS[i]);
         if (diff < minDiff) {
           minDiff = diff;
-          bestKey = k;
+          bestKey = i;
           if (diff === 0) break;
         }
       }
+      return bestKey;
+    }
 
-      // 30ms 时间窗聚合和弦
-      const qTime = Math.round(ms / 30) * 30;
+    // 4. 处理旋律音与抽稀伴奏音
+    const processedEvents = [];
+    for (const n of melodyNotes) {
+      const shifted = n.pitch + bestShift;
+      const key = fitToSkyKey(shifted, true);
+      const ms = tickToMs(n.startTick);
+      processedEvents.push({ startTick: n.startTick, timeMs: ms, keyIndex: key, isMelody: true });
+    }
+
+    // 伴奏强行抽稀（消除复杂优化，至少间隔半拍，同一时间戳只保留最低音根音）
+    accompanimentNotes.sort((a, b) => a.startTick - b.startTick || a.pitch - b.pitch);
+    const minIntervalTicks = Math.max(1, Math.floor(ppq / 2));
+    let lastAccTick = -999999;
+    for (const n of accompanimentNotes) {
+      if (n.startTick - lastAccTick >= minIntervalTicks) {
+        const shifted = n.pitch + bestShift;
+        const key = fitToSkyKey(shifted, false);
+        const ms = tickToMs(n.startTick);
+        processedEvents.push({ startTick: n.startTick, timeMs: ms, keyIndex: key, isMelody: false });
+        lastAccTick = n.startTick;
+      }
+    }
+
+    processedEvents.sort((a, b) => a.timeMs - b.timeMs);
+
+    // 5. 25ms 时间窗口微聚合和弦（限制最多 3 键并发，保留高音旋律与低音根音）
+    const timeMap = new Map();
+    for (const ev of processedEvents) {
+      const qTime = Math.round(ev.timeMs / 25) * 25;
       if (!timeMap.has(qTime)) timeMap.set(qTime, []);
       const arr = timeMap.get(qTime);
-      if (!arr.includes(bestKey)) arr.push(bestKey);
-    });
+      if (!arr.includes(ev.keyIndex)) arr.push(ev.keyIndex);
+    }
 
-    // 和弦声部精炼 (上限 4 键，保留旋律与低音)
     const notes = Array.from(timeMap.entries()).map(([t, rawKeys]) => {
       const sorted = Array.from(new Set(rawKeys)).sort((a, b) => a - b);
       let keys = sorted;
-      if (sorted.length > 4) {
-        keys = [sorted[0], sorted[sorted.length - 1]];
-        const mid = sorted.slice(1, sorted.length - 1);
-        if (mid.length === 1) keys.push(mid[0]);
-        else if (mid.length >= 2) { keys.push(mid[0]); keys.push(mid[mid.length - 1]); }
+      if (sorted.length > 3) {
+        keys = [sorted[0], sorted[Math.floor(sorted.length / 2)], sorted[sorted.length - 1]];
         keys = Array.from(new Set(keys)).sort((a, b) => a - b);
       }
       return { timeMs: t, keys: keys };

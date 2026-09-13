@@ -3,33 +3,26 @@ import glob
 import struct
 import math
 
-MAJOR_PROF = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88]
-MINOR_PROF = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17]
-SKY_PITCHES = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 83, 84]
+SKY_KEYS = [48, 50, 52, 53, 55, 57, 59, 60, 62, 64, 65, 67, 69, 71, 72]
+NATURAL_NOTES = {0, 2, 4, 5, 7, 9, 11}
 KEY_NAMES = ["1", "2", "3", "4", "5", "6", "7", "+1", "+2", "+3", "+4", "+5", "+6", "+7", "++1"]
 
-def pearson(x, y):
-    mean_x = sum(x) / 12.0
-    mean_y = sum(y) / 12.0
-    num = sum((x[i] - mean_x) * (y[i] - mean_y) for i in range(12))
-    den_x = sum((x[i] - mean_x)**2 for i in range(12))
-    den_y = sum((y[i] - mean_y)**2 for i in range(12))
-    den = (den_x * den_y) ** 0.5
-    return num / den if den != 0 else 0
-
 def parse_full_midi(filepath):
-    with open(filepath, 'rb') as f: data = f.read()
+    with open(filepath, 'rb') as f:
+        data = f.read()
     fmt, tracks, division = struct.unpack('>HHH', data[8:14])
     ppq = division if division > 0 else 480
     offset = 14
 
-    raw_notes = []
+    tracks_notes = []
     tempo_changes = [(0, 500000)]
     for t in range(tracks):
         if offset + 8 > len(data): break
         chunk_len = struct.unpack('>I', data[offset+4:offset+8])[0]; offset += 8
         track_bytes = data[offset:offset+chunk_len]; offset += chunk_len
         pos = 0; cur_tick = 0; running_status = 0
+        track_notes = []
+        active_notes = {}
         while pos < len(track_bytes):
             delta = 0
             while True:
@@ -65,10 +58,35 @@ def parse_full_midi(filepath):
                 msg = status & 0xF0; ch = status & 0x0F
                 if msg == 0x90:
                     note = track_bytes[pos]; vel = track_bytes[pos+1]; pos += 2
-                    if vel > 0 and ch != 9:
-                        raw_notes.append((cur_tick, note, vel))
-                elif msg in (0x80, 0xA0, 0xB0, 0xE0): pos += 2
+                    if ch != 9:
+                        k = (ch, note)
+                        if vel > 0:
+                            if k in active_notes:
+                                st = active_notes[k]
+                                track_notes.append({'pitch': note, 'startTick': st, 'dur': max(1, cur_tick - st), 'ch': ch, 'trk': t})
+                            active_notes[k] = cur_tick
+                        else:
+                            if k in active_notes:
+                                st = active_notes.pop(k)
+                                track_notes.append({'pitch': note, 'startTick': st, 'dur': max(1, cur_tick - st), 'ch': ch, 'trk': t})
+                elif msg == 0x80:
+                    note = track_bytes[pos]; pos += 2
+                    if ch != 9:
+                        k = (ch, note)
+                        if k in active_notes:
+                            st = active_notes.pop(k)
+                            track_notes.append({'pitch': note, 'startTick': st, 'dur': max(1, cur_tick - st), 'ch': ch, 'trk': t})
+                elif msg in (0xA0, 0xB0, 0xE0): pos += 2
                 elif msg in (0xC0, 0xD0): pos += 1
+
+        for (ch, note), st in active_notes.items():
+            track_notes.append({'pitch': note, 'startTick': st, 'dur': ppq, 'ch': ch, 'trk': t})
+
+        if track_notes:
+            tracks_notes.append(track_notes)
+
+    if not tracks_notes:
+        return 0, []
 
     tempo_changes.sort(key=lambda x: x[0])
     def tick_to_ms(tick):
@@ -80,66 +98,140 @@ def parse_full_midi(filepath):
         elapsed += (tick - cur_tick) * cur_us / (ppq * 1000.0)
         return int(round(elapsed))
 
-    # Krumhansl
-    counts = [0] * 12
-    for _, p, _ in raw_notes: counts[p % 12] += 1
-    best_score = -999; best_shift = 0
-    for tonic in range(12):
-        rot = [counts[(tonic + i) % 12] for i in range(12)]
-        sMaj = pearson(rot, MAJOR_PROF); sMin = pearson(rot, MINOR_PROF)
-        if sMaj > best_score:
-            best_score = sMaj; s = (12 - tonic) % 12
-            if s > 6: s -= 12
-            best_shift = s
-        if sMin > best_score:
-            best_score = sMin; s = (9 - tonic) % 12
-            if s > 6: s -= 12
+    all_flat = [n for trk in tracks_notes for n in trk]
+
+    # 1. 全局最佳移调优化
+    best_shift = 0
+    max_score = -float('inf')
+    for s in range(-6, 7):
+        sc = 0
+        for n in all_flat:
+            pc = ((n['pitch'] + s) % 12 + 12) % 12
+            sc += 1 if pc in NATURAL_NOTES else -3
+        if sc > max_score or (sc == max_score and abs(s) < abs(best_shift)):
+            max_score = sc
             best_shift = s
 
-    # Base octave
-    transposed = [p + best_shift for _, p, _ in raw_notes]
-    best_oct = 0; max_in = -1
-    for oct_s in [-24, -12, 0, 12, 24]:
-        cnt = sum(1 for p in transposed if 60 <= p + oct_s <= 84)
-        if cnt > max_in: max_in = cnt; best_oct = oct_s
+    # 2. 启发式主旋律识别
+    def score_track_for_melody(notes):
+        if not notes: return -1.0
+        avg_p = sum(n['pitch'] for n in notes) / len(notes)
+        time_points = [n['startTick'] for n in notes]
+        overlap_count = len(time_points) - len(set(time_points))
+        polyphony_rate = overlap_count / len(notes)
+        note_bonus = min(len(notes), 400) * 0.02
+        return (avg_p * 0.6) - (polyphony_rate * 50.0) + note_bonus
 
+    melody_notes = []
+    accompaniment_notes = []
+
+    if len(tracks_notes) > 1:
+        scored = [(i, score_track_for_melody(t)) for i, t in enumerate(tracks_notes)]
+        scored.sort(key=lambda x: x[1], reverse=True)
+        mel_idx = scored[0][0]
+        for i in range(len(tracks_notes)):
+            if i == mel_idx:
+                melody_notes.extend(tracks_notes[i])
+            else:
+                accompaniment_notes.extend(tracks_notes[i])
+    else:
+        single_trk = tracks_notes[0]
+        chs = list(set(n['ch'] for n in single_trk))
+        if len(chs) > 1:
+            ch_groups = {}
+            for n in single_trk:
+                ch_groups.setdefault(n['ch'], []).append(n)
+            scored_chs = [(ch, score_track_for_melody(notes)) for ch, notes in ch_groups.items()]
+            scored_chs.sort(key=lambda x: x[1], reverse=True)
+            mel_ch = scored_chs[0][0]
+            for ch, notes in ch_groups.items():
+                if ch == mel_ch:
+                    melody_notes.extend(notes)
+                else:
+                    accompaniment_notes.extend(notes)
+        else:
+            by_start = {}
+            for n in single_trk:
+                by_start.setdefault(n['startTick'], []).append(n)
+            for st, grp in by_start.items():
+                grp.sort(key=lambda x: x['pitch'], reverse=True)
+                melody_notes.append(grp[0])
+                if len(grp) > 1:
+                    accompaniment_notes.extend(grp[1:])
+
+    # 3. 折叠到光遇 15 键
+    def fit_to_sky_key(pitch, is_melody):
+        p = pitch
+        pc = ((p % 12) + 12) % 12
+        if pc not in NATURAL_NOTES:
+            down_pc = ((pc - 1) % 12 + 12) % 12
+            p = p - 1 if down_pc in NATURAL_NOTES else p + 1
+        if is_melody:
+            while p < 57: p += 12
+            while p > 72: p -= 12
+        else:
+            while p < 48: p += 12
+            while p > 60: p -= 12
+        best_key = 0
+        min_diff = 9999
+        for i, sk in enumerate(SKY_KEYS):
+            d = abs(p - sk)
+            if d < min_diff:
+                min_diff = d
+                best_key = i
+                if d == 0: break
+        return best_key
+
+    # 4. 处理旋律音与抽稀伴奏音
+    processed = []
+    for n in melody_notes:
+        shifted = n['pitch'] + best_shift
+        k = fit_to_sky_key(shifted, is_melody=True)
+        ms = tick_to_ms(n['startTick'])
+        processed.append((ms, k, True))
+
+    accompaniment_notes.sort(key=lambda x: (x['startTick'], x['pitch']))
+    min_interval_ticks = max(1, ppq // 2)
+    last_acc_tick = -999999
+    for n in accompaniment_notes:
+        if n['startTick'] - last_acc_tick >= min_interval_ticks:
+            shifted = n['pitch'] + best_shift
+            k = fit_to_sky_key(shifted, is_melody=False)
+            ms = tick_to_ms(n['startTick'])
+            processed.append((ms, k, False))
+            last_acc_tick = n['startTick']
+
+    processed.sort(key=lambda x: x[0])
+
+    # 5. 25ms 时间窗聚合
     time_map = {}
-    for tick, pitch, _ in raw_notes:
-        ms = tick_to_ms(tick)
-        p = pitch + best_shift + best_oct
-        while p < 60: p += 12
-        while p > 84: p -= 12
-        best_k = 0; min_d = 999
-        for i, target in enumerate(SKY_PITCHES):
-            d = abs(p - target)
-            if d < min_d: min_d = d; best_k = i;
-            if d == 0: break
-        q_time = int(round(ms / 30.0) * 30)
-        if q_time not in time_map: time_map[q_time] = []
-        if best_k not in time_map[q_time]: time_map[q_time].append(best_k)
+    for ms, k, is_mel in processed:
+        q_time = int(round(ms / 25.0) * 25)
+        time_map.setdefault(q_time, [])
+        if k not in time_map[q_time]:
+            time_map[q_time].append(k)
 
     notes = []
     for t in sorted(time_map.keys()):
         raw_k = sorted(list(set(time_map[t])))
-        if len(raw_k) > 4:
-            k = [raw_k[0], raw_k[-1]]
-            mid = raw_k[1:-1]
-            if len(mid) == 1: k.append(mid[0])
-            elif len(mid) >= 2: k.extend([mid[0], mid[-1]])
-            raw_k = sorted(list(set(k)))
+        if len(raw_k) > 3:
+            raw_k = sorted(list(set([raw_k[0], raw_k[len(raw_k)//2], raw_k[-1]])))
         notes.append((t, raw_k))
 
-    return best_shift, best_oct, notes
+    return best_shift, notes
 
-for f in sorted(glob.glob("e:/work/skymusic/midi_downloads/*.mid")):
-    s, o, notes = parse_full_midi(f)
+all_files = sorted(glob.glob("e:/work/skymusic/midi_downloads/*.mid") + 
+                   glob.glob("e:/work/skymusic/*.mid") + 
+                   glob.glob("e:/work/skymusic/app/src/main/assets/songs/*.mid"))
+
+for f in all_files:
+    s, notes = parse_full_midi(f)
     print(f"\n==========================================")
     print(f"File: {os.path.basename(f)}")
-    print(f"Detected Shift: {s:+d}, Base Octave: {o:+d}, Total Chords: {len(notes)}")
+    print(f"Detected Shift: {s:+d}, Total Chords: {len(notes)}")
     key_counts = [0] * 15
     for t, keys in notes:
         for k in keys: key_counts[k] += 1
     print(f"Key Distribution (0..14): {key_counts}")
-    # Sample snippet of melody:
     snippet = " ".join([KEY_NAMES[k[-1]] for _, k in notes[:25]])
     print(f"Top Voice Melody Snippet: {snippet}")
