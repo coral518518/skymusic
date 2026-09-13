@@ -74,6 +74,7 @@ object MidiParser {
         tempoChanges.add(TempoChange(0L, 500_000L)) // 默认 120 BPM = 500,000 微秒/拍
 
         var songTitle = defaultTitle
+        var detectedKeySignature: Pair<Int, Boolean>? = null
 
         // 2. 读取每个 Track 块
         for (t in 0 until numTracks) {
@@ -137,6 +138,13 @@ object MidiParser {
                                         ((metaData[1].toInt() and 0xFF) shl 8) or
                                         (metaData[2].toInt() and 0xFF)
                                 tempoChanges.add(TempoChange(currentTick, us.toLong()))
+                            }
+                        }
+                        0x59 -> { // Key Signature (sf: -7..7, mi: 0=major, 1=minor)
+                            if (metaLen >= 2 && detectedKeySignature == null) {
+                                val keySf = metaData[0].toInt()
+                                val isMinor = (metaData[1].toInt() == 1)
+                                detectedKeySignature = Pair(keySf, isMinor)
                             }
                         }
                     }
@@ -206,9 +214,9 @@ object MidiParser {
             Triple(ms, note.noteNumber, note.velocity)
         }.sortedBy { it.first }
 
-        // 4. 关键校准 2：使用 Krumhansl-Schmuckler 算法进行调性与主音精确分析
+        // 4. 关键校准 2：优先使用 MIDI 调号 (KeySignatureEvent) 或 Krumhansl-Schmuckler 算法进行调性与主音精确分析
         // 将原曲主音 (Tonic) 严格对齐至光遇的自然大调 (C大调，Key 0/7/14 = Do) 或自然小调 (A小调，Key 5/12 = La)
-        val optimalTranspose = findOptimalTranspose(timedNotes.map { it.second })
+        val optimalTranspose = findOptimalTranspose(timedNotes.map { it.second }, detectedKeySignature)
 
         // 5. 关键校准 3：全曲全局最佳基准八度偏移探测
         // 计算让最多音符无需折叠即可自然落入 [60, 84] (C4 ~ C6) 的最佳八度
@@ -299,8 +307,21 @@ object MidiParser {
      * 精确统计 12 个半音出现频度，计算与大调/小调标准轮廓的相关系数，
      * 找到歌曲的主音（Tonic）与调式，并返回将其移调到 C 大调 (Do) / A 小调 (La) 的最优半音位移 (-6..+6)。
      */
-    private fun findOptimalTranspose(pitches: List<Int>): Int {
+    private fun findOptimalTranspose(pitches: List<Int>, keySig: Pair<Int, Boolean>? = null): Int {
         if (pitches.isEmpty()) return 0
+
+        // 1. 如果 MIDI 内置了调号 (KeySignatureEvent)，优先按作者原本指定的调性校验
+        if (keySig != null) {
+            val (sf, isMinor) = keySig
+            // sf: -7..+7 (负为降号数量，正为升号数量，五度循环圈步长为 7 半音)
+            val tonicPitchClass = (((if (isMinor) 9 else 0) + sf * 7) % 12 + 12) % 12
+            var sigShift = if (isMinor) (9 - tonicPitchClass) % 12 else (12 - tonicPitchClass) % 12
+            if (sigShift > 6) sigShift -= 12
+            val hits = pitches.count { ((it + sigShift) % 12 + 12) % 12 in DIATONIC_SET }
+            if (hits.toDouble() / pitches.size >= 0.70) {
+                return sigShift
+            }
+        }
 
         val counts = DoubleArray(12)
         for (p in pitches) {
