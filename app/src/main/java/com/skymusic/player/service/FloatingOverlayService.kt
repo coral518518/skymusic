@@ -38,8 +38,12 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         const val ACTION_START = "action_start_floating"
         const val ACTION_STOP = "action_stop_floating"
         const val EXTRA_SONG_ID = "extra_song_id"
+        const val EXTRA_AUTO_PLAY = "extra_auto_play"
 
         var isRunning = false
+            private set
+
+        var instance: FloatingOverlayService? = null
             private set
 
         val playEngine = PlayEngine()
@@ -86,12 +90,14 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val delayOptions = intArrayOf(0, 5, 10, 20, 30)
+    private var isTrackingTouch = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         isRunning = true
+        instance = this
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         layoutManager = KeyLayoutManager.getInstance(this)
         playEngine.listener = this
@@ -122,16 +128,23 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         }
 
         val songId = intent?.getStringExtra(EXTRA_SONG_ID)
+        val autoPlay = intent?.getBooleanExtra(EXTRA_AUTO_PLAY, false) ?: false
         if (songId != null) {
             val found = currentSongList.find { it.id == songId }
             if (found != null) {
                 playEngine.loadSong(found)
                 updatePanelSongInfo(found)
+                if (autoPlay) {
+                    playEngine.play()
+                }
             }
         } else if (playEngine.currentSong == null && currentSongList.isNotEmpty()) {
             val first = currentSongList.first()
             playEngine.loadSong(first)
             updatePanelSongInfo(first)
+            if (autoPlay) {
+                playEngine.play()
+            }
         }
 
         return START_STICKY
@@ -259,7 +272,7 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
             WindowManager.LayoutParams.TYPE_PHONE
         }
 
-        val panelWidthPx = (260 * density).toInt()
+        val panelWidthPx = (200 * density).toInt()
         panelParams = WindowManager.LayoutParams(
             panelWidthPx,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -359,11 +372,20 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
                 if (fromUser) {
                     val song = playEngine.currentSong ?: return
                     val targetMs = (song.durationMs * (progress / 1000f)).toLong()
-                    playEngine.seekTo(targetMs)
+                    val currentSec = targetMs / 1000
+                    tvCurrentTime?.text = String.format("%02d:%02d", currentSec / 60, currentSec % 60)
                 }
             }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                isTrackingTouch = true
+            }
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                isTrackingTouch = false
+                val song = playEngine.currentSong ?: return
+                val progress = seekBar?.progress ?: 0
+                val targetMs = (song.durationMs * (progress / 1000f)).toLong()
+                playEngine.seekTo(targetMs)
+            }
         })
 
         // 若已有加载的歌曲，回显当前信息
@@ -473,11 +495,13 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         tvPitchVal?.text = if (playEngine.transpose > 0) "+${playEngine.transpose}" else "${playEngine.transpose}"
     }
 
-    private fun updatePanelSongInfo(song: Song) {
-        tvSongTitle?.text = song.title
-        tvTotalTime?.text = song.getFormattedDuration()
-        tvCurrentTime?.text = "00:00"
-        sbProgress?.progress = 0
+    fun updatePanelSongInfo(song: Song) {
+        mainHandler.post {
+            tvSongTitle?.text = song.title
+            tvTotalTime?.text = song.getFormattedDuration()
+            tvCurrentTime?.text = "00:00"
+            sbProgress?.progress = 0
+        }
     }
 
     private fun showSongPickerMenu() {
@@ -847,9 +871,11 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
 
     override fun onProgressUpdate(currentMs: Long, totalMs: Long, progressPercent: Float) {
         mainHandler.post {
-            val currentSec = currentMs / 1000
-            tvCurrentTime?.text = String.format("%02d:%02d", currentSec / 60, currentSec % 60)
-            sbProgress?.progress = (progressPercent * 1000).toInt()
+            if (!isTrackingTouch) {
+                val currentSec = currentMs / 1000
+                tvCurrentTime?.text = String.format("%02d:%02d", currentSec / 60, currentSec % 60)
+                sbProgress?.progress = (progressPercent * 1000).toInt()
+            }
         }
     }
 
@@ -877,6 +903,7 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
     override fun onDestroy() {
         super.onDestroy()
         isRunning = false
+        instance = null
         serviceScope.cancel()
         playEngine.stop()
         playEngine.listener = null

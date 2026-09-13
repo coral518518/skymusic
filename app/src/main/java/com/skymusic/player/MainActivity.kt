@@ -237,7 +237,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun toggleFloatingService(songToLoad: Song? = null) {
+    private fun toggleFloatingService(songToLoad: Song? = null, autoPlay: Boolean = false) {
         if (!PermissionHelper.hasFloatingPermission(this)) {
             Toast.makeText(this, "请先授予「游戏悬浮窗」权限", Toast.LENGTH_SHORT).show()
             PermissionHelper.requestFloatingPermission(this)
@@ -260,6 +260,7 @@ class MainActivity : AppCompatActivity() {
             serviceIntent.action = FloatingOverlayService.ACTION_START
             val song = songToLoad ?: selectedSong
             song?.let { serviceIntent.putExtra(FloatingOverlayService.EXTRA_SONG_ID, it.id) }
+            serviceIntent.putExtra(FloatingOverlayService.EXTRA_AUTO_PLAY, autoPlay)
 
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -282,10 +283,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startOrUpdateFloatingWithSong(song: Song) {
+        val floatIndex = FloatingOverlayService.currentSongList.indexOfFirst { it.id == song.id || it.title == song.title }
+        if (floatIndex >= 0) {
+            FloatingOverlayService.currentSongList[floatIndex] = song
+        } else {
+            FloatingOverlayService.currentSongList.add(0, song)
+        }
+
         if (!FloatingOverlayService.isRunning) {
-            toggleFloatingService(song)
+            toggleFloatingService(song, autoPlay = true)
         } else {
             FloatingOverlayService.playEngine.loadSong(song)
+            FloatingOverlayService.instance?.updatePanelSongInfo(song)
             FloatingOverlayService.playEngine.play()
             Toast.makeText(this, "正在演奏: ${song.title}", Toast.LENGTH_SHORT).show()
         }
@@ -336,6 +345,9 @@ class MainActivity : AppCompatActivity() {
                 binding.tabLayout.getTabAt(1)?.select()
                 refreshSongListDisplay()
 
+                // 自动同步并开始演奏
+                startOrUpdateFloatingWithSong(song)
+
                 Toast.makeText(
                     this,
                     "成功导入《${song.title}》: 共 ${song.noteCount} 个音符",
@@ -365,9 +377,8 @@ class MainActivity : AppCompatActivity() {
                 binding.tabLayout.getTabAt(1)?.select()
                 refreshSongListDisplay()
 
-                if (FloatingOverlayService.isRunning) {
-                    FloatingOverlayService.playEngine.loadSong(song)
-                }
+                // 自动同步并开始演奏
+                startOrUpdateFloatingWithSong(song)
 
                 Toast.makeText(
                     this,

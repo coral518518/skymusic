@@ -34,7 +34,13 @@ class PlayEngine {
 
     var speed: Float = 1.0f
         set(value) {
-            field = value.coerceIn(0.25f, 2.5f)
+            val newSpeed = value.coerceIn(0.25f, 2.5f)
+            if (field != newSpeed) {
+                field = newSpeed
+                if (state == PlayState.PLAYING) {
+                    currentSong?.let { startPlaybackLoop(it) }
+                }
+            }
         }
 
     var transpose: Int = 0 // 键盘半音/移调偏移 (-7 到 +7)
@@ -115,58 +121,55 @@ class PlayEngine {
             // 寻找当前进度之后的下一个音符索引
             var nextNoteIndex = notes.indexOfFirst { it.timeMs >= currentSongPositionMs }
             if (nextNoteIndex == -1) {
-                // 已经到达末尾
-                currentSongPositionMs = song.durationMs
-                state = PlayState.COMPLETED
-                listener?.onSongCompleted()
-                return@launch
+                if (currentSongPositionMs >= song.durationMs) {
+                    currentSongPositionMs = song.durationMs
+                    state = PlayState.COMPLETED
+                    listener?.onSongCompleted()
+                    return@launch
+                }
+                nextNoteIndex = notes.size
             }
 
-            // 基于系统单调时钟对齐，彻底消除协程累积延迟漂移
+            // 基于系统单调时钟对齐基准
             val startUptime = android.os.SystemClock.uptimeMillis()
             val startSongMs = currentSongPositionMs
 
-            while (isActive && nextNoteIndex < notes.size && state == PlayState.PLAYING) {
-                val note = notes[nextNoteIndex]
-                val targetSongTime = note.timeMs
-
-                // 计算当前音符的目标系统运行绝对时刻 (ms)
-                val expectedUptime = startUptime + ((targetSongTime - startSongMs) / speed).toLong()
-                val jitter = if (randomDelayRangeMs > 0) {
-                    (-randomDelayRangeMs..randomDelayRangeMs).random()
-                } else 0
-                val targetUptimeWithJitter = expectedUptime + jitter
-
+            while (isActive && state == PlayState.PLAYING) {
                 val now = android.os.SystemClock.uptimeMillis()
-                val waitMs = targetUptimeWithJitter - now
+                val elapsedSongMs = ((now - startUptime) * speed).toLong()
+                val currentMs = (startSongMs + elapsedSongMs).coerceIn(0L, song.durationMs)
+                currentSongPositionMs = currentMs
 
-                if (waitMs > 2L) {
-                    delay(waitMs)
+                // 派发平滑进度更新 (即使在无音符的前奏与休止间奏段，时间轴依然平滑前进，绝不卡死)
+                val progress = if (song.durationMs > 0) currentMs.toFloat() / song.durationMs else 0f
+                listener?.onProgressUpdate(currentMs, song.durationMs, progress)
+
+                // 触发到达当前时间的所有音符
+                while (nextNoteIndex < notes.size && notes[nextNoteIndex].timeMs <= currentMs) {
+                    val note = notes[nextNoteIndex]
+                    val transposedKeys = note.keys.mapNotNull { key ->
+                        val shifted = key + transpose
+                        if (shifted in 0..14) shifted else null
+                    }
+                    if (transposedKeys.isNotEmpty()) {
+                        listener?.onNoteTriggered(transposedKeys)
+                    }
+                    nextNoteIndex++
                 }
 
-                if (!isActive || state != PlayState.PLAYING) break
-
-                // 更新当前进度时间
-                currentSongPositionMs = targetSongTime
-                val progress = if (song.durationMs > 0) currentSongPositionMs.toFloat() / song.durationMs else 0f
-                listener?.onProgressUpdate(currentSongPositionMs, song.durationMs, progress)
-
-                // 触发按键（应用移调偏移）
-                val transposedKeys = note.keys.mapNotNull { key ->
-                    val shifted = key + transpose
-                    if (shifted in 0..14) shifted else null
+                // 全部音符播放完毕且时间到达乐曲结尾
+                if (nextNoteIndex >= notes.size && currentMs >= song.durationMs) {
+                    break
                 }
 
-                if (transposedKeys.isNotEmpty()) {
-                    listener?.onNoteTriggered(transposedKeys)
-                }
-
-                nextNoteIndex++
+                // 计算下一跳休眠时间：按下一个音符时刻与 25ms 取较小值，保证高帧率平滑进度与精准起音
+                val nextTargetTime = if (nextNoteIndex < notes.size) notes[nextNoteIndex].timeMs else song.durationMs
+                val diffToNext = ((nextTargetTime - currentMs) / speed).toLong()
+                val sleepMs = diffToNext.coerceIn(2L, 25L)
+                delay(sleepMs)
             }
 
-            if (isActive && state == PlayState.PLAYING && nextNoteIndex >= notes.size) {
-                // 等待尾音结束
-                delay(800)
+            if (isActive && state == PlayState.PLAYING) {
                 currentSongPositionMs = song.durationMs
                 listener?.onProgressUpdate(song.durationMs, song.durationMs, 1.0f)
                 state = PlayState.COMPLETED
