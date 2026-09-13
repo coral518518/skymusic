@@ -286,13 +286,32 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleImportedUri(uri: Uri) {
         var filename = "导入乐谱"
-        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (nameIndex >= 0) {
-                    filename = cursor.getString(nameIndex)
+        try {
+            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (nameIndex >= 0) {
+                        val name = cursor.getString(nameIndex)
+                        if (!name.isNullOrBlank()) {
+                            filename = name
+                        }
+                    }
                 }
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        if (filename == "导入乐谱" || filename.isBlank()) {
+            uri.lastPathSegment?.let { segment ->
+                val decoded = Uri.decode(segment)
+                val clean = decoded.substringAfterLast("/").substringAfterLast("\\")
+                if (clean.isNotBlank()) {
+                    filename = clean
+                }
+            }
+        } else {
+            filename = Uri.decode(filename)
         }
 
         try {

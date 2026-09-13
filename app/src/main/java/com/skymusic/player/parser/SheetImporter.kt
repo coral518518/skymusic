@@ -11,22 +11,20 @@ object SheetImporter {
      * 根据输入流和文件名智能识别文件类型并完成解析
      */
     fun importFromStream(inputStream: InputStream, filename: String): Song {
+        val cleanTitle = cleanFileName(filename)
         val lowerName = filename.lowercase()
 
         return when {
             lowerName.endsWith(".mid") || lowerName.endsWith(".midi") -> {
-                val cleanTitle = filename.substringBeforeLast(".")
                 MidiParser.parse(inputStream, cleanTitle)
             }
             lowerName.endsWith(".json") -> {
                 val content = inputStream.bufferedReader().use { it.readText() }
-                val cleanTitle = filename.substringBeforeLast(".")
                 SkyJsonParser.parse(content, cleanTitle)
             }
             else -> {
                 val content = inputStream.bufferedReader().use { it.readText() }
                 val trimmed = content.trim()
-                val cleanTitle = filename.substringBeforeLast(".")
                 if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
                     SkyJsonParser.parse(trimmed, cleanTitle)
                 } else {
@@ -34,6 +32,20 @@ object SheetImporter {
                 }
             }
         }
+    }
+
+    private fun cleanFileName(filename: String): String {
+        var clean = filename.trim()
+        try {
+            if (clean.contains("%")) {
+                clean = java.net.URLDecoder.decode(clean, "UTF-8")
+            }
+        } catch (e: Exception) {}
+        clean = clean.substringAfterLast("/").substringAfterLast("\\")
+        if (clean.contains(".")) {
+            clean = clean.substringBeforeLast(".")
+        }
+        return clean.ifBlank { "导入乐谱" }
     }
 
     fun importFromUri(context: Context, uri: Uri, filename: String): Song? {
