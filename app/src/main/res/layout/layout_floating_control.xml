@@ -142,27 +142,43 @@
             android:layout_weight="1" />
 
         <Button
+            android:id="@+id/btnFloatImportMidi"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="26dp"
+            android:paddingStart="7dp"
+            android:paddingEnd="7dp"
+            android:paddingTop="0dp"
+            android:paddingBottom="0dp"
+            android:text="📁 本地"
+            android:textSize="11sp"
+            android:textColor="@color/sky_primary"
+            app:strokeColor="@color/sky_primary"
+            app:cornerRadius="13dp" />
+
+        <Button
             android:id="@+id/btnFloatSelectSong"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="wrap_content"
             android:layout_height="26dp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
+            android:paddingStart="7dp"
+            android:paddingEnd="7dp"
             android:paddingTop="0dp"
             android:paddingBottom="0dp"
-            android:text="选歌"
+            android:text="曲库"
             android:textSize="11sp"
             android:textColor="@color/sky_text_primary"
             app:strokeColor="@color/sky_card_dark_stroke"
-            app:cornerRadius="13dp" />
+            app:cornerRadius="13dp"
+            android:layout_marginStart="4dp" />
 
         <Button
             android:id="@+id/btnFloatHideAll"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="wrap_content"
             android:layout_height="26dp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
             android:paddingTop="0dp"
             android:paddingBottom="0dp"
             android:text="退出"

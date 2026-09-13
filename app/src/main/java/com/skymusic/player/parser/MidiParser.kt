@@ -2,7 +2,6 @@ package com.skymusic.player.parser
 
 import com.skymusic.player.model.NoteEvent
 import com.skymusic.player.model.Song
-import java.io.ByteArrayInputStream
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -13,7 +12,8 @@ object MidiParser {
     private data class RawMidiNote(
         val tick: Long,
         val noteNumber: Int, // 0..127
-        val velocity: Int
+        val velocity: Int,
+        val channel: Int
     )
 
     private data class TempoChange(
@@ -22,7 +22,30 @@ object MidiParser {
     )
 
     /**
-     * 解析标准 MIDI 文件输入流
+     * Krumhansl-Schmuckler 音乐理论经典调性音高相关权重矩阵
+     */
+    private val MAJOR_PROFILE = doubleArrayOf(
+        6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88
+    )
+    private val MINOR_PROFILE = doubleArrayOf(
+        6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17
+    )
+    private val DIATONIC_SET = setOf(0, 2, 4, 5, 7, 9, 11)
+
+    /**
+     * 光遇标准 15 键对应的标准 MIDI 音高（C4 到 C6 自然大调音阶）：
+     * Key 0..4  (Row 0): C4 (60), D4 (62), E4 (64), F4 (65), G4 (67)
+     * Key 5..9  (Row 1): A4 (69), B4 (71), C5 (72), D5 (74), E5 (76)
+     * Key 10..14(Row 2): F5 (77), G5 (79), A5 (81), B5 (83), C6 (84)
+     */
+    val SKY_KEY_PITCHES = intArrayOf(
+        60, 62, 64, 65, 67, 69, 71, // Key 0..6 (1, 2, 3, 4, 5, 6, 7)
+        72, 74, 76, 77, 79, 81, 83, // Key 7..13 (+1, +2, +3, +4, +5, +6, +7)
+        84                          // Key 14 (++1)
+    )
+
+    /**
+     * 解析标准 MIDI 文件输入流并完成高保真光遇 15 键智能音符映射
      */
     fun parse(inputStream: InputStream, defaultTitle: String = "MIDI 乐谱"): Song {
         val bytes = inputStream.readBytes()
@@ -36,7 +59,7 @@ object MidiParser {
         }
 
         val headerSize = buffer.int
-        val format = buffer.short.toInt()
+        buffer.short // format
         val numTracks = buffer.short.toInt()
         val division = buffer.short.toInt() // PPQ (Ticks per Quarter Note)
         val ppq = if (division > 0) division else 480
@@ -68,26 +91,43 @@ object MidiParser {
                 val delta = readVariableLength(buffer)
                 currentTick += delta
 
+                if (!buffer.hasRemaining()) break
                 var status = buffer.get().toInt() and 0xFF
+
                 if (status < 0x80) {
                     // Running status
+                    if (runningStatus == 0) {
+                        break
+                    }
                     status = runningStatus
                     buffer.position(buffer.position() - 1)
                 } else {
-                    runningStatus = status
+                    // 仅当状态字节为通道消息 (0x80..0xEF) 时记录运行状态
+                    // 遇到 Meta 事件 (0xFF) 或 SysEx (0xF0..0xF7) 必须复位
+                    if (status < 0xF0) {
+                        runningStatus = status
+                    } else {
+                        runningStatus = 0
+                    }
                 }
 
                 if (status == 0xFF) {
                     // Meta 事件
+                    if (!buffer.hasRemaining()) break
                     val metaType = buffer.get().toInt() and 0xFF
                     val metaLen = readVariableLength(buffer).toInt()
                     val metaData = ByteArray(metaLen)
-                    buffer.get(metaData)
+                    if (buffer.remaining() >= metaLen) {
+                        buffer.get(metaData)
+                    } else {
+                        buffer.position(buffer.limit())
+                        break
+                    }
 
                     when (metaType) {
                         0x03 -> { // Track Name / Song Title
                             val name = String(metaData).trim()
-                            if (name.isNotEmpty() && songTitle == defaultTitle) {
+                            if (name.isNotEmpty() && (songTitle == defaultTitle || songTitle.isBlank())) {
                                 songTitle = name
                             }
                         }
@@ -101,36 +141,50 @@ object MidiParser {
                         }
                     }
                 } else if (status == 0xF0 || status == 0xF7) {
-                    // SysEx 事件，跳过
+                    // SysEx 事件
                     val sysexLen = readVariableLength(buffer).toInt()
-                    buffer.position(buffer.position() + sysexLen)
+                    if (buffer.remaining() >= sysexLen) {
+                        buffer.position(buffer.position() + sysexLen)
+                    } else {
+                        buffer.position(buffer.limit())
+                    }
                 } else {
                     // 常用 Channel 消息
                     val msgType = status and 0xF0
+                    val channel = status and 0x0F
                     when (msgType) {
                         0x90 -> { // Note On
-                            val note = buffer.get().toInt() and 0xFF
-                            val vel = buffer.get().toInt() and 0xFF
-                            if (vel > 0) {
-                                rawNotes.add(RawMidiNote(currentTick, note, vel))
+                            if (buffer.remaining() >= 2) {
+                                val note = buffer.get().toInt() and 0xFF
+                                val vel = buffer.get().toInt() and 0xFF
+                                // 关键校准 1：严格过滤 Channel 9 (第10轨道打击乐/鼓点)，排除底鼓、军鼓对旋律的严重杂音污染
+                                if (vel > 0 && channel != 9) {
+                                    rawNotes.add(RawMidiNote(currentTick, note, vel, channel))
+                                }
                             }
                         }
                         0x80 -> { // Note Off
-                            buffer.get()
-                            buffer.get()
+                            if (buffer.remaining() >= 2) {
+                                buffer.get()
+                                buffer.get()
+                            }
                         }
                         0xA0, 0xB0, 0xE0 -> { // 2 字节参数消息
-                            buffer.get()
-                            buffer.get()
+                            if (buffer.remaining() >= 2) {
+                                buffer.get()
+                                buffer.get()
+                            }
                         }
                         0xC0, 0xD0 -> { // 1 字节参数消息
-                            buffer.get()
+                            if (buffer.hasRemaining()) {
+                                buffer.get()
+                            }
                         }
                     }
                 }
             }
 
-            buffer.position(trackEndPos)
+            buffer.position(trackEndPos.coerceAtMost(buffer.limit()))
         }
 
         if (rawNotes.isEmpty()) {
@@ -149,25 +203,30 @@ object MidiParser {
         tempoChanges.sortBy { it.tick }
         val timedNotes = rawNotes.map { note ->
             val ms = tickToMillis(note.tick, ppq, tempoChanges)
-            Pair(ms, note.noteNumber)
+            Triple(ms, note.noteNumber, note.velocity)
         }.sortedBy { it.first }
 
-        // 4. 智能调性拟合：寻找最佳半音移调值，让最多音符落入光遇 15 个自然大调音阶
-        val optimalTranspose = findBestTranspose(timedNotes.map { it.second })
+        // 4. 关键校准 2：使用 Krumhansl-Schmuckler 算法进行调性与主音精确分析
+        // 将原曲主音 (Tonic) 严格对齐至光遇的自然大调 (C大调，Key 0/7/14 = Do) 或自然小调 (A小调，Key 5/12 = La)
+        val optimalTranspose = findOptimalTranspose(timedNotes.map { it.second })
 
-        // 5. 寻找最佳八度偏移，使得中位数音符落在 C5 (72) 附近
-        val shiftedNotes = timedNotes.map { Pair(it.first, it.second + optimalTranspose) }
-        val octaveShift = findBestOctaveShift(shiftedNotes.map { it.second })
+        // 5. 关键校准 3：全曲全局最佳基准八度偏移探测
+        // 计算让最多音符无需折叠即可自然落入 [60, 84] (C4 ~ C6) 的最佳八度
+        val transposedPitches = timedNotes.map { it.second + optimalTranspose }
+        val baseOctaveShift = findBestBaseOctave(transposedPitches)
 
-        // 6. 将 MIDI 音高映射到光遇 15 个键 (0 ~ 14)
-        // 并按照 20ms 时间窗融合成和弦
+        // 6. 关键校准 4：八度循环折叠（Octave Folding）彻底废除 0/14 截断
+        // 将超出 15 键范围的高音和低音伴奏，按 12 半音精确循环内折，保留原有 1 2 3 4 5 6 7 唱名
+        // 7. 关键校准 5：和弦时间窗聚合 (30ms) 与声部精炼 (单次手势上限 4 键，锁定主旋律高音与根音低音)
         val timeMap = mutableMapOf<Long, MutableList<Int>>()
-        for ((ms, pitch) in shiftedNotes) {
-            val finalPitch = pitch + octaveShift
-            val keyIndex = midiPitchToSkyKey(finalPitch)
+
+        for ((ms, pitch, _) in timedNotes) {
+            val fullPitch = pitch + optimalTranspose + baseOctaveShift
+            val keyIndex = foldPitchToSkyKey(fullPitch)
+
             if (keyIndex in 0..14) {
-                // 量化到 15ms 时间片，便于识别并发和弦
-                val quantizedTime = (ms / 15L) * 15L
+                // 30ms 时间窗口聚合，将真人/吉他扫弦/微落差音符精准整合成和弦
+                val quantizedTime = Math.round(ms / 30.0) * 30L
                 val keys = timeMap.getOrPut(quantizedTime) { mutableListOf() }
                 if (!keys.contains(keyIndex)) {
                     keys.add(keyIndex)
@@ -176,8 +235,12 @@ object MidiParser {
         }
 
         val noteEvents = mutableListOf<NoteEvent>()
-        for ((time, keys) in timeMap) {
-            noteEvents.add(NoteEvent(timeMs = time, keys = keys.sorted()))
+        for ((time, rawKeys) in timeMap) {
+            // 对单次和弦做声部精炼：优先保留最高音（主旋律）与最低音（低音伴奏根音）
+            val refinedKeys = refineChordKeys(rawKeys)
+            if (refinedKeys.isNotEmpty()) {
+                noteEvents.add(NoteEvent(timeMs = time, keys = refinedKeys))
+            }
         }
         noteEvents.sort()
 
@@ -202,6 +265,7 @@ object MidiParser {
         var value = 0L
         var byte: Int
         do {
+            if (!buffer.hasRemaining()) break
             byte = buffer.get().toInt() and 0xFF
             value = (value shl 7) or (byte and 0x7F).toLong()
         } while ((byte and 0x80) != 0)
@@ -231,82 +295,150 @@ object MidiParser {
     }
 
     /**
-     * 自然七声音阶白键半音模数: C=0, D=2, E=4, F=5, G=7, A=9, B=11
+     * Krumhansl-Schmuckler 调性检测算法：
+     * 精确统计 12 个半音出现频度，计算与大调/小调标准轮廓的相关系数，
+     * 找到歌曲的主音（Tonic）与调式，并返回将其移调到 C 大调 (Do) / A 小调 (La) 的最优半音位移 (-6..+6)。
      */
-    private val DIATONIC_SET = setOf(0, 2, 4, 5, 7, 9, 11)
-
-    /**
-     * 寻找最佳移调量 (-6 ~ +6)，使得自然音阶命中率最高
-     */
-    private fun findBestTranspose(pitches: List<Int>): Int {
+    private fun findOptimalTranspose(pitches: List<Int>): Int {
         if (pitches.isEmpty()) return 0
-        var bestShift = 0
-        var maxHits = -1
 
-        for (shift in -6..6) {
-            var hits = 0
-            for (p in pitches) {
-                val mod = ((p + shift) % 12 + 12) % 12
-                if (mod in DIATONIC_SET) {
-                    hits++
-                }
+        val counts = DoubleArray(12)
+        for (p in pitches) {
+            val pc = ((p % 12) + 12) % 12
+            counts[pc] += 1.0
+        }
+
+        var bestScore = -9999.0
+        var bestShift = 0
+
+        for (tonic in 0 until 12) {
+            val rotated = DoubleArray(12) { i -> counts[(tonic + i) % 12] }
+            val scoreMajor = calcPearsonCorrelation(rotated, MAJOR_PROFILE)
+            val scoreMinor = calcPearsonCorrelation(rotated, MINOR_PROFILE)
+
+            if (scoreMajor > bestScore) {
+                bestScore = scoreMajor
+                var shift = (12 - tonic) % 12
+                if (shift > 6) shift -= 12
+                bestShift = shift
             }
-            if (hits > maxHits) {
-                maxHits = hits
+            if (scoreMinor > bestScore) {
+                bestScore = scoreMinor
+                var shift = (9 - tonic) % 12
+                if (shift > 6) shift -= 12
                 bestShift = shift
             }
         }
+
+        // 双重校验：若最大相关性得出的移调在白键命中率上不足 70%，回退到贪心白键最大化匹配
+        val testHits = pitches.count { ((it + bestShift) % 12 + 12) % 12 in DIATONIC_SET }
+        if (testHits.toDouble() / pitches.size < 0.70) {
+            var fallbackShift = 0
+            var maxHits = -1
+            for (s in -6..6) {
+                val h = pitches.count { ((it + s) % 12 + 12) % 12 in DIATONIC_SET }
+                if (h > maxHits) {
+                    maxHits = h
+                    fallbackShift = s
+                }
+            }
+            return fallbackShift
+        }
+
         return bestShift
     }
 
-    private fun findBestOctaveShift(pitches: List<Int>): Int {
-        if (pitches.isEmpty()) return 0
-        val sorted = pitches.sorted()
-        val median = sorted[sorted.size / 2]
-        // 目标中位数中心：C5 (MIDI 72)
-        val diff = 72 - median
-        val octaves = Math.round(diff / 12.0f) * 12
-        return octaves.coerceIn(-24, 24)
+    private fun calcPearsonCorrelation(x: DoubleArray, y: DoubleArray): Double {
+        val n = 12
+        var sumX = 0.0
+        var sumY = 0.0
+        for (i in 0 until n) {
+            sumX += x[i]
+            sumY += y[i]
+        }
+        val meanX = sumX / n
+        val meanY = sumY / n
+
+        var num = 0.0
+        var denX = 0.0
+        var denY = 0.0
+        for (i in 0 until n) {
+            val dx = x[i] - meanX
+            val dy = y[i] - meanY
+            num += dx * dy
+            denX += dx * dx
+            denY += dy * dy
+        }
+        val den = Math.sqrt(denX * denY)
+        return if (den == 0.0) 0.0 else num / den
     }
 
     /**
-     * 光遇标准 15 键对应的标准 MIDI 音高（Key of C）：
-     * Key 0: C4 (60)
-     * Key 1: D4 (62)
-     * Key 2: E4 (64)
-     * Key 3: F4 (65)
-     * Key 4: G4 (67)
-     * Key 5: A4 (69)
-     * Key 6: B4 (71)
-     * Key 7: C5 (72)
-     * Key 8: D5 (74)
-     * Key 9: E5 (76)
-     * Key 10: F5 (77)
-     * Key 11: G5 (79)
-     * Key 12: A5 (81)
-     * Key 13: B5 (83)
-     * Key 14: C6 (84)
+     * 计算最佳基准八度偏移 (-24, -12, 0, +12, +24)，使得最多音符自然落在 [60, 84] (C4 ~ C6) 内
      */
-    private val SKY_KEY_PITCHES = intArrayOf(
-        60, 62, 64, 65, 67, 69, 71, // 0..6
-        72, 74, 76, 77, 79, 81, 83, // 7..13
-        84                          // 14
-    )
+    private fun findBestBaseOctave(pitches: List<Int>): Int {
+        if (pitches.isEmpty()) return 0
+        var bestOct = 0
+        var maxDirectHits = -1
 
-    fun midiPitchToSkyKey(pitch: Int): Int {
-        // 如果正好落在范围内，直接查找或就近匹配
-        if (pitch <= SKY_KEY_PITCHES.first()) return 0
-        if (pitch >= SKY_KEY_PITCHES.last()) return 14
+        for (oct in intArrayOf(-24, -12, 0, 12, 24)) {
+            val inRangeCount = pitches.count { (it + oct) in 60..84 }
+            if (inRangeCount > maxDirectHits) {
+                maxDirectHits = inRangeCount
+                bestOct = oct
+            }
+        }
+        return bestOct
+    }
 
+    /**
+     * 智能八度循环折叠（Octave Folding）：
+     * 将任意音高通过 +/-12 循环折叠入 [60, 84]，并精确映射到光遇 15 个自然音阶按键。
+     * 彻底废除原先粗暴的 return 0 和 return 14！
+     */
+    fun foldPitchToSkyKey(pitch: Int): Int {
+        var p = pitch
+        while (p < 60) p += 12
+        while (p > 84) p -= 12
+
+        // 精确匹配 15 键
         var bestKey = 0
         var minDiff = Int.MAX_VALUE
         for (i in SKY_KEY_PITCHES.indices) {
-            val diff = Math.abs(pitch - SKY_KEY_PITCHES[i])
+            val diff = Math.abs(p - SKY_KEY_PITCHES[i])
             if (diff < minDiff) {
                 minDiff = diff
                 bestKey = i
+                if (diff == 0) break // 精准命中白键自然音阶，立即返回
             }
         }
         return bestKey
+    }
+
+    /**
+     * 和弦声部精炼：
+     * 限制单次并发手势上限为 3~4 键（光遇推荐多指上限）。
+     * 自动保留最高音（主旋律）、最低音（和弦低音根音）以及中声部主要和声，剔除冗余同音。
+     */
+    private fun refineChordKeys(keys: List<Int>): List<Int> {
+        val distinctKeys = keys.distinct().sorted()
+        if (distinctKeys.size <= 4) {
+            return distinctKeys
+        }
+
+        // 超过 4 键时精炼：保留最低音、最高音和中间 1~2 个音
+        val result = mutableListOf<Int>()
+        result.add(distinctKeys.first()) // 低音根音
+        result.add(distinctKeys.last())  // 主旋律高音
+
+        val middle = distinctKeys.subList(1, distinctKeys.size - 1)
+        if (middle.size == 1) {
+            result.add(middle[0])
+        } else if (middle.size >= 2) {
+            result.add(middle[0])
+            result.add(middle.last())
+        }
+
+        return result.distinct().sorted()
     }
 }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- 悬浮窗权限：用于在光遇游戏上层显示控制球、操作面板与按键校准光圈 -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -9,9 +10,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
-    <!-- 存储权限：用于从手机内部存储导入 MIDI、JSON 乐谱文件 -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- 存储权限：用于从手机内部存储与下载目录导入 MIDI、JSON 乐谱文件 -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
 
     <!-- 触觉震动反馈 -->
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -19,6 +22,7 @@
     <application
         android:name=".SkyMusicApp"
         android:allowBackup="true"
+        android:requestLegacyExternalStorage="true"
         android:icon="@drawable/ic_music_note"
         android:label="@string/app_name"
         android:roundIcon="@drawable/bg_floating_ball"

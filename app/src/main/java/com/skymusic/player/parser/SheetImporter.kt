@@ -46,4 +46,19 @@ object SheetImporter {
             null
         }
     }
+
+    /**
+     * 直接从本地文件解析并导入乐谱
+     */
+    fun importFromFile(file: java.io.File): Song? {
+        return try {
+            if (!file.exists() || !file.isFile) return null
+            file.inputStream().use { stream ->
+                importFromStream(stream, file.name)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 }

@@ -16,6 +16,7 @@ import android.widget.*
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import android.graphics.Color
 import com.skymusic.player.MainActivity
 import com.skymusic.player.R
 import com.skymusic.player.SkyMusicApp
@@ -24,9 +25,11 @@ import com.skymusic.player.engine.PlayEngine
 import com.skymusic.player.engine.PlayState
 import com.skymusic.player.engine.RootTouchController
 import com.skymusic.player.model.Song
+import com.skymusic.player.parser.SheetImporter
 import com.skymusic.player.ui.KeyVisualizerView
 import com.skymusic.player.util.PresetSongs
 import kotlinx.coroutines.*
+import java.io.File
 
 class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
 
@@ -63,6 +66,12 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
     private var calibrateView: View? = null
     private var calibrateParams: WindowManager.LayoutParams? = null
     private var isCalibrateAdded = false
+
+    // 本地文件选择浮层视图与参数 (支持在悬浮窗内直接选MIDI/乐谱即选即播)
+    private var filePickerView: View? = null
+    private var filePickerParams: WindowManager.LayoutParams? = null
+    private var isPickerAdded = false
+    private var currentBrowseDir: File = getInitialDownloadDir()
 
     // 悬浮窗控件引用
     private var tvSongTitle: TextView? = null
@@ -314,9 +323,15 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
             showCalibrateOverlay()
         }
 
-        // 选歌对话菜单
+        // 选歌对话菜单 (曲库预设与已导入)
         panelView?.findViewById<View>(R.id.btnFloatSelectSong)?.setOnClickListener {
             showSongPickerMenu()
+        }
+
+        // 直接打开本地文件选择浮层 (默认 Download 目录即选即播)
+        panelView?.findViewById<View>(R.id.btnFloatImportMidi)?.setOnClickListener {
+            hideControlPanel()
+            showFileManagerOverlay()
         }
 
         // 彻底关闭悬浮窗与后台服务
@@ -466,24 +481,195 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
     }
 
     private fun showSongPickerMenu() {
-        if (currentSongList.isEmpty()) {
-            Toast.makeText(this, "曲库暂无乐谱，请先在主界面导入", Toast.LENGTH_SHORT).show()
-            return
-        }
         val anchor = panelView?.findViewById<View>(R.id.btnFloatSelectSong) ?: return
         val popup = PopupMenu(themedContext, anchor)
+
+        // 顶部第一项：直接浏览本地文件
+        popup.menu.add(0, -1, 0, "📁 浏览本地MIDI/乐谱 (Download目录)...")
+
         currentSongList.forEachIndexed { index, song ->
-            popup.menu.add(0, index, index, "${index + 1}. ${song.title}")
+            popup.menu.add(0, index, index + 1, "${index + 1}. ${song.title}")
         }
         popup.setOnMenuItemClickListener { item ->
-            val song = currentSongList.getOrNull(item.itemId)
-            if (song != null) {
-                playEngine.loadSong(song)
-                updatePanelSongInfo(song)
+            if (item.itemId == -1) {
+                hideControlPanel()
+                showFileManagerOverlay()
+            } else {
+                val song = currentSongList.getOrNull(item.itemId)
+                if (song != null) {
+                    playEngine.loadSong(song)
+                    updatePanelSongInfo(song)
+                    playEngine.play()
+                }
             }
             true
         }
         popup.show()
+    }
+
+    // ----------------------------------------------------------------
+    // 2.5 悬浮窗内置本地文件管理器浮层 (支持在游戏悬浮窗内直接选MIDI并秒切播放)
+    // ----------------------------------------------------------------
+    private fun getInitialDownloadDir(): File {
+        val downloadDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+        if (downloadDir != null && downloadDir.exists() && downloadDir.canRead()) {
+            return downloadDir
+        }
+        val sdcard = android.os.Environment.getExternalStorageDirectory()
+        val altDownload = File(sdcard, "Download")
+        if (altDownload.exists() && altDownload.canRead()) {
+            return altDownload
+        }
+        return sdcard
+    }
+
+    private fun initFileManagerOverlay() {
+        val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+
+        val dm = resources.displayMetrics
+        val width = (340f * dm.density).toInt().coerceAtMost((dm.widthPixels * 0.92f).toInt())
+        val height = (390f * dm.density).toInt().coerceAtMost((dm.heightPixels * 0.88f).toInt())
+
+        filePickerParams = WindowManager.LayoutParams(
+            width,
+            height,
+            layoutType,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.CENTER
+        }
+
+        filePickerView = themedInflater.inflate(R.layout.layout_floating_file_manager, null)
+
+        filePickerView?.findViewById<View>(R.id.btnFileManagerClose)?.setOnClickListener {
+            hideFileManagerOverlay()
+            showControlPanel()
+        }
+
+        filePickerView?.findViewById<View>(R.id.btnFileManagerJumpDownload)?.setOnClickListener {
+            currentBrowseDir = getInitialDownloadDir()
+            refreshFileList()
+        }
+
+        filePickerView?.findViewById<View>(R.id.btnFileManagerJumpRoot)?.setOnClickListener {
+            currentBrowseDir = android.os.Environment.getExternalStorageDirectory()
+            refreshFileList()
+        }
+
+        filePickerView?.findViewById<View>(R.id.btnFileManagerParent)?.setOnClickListener {
+            val parent = currentBrowseDir.parentFile
+            if (parent != null && parent.canRead()) {
+                currentBrowseDir = parent
+                refreshFileList()
+            } else {
+                Toast.makeText(this, "已到达存储根目录", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun showFileManagerOverlay() {
+        if (filePickerView == null) {
+            initFileManagerOverlay()
+        }
+        if (!isPickerAdded && filePickerView != null && filePickerParams != null) {
+            try {
+                windowManager.addView(filePickerView, filePickerParams)
+                isPickerAdded = true
+                currentBrowseDir = getInitialDownloadDir()
+                refreshFileList()
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to show file manager overlay", e)
+            }
+        }
+    }
+
+    private fun hideFileManagerOverlay() {
+        if (isPickerAdded && filePickerView != null) {
+            try {
+                windowManager.removeView(filePickerView)
+                isPickerAdded = false
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to hide file manager overlay", e)
+            }
+        }
+    }
+
+    private fun refreshFileList() {
+        val view = filePickerView ?: return
+        val tvPath = view.findViewById<TextView>(R.id.tvFileManagerCurrentPath)
+        val rvList = view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rvFileManagerList)
+        val tvEmpty = view.findViewById<TextView>(R.id.tvFileManagerEmpty)
+
+        tvPath?.text = currentBrowseDir.absolutePath
+
+        val files = currentBrowseDir.listFiles()?.filter { file ->
+            if (file.isDirectory) {
+                !file.name.startsWith(".")
+            } else {
+                val name = file.name.lowercase()
+                name.endsWith(".mid") || name.endsWith(".midi") || name.endsWith(".json") || name.endsWith(".txt")
+            }
+        }?.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() })) ?: emptyList()
+
+        if (files.isEmpty()) {
+            tvEmpty?.visibility = View.VISIBLE
+            rvList?.visibility = View.GONE
+        } else {
+            tvEmpty?.visibility = View.GONE
+            rvList?.visibility = View.VISIBLE
+        }
+
+        rvList?.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        rvList?.adapter = FloatingFileAdapter(files, onItemClick = { file ->
+            if (file.isDirectory) {
+                currentBrowseDir = file
+                refreshFileList()
+            } else {
+                onSelectMusicFile(file)
+            }
+        })
+    }
+
+    private fun onSelectMusicFile(file: File) {
+        Toast.makeText(this, "正在高保真解析《${file.name}》...", Toast.LENGTH_SHORT).show()
+        serviceScope.launch(Dispatchers.IO) {
+            val song = SheetImporter.importFromFile(file)
+            withContext(Dispatchers.Main) {
+                if (song != null && song.notes.isNotEmpty()) {
+                    val existingIndex = currentSongList.indexOfFirst { it.id == song.id || it.title == song.title }
+                    if (existingIndex >= 0) {
+                        currentSongList[existingIndex] = song
+                    } else {
+                        currentSongList.add(0, song)
+                    }
+
+                    playEngine.loadSong(song)
+                    updatePanelSongInfo(song)
+                    playEngine.play()
+
+                    hideFileManagerOverlay()
+                    showControlPanel()
+
+                    Toast.makeText(
+                        this@FloatingOverlayService,
+                        "已开始演奏《${song.title}》 (共 ${song.noteCount} 个音符)",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    Toast.makeText(
+                        this@FloatingOverlayService,
+                        "无法识别乐谱或未包含有效音符，请检查文件格式",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
     }
 
     // ----------------------------------------------------------------
@@ -707,5 +893,64 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
             try { windowManager.removeView(calibrateView) } catch (_: Throwable) {}
             isCalibrateAdded = false
         }
+        if (isPickerAdded && filePickerView != null) {
+            try { windowManager.removeView(filePickerView) } catch (_: Throwable) {}
+            isPickerAdded = false
+        }
     }
+}
+
+class FloatingFileAdapter(
+    private val files: List<File>,
+    private val onItemClick: (File) -> Unit
+) : androidx.recyclerview.widget.RecyclerView.Adapter<FloatingFileAdapter.ViewHolder>() {
+
+    class ViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
+        val ivIcon: ImageView = view.findViewById(R.id.ivFileIcon)
+        val tvName: TextView = view.findViewById(R.id.tvFileName)
+        val tvInfo: TextView = view.findViewById(R.id.tvFileInfo)
+        val tvTag: TextView = view.findViewById(R.id.tvFileTag)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_floating_file_entry, parent, false)
+        return ViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val file = files[position]
+        holder.tvName.text = file.name
+
+        if (file.isDirectory) {
+            holder.ivIcon.setImageResource(R.drawable.ic_folder)
+            holder.ivIcon.imageTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#80D8FF"))
+            val subCount = file.list()?.size ?: 0
+            holder.tvInfo.text = "$subCount 个项目"
+            holder.tvTag.text = "目录"
+            holder.tvTag.setTextColor(Color.parseColor("#9EADC7"))
+        } else {
+            holder.ivIcon.setImageResource(R.drawable.ic_music_note)
+            val isMidi = file.name.endsWith(".mid", ignoreCase = true) || file.name.endsWith(".midi", ignoreCase = true)
+            val sizeKb = file.length() / 1024.0
+            val sizeStr = if (sizeKb > 1024) String.format("%.1f MB", sizeKb / 1024) else String.format("%.1f KB", sizeKb)
+            val dateStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date(file.lastModified()))
+            holder.tvInfo.text = "$sizeStr · $dateStr"
+
+            if (isMidi) {
+                holder.ivIcon.imageTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#FFD54F"))
+                holder.tvTag.text = "MIDI"
+                holder.tvTag.setTextColor(Color.parseColor("#FFD54F"))
+            } else {
+                holder.ivIcon.imageTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#80D8FF"))
+                holder.tvTag.text = "JSON"
+                holder.tvTag.setTextColor(Color.parseColor("#80D8FF"))
+            }
+        }
+
+        holder.itemView.setOnClickListener {
+            onItemClick(file)
+        }
+    }
+
+    override fun getItemCount(): Int = files.size
 }

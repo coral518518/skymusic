@@ -122,24 +122,26 @@ class PlayEngine {
                 return@launch
             }
 
-            var lastRealTime = System.currentTimeMillis()
+            // 基于系统单调时钟对齐，彻底消除协程累积延迟漂移
+            val startUptime = android.os.SystemClock.uptimeMillis()
+            val startSongMs = currentSongPositionMs
 
             while (isActive && nextNoteIndex < notes.size && state == PlayState.PLAYING) {
                 val note = notes[nextNoteIndex]
                 val targetSongTime = note.timeMs
 
-                // 计算当前需要等待的时长（根据倍速换算）
-                val songDelta = targetSongTime - currentSongPositionMs
-                if (songDelta > 0) {
-                    val baseWaitMs = (songDelta / speed).toLong()
-                    // 随机微延迟防检测 (两次点击之间的间隔在 ±randomDelayRangeMs 内随机浮动)
-                    val jitter = if (randomDelayRangeMs > 0) {
-                        (-randomDelayRangeMs..randomDelayRangeMs).random()
-                    } else 0
-                    val realWaitMs = (baseWaitMs + jitter).coerceAtLeast(3L)
-                    if (realWaitMs > 0) {
-                        delay(realWaitMs)
-                    }
+                // 计算当前音符的目标系统运行绝对时刻 (ms)
+                val expectedUptime = startUptime + ((targetSongTime - startSongMs) / speed).toLong()
+                val jitter = if (randomDelayRangeMs > 0) {
+                    (-randomDelayRangeMs..randomDelayRangeMs).random()
+                } else 0
+                val targetUptimeWithJitter = expectedUptime + jitter
+
+                val now = android.os.SystemClock.uptimeMillis()
+                val waitMs = targetUptimeWithJitter - now
+
+                if (waitMs > 2L) {
+                    delay(waitMs)
                 }
 
                 if (!isActive || state != PlayState.PLAYING) break

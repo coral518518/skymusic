@@ -18,10 +18,12 @@ import com.skymusic.player.engine.RootTouchController
 import com.skymusic.player.model.Song
 import com.skymusic.player.parser.SheetImporter
 import com.skymusic.player.service.FloatingOverlayService
+import com.skymusic.player.ui.FileManagerDialog
 import com.skymusic.player.ui.SongAdapter
 import com.skymusic.player.util.PermissionHelper
 import com.skymusic.player.util.PresetSongs
 import kotlinx.coroutines.launch
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
 
@@ -105,16 +107,24 @@ class MainActivity : AppCompatActivity() {
             toggleFloatingService()
         }
 
-        // 导入乐谱按钮
+        // 导入乐谱按钮：打开内置文件管理器查看界面（默认 Download 目录）
         binding.btnImportSheet.setOnClickListener {
-            filePickerLauncher.launch(
-                arrayOf(
-                    "audio/midi",
-                    "audio/mid",
-                    "application/json",
-                    "text/plain",
-                    "*/*"
-                )
+            FileManagerDialog.show(
+                context = this,
+                onFileSelected = { file ->
+                    handleImportedFile(file)
+                },
+                onOpenSystemPicker = {
+                    filePickerLauncher.launch(
+                        arrayOf(
+                            "audio/midi",
+                            "audio/mid",
+                            "application/json",
+                            "text/plain",
+                            "*/*"
+                        )
+                    )
+                }
             )
         }
 
@@ -288,12 +298,50 @@ class MainActivity : AppCompatActivity() {
         try {
             val song = SheetImporter.importFromUri(this, uri, filename)
             if (song != null && song.notes.isNotEmpty()) {
-                importedSongs.add(0, song)
+                val existingIndex = importedSongs.indexOfFirst { it.id == song.id || it.title == song.title }
+                if (existingIndex >= 0) {
+                    importedSongs[existingIndex] = song
+                } else {
+                    importedSongs.add(0, song)
+                }
                 selectedSong = song
 
                 // 切换到“我的导入”标签
                 binding.tabLayout.getTabAt(1)?.select()
                 refreshSongListDisplay()
+
+                Toast.makeText(
+                    this,
+                    "成功导入《${song.title}》: 共 ${song.noteCount} 个音符",
+                    Toast.LENGTH_LONG
+                ).show()
+            } else {
+                Toast.makeText(this, "乐谱解析失败或未包含有效音符，请检查文件格式", Toast.LENGTH_LONG).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "导入出错: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun handleImportedFile(file: File) {
+        try {
+            val song = SheetImporter.importFromFile(file)
+            if (song != null && song.notes.isNotEmpty()) {
+                val existingIndex = importedSongs.indexOfFirst { it.id == song.id || it.title == song.title }
+                if (existingIndex >= 0) {
+                    importedSongs[existingIndex] = song
+                } else {
+                    importedSongs.add(0, song)
+                }
+                selectedSong = song
+
+                // 切换到“我的导入”标签
+                binding.tabLayout.getTabAt(1)?.select()
+                refreshSongListDisplay()
+
+                if (FloatingOverlayService.isRunning) {
+                    FloatingOverlayService.playEngine.loadSong(song)
+                }
 
                 Toast.makeText(
                     this,

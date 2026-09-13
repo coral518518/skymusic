@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/llFloatingFileManagerRoot"
+    android:layout_width="340dp"
+    android:layout_height="380dp"
+    android:orientation="vertical"
+    android:background="@drawable/bg_floating_panel"
+    android:padding="10dp"
+    android:elevation="16dp">
+
+    <!-- 1. 顶部标题栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="6dp">
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_floating_note"
+            app:tint="@color/sky_primary" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="选择本地乐谱 (即选即播)"
+            android:textColor="@color/sky_text_primary"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:layout_marginStart="6dp" />
+
+        <ImageButton
+            android:id="@+id/btnFileManagerClose"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:src="@drawable/ic_close"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/sky_text_secondary"
+            android:padding="4dp"
+            android:contentDescription="关闭" />
+    </LinearLayout>
+
+    <!-- 2. 当前路径显示 -->
+    <TextView
+        android:id="@+id/tvFileManagerCurrentPath"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="/storage/emulated/0/Download"
+        android:textColor="@color/sky_accent"
+        android:textSize="10sp"
+        android:singleLine="true"
+        android:ellipsize="start"
+        android:background="@drawable/bg_card_rounded"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="3dp"
+        android:paddingBottom="3dp"
+        android:layout_marginBottom="6dp" />
+
+    <!-- 3. 快捷跳转导航栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="6dp">
+
+        <Button
+            android:id="@+id/btnFileManagerParent"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="28dp"
+            android:layout_weight="1"
+            android:padding="0dp"
+            android:text="⬆️ 上一级"
+            android:textSize="10sp"
+            android:textColor="@color/sky_text_primary"
+            app:strokeColor="@color/sky_card_dark_stroke"
+            app:cornerRadius="14dp"
+            android:layout_marginEnd="4dp" />
+
+        <Button
+            android:id="@+id/btnFileManagerJumpDownload"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="28dp"
+            android:layout_weight="1.2"
+            android:padding="0dp"
+            android:text="⬇️ 下载目录"
+            android:textSize="10sp"
+            android:textColor="@color/sky_primary"
+            app:strokeColor="@color/sky_primary"
+            app:cornerRadius="14dp"
+            android:layout_marginEnd="4dp" />
+
+        <Button
+            android:id="@+id/btnFileManagerJumpRoot"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="28dp"
+            android:layout_weight="1"
+            android:padding="0dp"
+            android:text="🏠 根目录"
+            android:textSize="10sp"
+            android:textColor="@color/sky_text_secondary"
+            app:strokeColor="@color/sky_card_dark_stroke"
+            app:cornerRadius="14dp" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/sky_card_dark_stroke"
+        android:layout_marginBottom="4dp" />
+
+    <!-- 4. 文件与文件夹列表容器 -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvFileManagerList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scrollbars="vertical" />
+
+        <TextView
+            android:id="@+id/tvFileManagerEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="当前目录下无乐谱文件\n(支持 .mid / .midi / .json 格式)"
+            android:textColor="@color/sky_text_hint"
+            android:textSize="12sp"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <!-- 5. 底部提示 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="💡 点击任意 MIDI 或 JSON 文件立即载入并演奏"
+        android:textColor="@color/sky_text_hint"
+        android:textSize="10sp"
+        android:gravity="center"
+        android:layout_marginTop="4dp" />
+
+</LinearLayout>

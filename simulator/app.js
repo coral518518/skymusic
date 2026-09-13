@@ -441,10 +441,11 @@ const ScoreParsers = {
 
         let status = data.getUint8(offset++);
         if (status < 0x80) {
+          if (runningStatus === 0) break;
           status = runningStatus;
           offset--;
         } else {
-          runningStatus = status;
+          runningStatus = status < 0xF0 ? status : 0;
         }
 
         if (status === 0xFF) {
@@ -473,10 +474,14 @@ const ScoreParsers = {
           offset += sysexLen;
         } else {
           const type = status & 0xF0;
+          const channel = status & 0x0F;
           if (type === 0x90) { // Note on
             const pitch = data.getUint8(offset++);
             const vel = data.getUint8(offset++);
-            if (vel > 0) rawNotes.push({ tick: currentTick, pitch: pitch });
+            // 过滤 Channel 9 (第10轨道打击乐/鼓点)
+            if (vel > 0 && channel !== 9) {
+              rawNotes.push({ tick: currentTick, pitch: pitch });
+            }
           } else if (type === 0x80 || type === 0xA0 || type === 0xB0 || type === 0xE0) {
             offset += 2;
           } else if (type === 0xC0 || type === 0xD0) {
@@ -508,51 +513,112 @@ const ScoreParsers = {
     const SKY_PITCHES = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 83, 84];
     const DIATONIC = new Set([0, 2, 4, 5, 7, 9, 11]);
 
-    // Transposition fitting
-    let bestShift = 0;
-    let maxHits = -1;
-    for (let s = -6; s <= 6; s++) {
-      let hits = 0;
-      for (const n of rawNotes) {
-        if (DIATONIC.has(((n.pitch + s) % 12 + 12) % 12)) hits++;
+    // Krumhansl-Schmuckler 调性检测矩阵
+    const MAJOR_PROF = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
+    const MINOR_PROF = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+
+    const counts = new Array(12).fill(0);
+    rawNotes.forEach(n => { counts[((n.pitch % 12) + 12) % 12]++; });
+
+    function pearson(x, y) {
+      const n = 12;
+      let sx = 0, sy = 0;
+      for (let i = 0; i < n; i++) { sx += x[i]; sy += y[i]; }
+      const mx = sx / n, my = sy / n;
+      let num = 0, dx = 0, dy = 0;
+      for (let i = 0; i < n; i++) {
+        const vx = x[i] - mx, vy = y[i] - my;
+        num += vx * vy;
+        dx += vx * vx;
+        dy += vy * vy;
       }
-      if (hits > maxHits) {
-        maxHits = hits;
+      const den = Math.sqrt(dx * dy);
+      return den === 0 ? 0 : num / den;
+    }
+
+    let bestScore = -999;
+    let bestShift = 0;
+    for (let tonic = 0; tonic < 12; tonic++) {
+      const rot = Array.from({ length: 12 }, (_, i) => counts[(tonic + i) % 12]);
+      const sMaj = pearson(rot, MAJOR_PROF);
+      const sMin = pearson(rot, MINOR_PROF);
+      if (sMaj > bestScore) {
+        bestScore = sMaj;
+        let s = (12 - tonic) % 12;
+        if (s > 6) s -= 12;
+        bestShift = s;
+      }
+      if (sMin > bestScore) {
+        bestScore = sMin;
+        let s = (9 - tonic) % 12;
+        if (s > 6) s -= 12;
         bestShift = s;
       }
     }
 
-    // Octave shift to center on C5 (72)
-    const pitches = rawNotes.map(n => n.pitch + bestShift).sort((a, b) => a - b);
-    const median = pitches.length ? pitches[Math.floor(pitches.length / 2)] : 72;
-    const octShift = Math.round((72 - median) / 12) * 12;
+    // 备用白键匹配
+    const testHits = rawNotes.filter(n => DIATONIC.has(((n.pitch + bestShift) % 12 + 12) % 12)).length;
+    if (rawNotes.length > 0 && testHits / rawNotes.length < 0.70) {
+      let maxH = -1;
+      for (let s = -6; s <= 6; s++) {
+        const h = rawNotes.filter(n => DIATONIC.has(((n.pitch + s) % 12 + 12) % 12)).length;
+        if (h > maxH) { maxH = h; bestShift = s; }
+      }
+    }
+
+    // 计算最佳基准八度偏移 (-24, -12, 0, 12, 24)
+    const transposedPitches = rawNotes.map(n => n.pitch + bestShift);
+    let bestOct = 0;
+    let maxInRange = -1;
+    [-24, -12, 0, 12, 24].forEach(oct => {
+      const cnt = transposedPitches.filter(p => (p + oct) >= 60 && (p + oct) <= 84).length;
+      if (cnt > maxInRange) {
+        maxInRange = cnt;
+        bestOct = oct;
+      }
+    });
 
     const timeMap = new Map();
     rawNotes.forEach(n => {
       const ms = tickToMs(n.tick);
-      const finalPitch = n.pitch + bestShift + octShift;
+      let p = n.pitch + bestShift + bestOct;
 
-      // Find closest key
+      // 智能八度循环折叠 (Octave Folding)
+      while (p < 60) p += 12;
+      while (p > 84) p -= 12;
+
+      // 映射到 15 键
       let bestKey = 0;
       let minDiff = 999;
       for (let k = 0; k < SKY_PITCHES.length; k++) {
-        const diff = Math.abs(finalPitch - SKY_PITCHES[k]);
+        const diff = Math.abs(p - SKY_PITCHES[k]);
         if (diff < minDiff) {
           minDiff = diff;
           bestKey = k;
+          if (diff === 0) break;
         }
       }
 
-      const qTime = Math.round(ms / 20) * 20; // 20ms quantize
+      // 30ms 时间窗聚合和弦
+      const qTime = Math.round(ms / 30) * 30;
       if (!timeMap.has(qTime)) timeMap.set(qTime, []);
       const arr = timeMap.get(qTime);
       if (!arr.includes(bestKey)) arr.push(bestKey);
     });
 
-    const notes = Array.from(timeMap.entries()).map(([t, keys]) => ({
-      timeMs: t,
-      keys: keys.sort((a, b) => a - b)
-    })).sort((a, b) => a.timeMs - b.timeMs);
+    // 和弦声部精炼 (上限 4 键，保留旋律与低音)
+    const notes = Array.from(timeMap.entries()).map(([t, rawKeys]) => {
+      const sorted = Array.from(new Set(rawKeys)).sort((a, b) => a - b);
+      let keys = sorted;
+      if (sorted.length > 4) {
+        keys = [sorted[0], sorted[sorted.length - 1]];
+        const mid = sorted.slice(1, sorted.length - 1);
+        if (mid.length === 1) keys.push(mid[0]);
+        else if (mid.length >= 2) { keys.push(mid[0]); keys.push(mid[mid.length - 1]); }
+        keys = Array.from(new Set(keys)).sort((a, b) => a - b);
+      }
+      return { timeMs: t, keys: keys };
+    }).sort((a, b) => a.timeMs - b.timeMs);
 
     return {
       id: "midi_" + Date.now(),

@@ -119,11 +119,11 @@ class SkyAccessibilityService : AccessibilityService() {
                         moveTo(targetX, targetY)
                     }
 
-                    // 触控持续时长微抖动 (28ms~42ms)，杜绝机械式恒定时长
-                    val duration = (28L..42L).random()
+                    // 触控持续时长微调为极短打击 (16ms~20ms)，确保密集音符与快速琶音绝不发生手势冲突或被系统丢弃
+                    val duration = (16L..20L).random()
 
-                    // 和弦多键微落差 (多键时 0~5ms 微错开)，模拟真人手指触屏先后顺序
-                    val startLag = if (index == 0) 0L else (0L..5L).random()
+                    // 和弦多键微落差 (0~2ms)，逼真还原多指触屏
+                    val startLag = if (index == 0) 0L else (0L..2L).random()
 
                     val stroke = GestureDescription.StrokeDescription(path, startLag, duration)
                     gestureBuilder.addStroke(stroke)
