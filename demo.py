@@ -6,7 +6,7 @@ import mido
 
 
 # ============================================================
-# MIDI -> 光遇 15 键简谱转换器 V5
+# MIDI -> 光遇 15 键简谱转换器 V6
 #
 # 核心目标：
 #   不是“尽可能压缩 MIDI”，而是：
@@ -269,6 +269,116 @@ def score_track(notes, ticks_per_beat):
     return score
 
 
+
+def _track_melody_probability(notes, ticks_per_beat):
+    """给轨道中的音符估计“像主旋律”的概率。
+
+    不是最终选择器，只用于把多条轨道合成候选池时做软权重。
+    """
+    if not notes:
+        return {}
+
+    groups = defaultdict(list)
+    for n in notes:
+        groups[n["start"]].append(n)
+
+    pitches = [n["pitch"] for n in notes]
+    center = median(pitches)
+    spread = max(12.0, (max(pitches) - min(pitches)) * 0.55)
+
+    result = {}
+    for n in notes:
+        onset_group = groups[n["start"]]
+        chord_size = len(onset_group)
+        pitch_pref = 1.0 - min(1.0, abs(n["pitch"] - center) / spread)
+        duration_pref = min(1.0, n["dur"] / max(1, ticks_per_beat))
+        velocity_pref = n.get("velocity", 64) / 127.0
+
+        # 和弦内部声部仍允许进入候选池，但明显降低权重。
+        chord_penalty = 1.0 / (1.0 + max(0, chord_size - 1) * 0.28)
+        score = (
+            0.32 * pitch_pref
+            + 0.32 * duration_pref
+            + 0.16 * velocity_pref
+            + 0.20
+        ) * chord_penalty
+        result[id(n)] = score
+
+    return result
+
+
+def _merge_melody_candidates(tracks, ticks_per_beat, top_track_count=3):
+    """从多个高分轨道合成旋律候选池。
+
+    V5 的单轨选择有一个硬伤：真正的旋律可能被拆在多个轨道里。
+    V6 不直接把所有伴奏混进来，而是只拿评分最高的少数轨道做候选。
+    """
+    scored = []
+    for idx, notes in enumerate(tracks):
+        scored.append((score_track(notes, ticks_per_beat), idx, notes))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    selected = scored[:max(1, min(top_track_count, len(scored)))]
+
+    candidates = []
+    for rank, (track_score, idx, notes) in enumerate(selected):
+        probability = _track_melody_probability(notes, ticks_per_beat)
+        track_factor = 1.0 / (1.0 + rank * 0.18)
+        for n in notes:
+            candidates.append({
+                **n,
+                "melody_prob": probability.get(id(n), 0.5) * track_factor,
+            })
+
+    # 相同 onset + 相同 pitch 的不同轨道音符合并，保留更有旋律价值的那个。
+    grouped = defaultdict(list)
+    for n in candidates:
+        grouped[(n["start"], n["pitch"])].append(n)
+
+    dedup = []
+    for group in grouped.values():
+        group.sort(
+            key=lambda n: (
+                n["melody_prob"],
+                n["dur"],
+                n["velocity"],
+            ),
+            reverse=True,
+        )
+        dedup.append(group[0])
+
+    dedup.sort(key=lambda n: (n["start"], n["pitch"]))
+    selected_indices = {x[1] for x in selected}
+    return dedup, selected_indices
+
+
+def _phrase_segments(notes, ticks_per_beat):
+    """按明显停顿切成短乐句，防止整首歌一个 DP 链条越跑越偏。"""
+    if not notes:
+        return []
+
+    ordered = sorted(notes, key=lambda n: n["start"])
+    gap_threshold = max(int(ticks_per_beat * 0.85), 1)
+
+    segments = []
+    current = [ordered[0]]
+
+    for prev, cur in zip(ordered, ordered[1:]):
+        prev_end = prev["start"] + prev["dur"]
+        gap = cur["start"] - prev_end
+
+        # 明显停顿；或者跨越一个以上四分音符。
+        if gap >= gap_threshold:
+            segments.append(current)
+            current = [cur]
+        else:
+            current.append(cur)
+
+    if current:
+        segments.append(current)
+
+    return segments
+
 def select_melody(tracks, ticks_per_beat):
     if not tracks:
         return [], []
@@ -276,24 +386,26 @@ def select_melody(tracks, ticks_per_beat):
     if len(tracks) == 1:
         return tracks[0], []
 
-    scored = []
-    for index, notes in enumerate(tracks):
-        scored.append((
-            score_track(notes, ticks_per_beat),
-            index,
-            notes,
-        ))
+    candidate_pool, selected_track_indices = _merge_melody_candidates(
+        tracks,
+        ticks_per_beat,
+        top_track_count=3,
+    )
 
-    scored.sort(key=lambda x: x[0], reverse=True)
+    # 用候选池做一次“软清洗”，而不是强行整轨。
+    cleaned_pool = []
+    for n in candidate_pool:
+        if n["dur"] >= max(1, ticks_per_beat // 48):
+            cleaned_pool.append(n)
 
-    _, melody_index, melody = scored[0]
-
+    # 候选轨道本身已经进入旋律候选池，不要再把它们整轨复制到 Bass。
     accompaniment = []
-    for _, index, notes in scored:
-        if index != melody_index:
-            accompaniment.extend(notes)
+    for track_index, track in enumerate(tracks):
+        if track_index in selected_track_indices:
+            continue
+        accompaniment.extend(track)
 
-    return melody, accompaniment
+    return cleaned_pool, accompaniment
 
 
 # ============================================================
@@ -342,113 +454,120 @@ def _build_onset_groups(notes, ticks_per_beat):
     return result
 
 
-def clean_melody(notes, ticks_per_beat):
-    if not notes:
-        return []
+def _transition_cost_for_melody(prev_note, note, ticks_per_beat):
+    interval = note["pitch"] - prev_note["pitch"]
+    a = abs(interval)
+    cost = 0.0
 
-    groups = _build_onset_groups(notes, ticks_per_beat)
-    if not groups:
-        return []
+    # 旋律通常以级进/小跳为主，但不否认大跳。
+    if a <= 2:
+        cost -= 2.4
+    elif a <= 5:
+        cost -= 1.6
+    elif a <= 7:
+        cost -= 0.5
+    elif a >= 12:
+        cost += 2.4
+    elif a >= 9:
+        cost += 1.2
 
-    # 每个 onset 各候选一个旋律音
-    # DP 状态：
-    #   cost
-    #   prev_candidate_index
+    # 同音重复是正常旋律结构。
+    if interval == 0:
+        cost -= 1.2
+
+    # 很长音后的突然大跳更像伴奏分解，不像自然旋律。
+    if prev_note["dur"] >= ticks_per_beat * 1.5 and a >= 10:
+        cost += 1.6
+
+    return cost
+
+
+def _clean_melody_segment(segment, ticks_per_beat):
+    if len(segment) <= 1:
+        return segment
+
+    grouped = defaultdict(list)
+    for n in segment:
+        grouped[n["start"]].append(n)
+
+    starts = sorted(grouped)
+    candidates = []
+    for start in starts:
+        group = grouped[start]
+        group.sort(
+            key=lambda n: (
+                n.get("melody_prob", 0.5),
+                min(n["dur"], ticks_per_beat * 2),
+                n["velocity"],
+                n["pitch"],
+            ),
+            reverse=True,
+        )
+        # 候选越多，DP 越容易把伴奏当旋律；最多保留 6 个。
+        candidates.append(group[:6])
+
     dp = []
     back = []
 
-    for gi, (_, candidates) in enumerate(groups):
-        if gi == 0:
-            row = []
-            row_back = []
-            for ci, note in enumerate(candidates):
-                # 中高音略偏好，但不能压过后续连续性
-                cost = (
-                    -note["dur"] * 0.025
-                    -note["velocity"] * 0.008
-                    +abs(note["pitch"] - 70) * 0.12
+    for gi, group in enumerate(candidates):
+        row = [float("inf")] * len(group)
+        row_back = [-1] * len(group)
+
+        for ci, note in enumerate(group):
+            melody_prob = note.get("melody_prob", 0.5)
+            duration_bonus = min(note["dur"] / max(1, ticks_per_beat), 2.0)
+
+            local = (
+                -melody_prob * 4.0
+                -duration_bonus * 0.75
+                +abs(note["pitch"] - 70) * 0.035
+            )
+
+            if gi == 0:
+                row[ci] = local
+                continue
+
+            for pi, prev in enumerate(candidates[gi - 1]):
+                total = (
+                    dp[gi - 1][pi]
+                    + local
+                    + _transition_cost_for_melody(prev, note, ticks_per_beat)
                 )
-                row.append(cost)
-                row_back.append(-1)
-            dp.append(row)
-            back.append(row_back)
-            continue
 
-        prev_candidates = groups[gi - 1][1]
-        row = [float("inf")] * len(candidates)
-        row_back = [-1] * len(candidates)
-
-        for ci, note in enumerate(candidates):
-            best_cost = float("inf")
-            best_prev = -1
-
-            for pi, prev_note in enumerate(prev_candidates):
-                prev_cost = dp[gi - 1][pi]
-                interval = note["pitch"] - prev_note["pitch"]
-                abs_interval = abs(interval)
-
-                transition = 0.0
-
-                # 连续旋律奖励
-                if abs_interval <= 7:
-                    transition -= 2.8
-                if abs_interval == 0:
-                    transition -= 1.8
-
-                # 大跳不是不允许，但需要明显惩罚
-                if abs_interval >= 12:
-                    transition += 6.0
-                if abs_interval >= 19:
-                    transition += 10.0
-
-                # 避免旋律不断向一个方向“漂”
-                if gi >= 2:
-                    prev_prev_candidates = groups[gi - 2][1]
-                    # 这里只做一个非常轻的方向稳定约束
-                    if pi < len(back[gi - 1]):
-                        ppi = back[gi - 1][pi]
-                        if ppi >= 0 and ppi < len(prev_prev_candidates):
-                            old_interval = (
-                                prev_note["pitch"]
-                                - prev_prev_candidates[ppi]["pitch"]
-                            )
-                            if old_interval * interval < 0 and abs(old_interval) >= 5 and abs(interval) >= 5:
-                                transition += 1.5
-
-                # 长音更可能是真正旋律音
-                transition -= min(note["dur"], 4 * ticks_per_beat) * 0.002
-
-                candidate_cost = prev_cost + transition
-                if candidate_cost < best_cost:
-                    best_cost = candidate_cost
-                    best_prev = pi
-
-            row[ci] = best_cost
-            row_back[ci] = best_prev
+                if total < row[ci]:
+                    row[ci] = total
+                    row_back[ci] = pi
 
         dp.append(row)
         back.append(row_back)
 
-    # 回溯
-    last_index = min(range(len(dp[-1])), key=lambda i: dp[-1][i])
-    chosen = [None] * len(groups)
+    best = min(range(len(dp[-1])), key=lambda i: dp[-1][i])
+    chosen = [None] * len(candidates)
 
-    for gi in range(len(groups) - 1, -1, -1):
-        chosen[gi] = groups[gi][1][last_index]
-        last_index = back[gi][last_index]
+    for i in range(len(candidates) - 1, -1, -1):
+        chosen[i] = candidates[i][best]
+        best = back[i][best]
 
-    # 清理几乎重叠的极短噪音
+    return chosen
+
+
+def clean_melody(notes, ticks_per_beat):
+    if not notes:
+        return []
+
+    segments = _phrase_segments(notes, ticks_per_beat)
+    result = []
+
+    for segment in segments:
+        result.extend(_clean_melody_segment(segment, ticks_per_beat))
+
+    # 保持真实重复音，不再错误吞掉快速重复音；只过滤极短重复噪声。
     cleaned = []
-    for note in chosen:
-        if cleaned:
-            prev = cleaned[-1]
+    min_duration = max(1, ticks_per_beat // 48)
 
-            if (
-                note["pitch"] == prev["pitch"]
-                and note["start"] - prev["start"] <= max(1, ticks_per_beat // 32)
-            ):
-                continue
-
+    for note in result:
+        if note["dur"] < min_duration:
+            continue
         cleaned.append(note)
 
     return cleaned
@@ -834,58 +953,49 @@ def choose_rhythm_grid(notes, ticks_per_beat):
     if len(notes) < 4:
         return max(1, ticks_per_beat // 4)
 
-    starts = sorted(
-        set(
-            n["start"]
-            for n in notes
-        )
-    )
-
+    starts = sorted(set(n["start"] for n in notes))
     if len(starts) < 3:
         return max(1, ticks_per_beat // 4)
 
-    iois = [
-        b - a
-        for a, b in zip(starts, starts[1:])
-        if b > a
-    ]
-
-    if not iois:
-        return max(1, ticks_per_beat // 4)
-
+    # 同时尝试二分和三分节奏。
     candidates = [
-        max(1, ticks_per_beat // 2),  # 1/8
-        max(1, ticks_per_beat // 4),  # 1/16
-        max(1, ticks_per_beat // 8),  # 1/32
+        max(1, ticks_per_beat // 2),   # 1/8
+        max(1, ticks_per_beat // 3),   # 1/8 三连音单位
+        max(1, ticks_per_beat // 4),   # 1/16
+        max(1, ticks_per_beat // 6),   # 1/16 三连音单位
+        max(1, ticks_per_beat // 8),   # 1/32
     ]
 
-    best_grid = candidates[1]
+    candidates = list(dict.fromkeys(candidates))
+    best_grid = candidates[2 if len(candidates) > 2 else 0]
     best_score = float("inf")
 
     for grid in candidates:
-        errors = [
-            abs(value - snap_grid(value, grid))
-            for value in starts
-        ]
-
+        errors = [abs(x - snap_grid(x, grid)) for x in starts]
         mean_error = mean(errors)
-        tiny_slot_ratio = sum(1 for x in iois if x < grid) / len(iois)
+        exact_ratio = sum(1 for e in errors if e == 0) / len(errors)
 
-        # 量化误差是第一目标
-        # 1/32 的复杂度稍高，所以加轻微正则
-        complexity = {
-            candidates[0]: 0.0,
-            candidates[1]: 1.0,
-            candidates[2]: 2.2,
-        }[grid]
+        # 网格太细会制造大量无意义空位；太粗则破坏切分。
+        slots_per_beat = max(1.0, ticks_per_beat / grid)
+        complexity = 0.55 * max(0.0, slots_per_beat - 4.0)
 
-        score = mean_error + tiny_slot_ratio * grid * 0.8 + complexity
+        # 对 1/16 给一个很轻的偏好，作为音乐性与复杂度的折中。
+        musical_prior = 0.0
+        if grid == ticks_per_beat // 4:
+            musical_prior = -0.35
+
+        score = (
+            mean_error
+            - exact_ratio * min(grid * 0.18, 8.0)
+            + complexity
+            + musical_prior
+        )
 
         if score < best_score:
             best_score = score
             best_grid = grid
 
-    return best_grid
+    return max(1, best_grid)
 
 
 # ============================================================
@@ -915,13 +1025,14 @@ def build_melody_events(
         start = snap_grid(note["start"], grid)
 
         # 防止量化后大量不同 onset 合并成一个位置
+        quantized_dur = max(grid, snap_grid(note["dur"], grid))
         result.append({
             "key": SKY_KEYS_MIDI.index(note["mapped_pitch"]),
             "pitch": note["mapped_pitch"],
             "original_pitch": note["pitch"],
             "start": start,
-            "end": start + max(grid, snap_grid(note["dur"], grid)),
-            "dur": max(grid, snap_grid(note["dur"], grid)),
+            "end": start + quantized_dur,
+            "dur": quantized_dur,
             "velocity": note["velocity"],
             "is_melody": True,
         })
@@ -1030,15 +1141,12 @@ def build_bass_events(
         if start - last < min_interval:
             continue
 
-        # 太靠近主旋律起点且同键，不需要低音重复
+        # 光遇最终时间轴同一网格只能保留一个音。
+        # 因此主旋律起点直接放弃 Bass，避免“试听 MIDI 有双音、15 键谱没有”的不一致。
         if start in melody_starts:
-            candidates = [
-                x for x in grouped[start]
-                if x["key"] <= 6
-            ]
-        else:
-            candidates = grouped[start]
+            continue
 
+        candidates = grouped[start]
         if not candidates:
             continue
 
@@ -1101,6 +1209,49 @@ def merge_events(melody_events, bass_events):
     return result
 
 
+def melody_quality_report(original_notes, melody_events, grid):
+    """输出几个非常实用的调试指标，方便判断 V6 是否真的比 V5 好。"""
+    if not original_notes or not melody_events:
+        return {
+            "pitch_match": 0.0,
+            "direction_match": 0.0,
+            "rhythm_onset_error": 0.0,
+        }
+
+    raw = [n["pitch"] for n in original_notes]
+    mapped = [e["pitch"] for e in melody_events]
+    count = min(len(raw), len(mapped))
+
+    pitch_match = sum(
+        1 for a, b in zip(raw[:count], mapped[:count])
+        if abs(a - b) <= 1
+    ) / max(1, count)
+
+    raw_dirs = []
+    mapped_dirs = []
+    for i in range(1, count):
+        ra = raw[i] - raw[i - 1]
+        ma = mapped[i] - mapped[i - 1]
+        raw_dirs.append(1 if ra > 0 else -1 if ra < 0 else 0)
+        mapped_dirs.append(1 if ma > 0 else -1 if ma < 0 else 0)
+
+    direction_match = sum(a == b for a, b in zip(raw_dirs, mapped_dirs)) / max(1, len(raw_dirs))
+
+    raw_starts = [n["start"] for n in original_notes]
+    mapped_starts = [e["start"] for e in melody_events]
+    c2 = min(len(raw_starts), len(mapped_starts))
+    rhythm_error = mean(
+        abs(raw_starts[i] - mapped_starts[i])
+        for i in range(c2)
+    ) if c2 else 0.0
+
+    return {
+        "pitch_match": pitch_match,
+        "direction_match": direction_match,
+        "rhythm_onset_error": rhythm_error,
+    }
+
+
 # ============================================================
 # 12. 15键时间轴
 # ============================================================
@@ -1146,19 +1297,19 @@ def build_timeline(events, grid):
 #   不能继续拿 original_pitch 直接算。
 # ============================================================
 
-def degree_from_mapped_pitch(mapped_pitch, output_tonic=0):
+def degree_from_mapped_pitch(mapped_pitch, output_tonic=0, mode="major"):
     relative = mapped_pitch - output_tonic
     octave = math.floor(relative / 12)
     pc = relative % 12
 
-    scale = MAJOR_SCALE
-    names = ["1", "2", "3", "4", "5", "6", "7"]
+    if mode == "minor":
+        scale = MINOR_SCALE
+        names = ["1", "2", "b3", "4", "5", "b6", "b7"]
+    else:
+        scale = MAJOR_SCALE
+        names = ["1", "2", "3", "4", "5", "6", "7"]
 
-    distances = [
-        min(abs(pc - s), 12 - abs(pc - s))
-        for s in scale
-    ]
-
+    distances = [min(abs(pc - s), 12 - abs(pc - s)) for s in scale]
     degree = distances.index(min(distances))
     token = names[degree]
 
@@ -1177,6 +1328,7 @@ def write_simple_sheet(
     title,
     output_tonic,
     original_key,
+    mode="major",
 ):
     if not events:
         return
@@ -1207,12 +1359,13 @@ def write_simple_sheet(
                 degree_from_mapped_pitch(
                     event["pitch"],
                     output_tonic=output_tonic,
+                    mode=mode,
                 )
             )
 
     with open(output_file, "w", encoding="utf-8") as f:
         f.write("========================================\n")
-        f.write("            光遇15键实际简谱 V5\n")
+        f.write("            光遇15键实际简谱 V6\n")
         f.write("========================================\n")
         f.write(f"歌曲: {title}\n")
         f.write(f"原调: {original_key}\n")
@@ -1241,7 +1394,7 @@ def write_sky_sheet(
 ):
     with open(output_file, "w", encoding="utf-8") as f:
         f.write("========================================\n")
-        f.write("        MIDI -> 光遇 15 键简谱 V5\n")
+        f.write("        MIDI -> 光遇 15 键简谱 V6\n")
         f.write("========================================\n")
         f.write(f"歌曲: {title}\n")
         f.write(f"原调: {original_key}\n")
@@ -1365,7 +1518,7 @@ def convert_midi_to_sky(
 ):
     print()
     print("=" * 60)
-    print("       MIDI -> 光遇 15 键简谱 V5")
+    print("       MIDI -> 光遇 15 键简谱 V6")
     print("=" * 60)
 
     mid = mido.MidiFile(input_file)
@@ -1442,6 +1595,11 @@ def convert_midi_to_sky(
     print(f"[7/8] 旋律事件: {len(melody_events)}")
     print(f"      网格: {grid} ticks")
 
+    quality = melody_quality_report(melody, melody_events, grid)
+    print(f"      音高保真: {quality['pitch_match'] * 100:.1f}%")
+    print(f"      方向保真: {quality['direction_match'] * 100:.1f}%")
+    print(f"      起音误差: {quality['rhythm_onset_error']:.1f} ticks")
+
     # 8. Bass
     bass_events = build_bass_events(
         accompaniment,
@@ -1490,6 +1648,7 @@ def convert_midi_to_sky(
         input_file,
         output_tonic,
         key_desc,
+        mode,
     )
 
     export_preview_midi(
