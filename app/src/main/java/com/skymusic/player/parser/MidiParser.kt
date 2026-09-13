@@ -9,13 +9,11 @@ import java.util.UUID
 
 object MidiParser {
 
-    private data class ParsedNote(
+    private data class RawNote(
         val pitch: Int,
         val startTick: Long,
-        val durationTicks: Long,
-        val velocity: Int,
-        val channel: Int,
-        val trackIndex: Int
+        val durTicks: Long,
+        val channel: Int
     )
 
     private data class TempoChange(
@@ -23,35 +21,24 @@ object MidiParser {
         val usPerQuarter: Long
     )
 
-    private data class ProcessedEvent(
-        val startTick: Long,
-        val timeMs: Long,
-        val keyIndex: Int,
-        val isMelody: Boolean
+    // 自然大调半音阶步长 (全全半全全全半)
+    val MAJOR_STEPS = intArrayOf(0, 2, 4, 5, 7, 9, 11)
+
+    // 光遇 15 键对应的“首调音级”规范 (从0开始索引)
+    // 键位 0~6:  低音 1, 2, 3, 4, 5, 6, 7 (对应 A1 ~ B2)
+    // 键位 7~13: 中音 1, 2, 3, 4, 5, 6, 7 (对应 B3 ~ C4)
+    // 键位 14:   高音 1 (对应 C5)
+    val SKY_PITCH_MAP = intArrayOf(
+        48, 50, 52, 53, 55, 57, 59, // 0~6:  低音组
+        60, 62, 64, 65, 67, 69, 71, // 7~13: 中音组
+        72                          // 14:   高音 1
     )
 
-    // C 大调自然音级 (C, D, E, F, G, A, B)
-    private val NATURAL_NOTES = setOf(0, 2, 4, 5, 7, 9, 11)
-
-    // 光遇 15 键对应的标准 MIDI 音高（C3=48 体系：低音1到高音1'）
-    // 实际覆盖范围为 C3(48) 到 C5(72) 的自然大调音阶
-    private val SKY_KEYS = intArrayOf(48, 50, 52, 53, 55, 57, 59, 60, 62, 64, 65, 67, 69, 71, 72)
+    val SKY_KEY_PITCHES = SKY_PITCH_MAP
 
     /**
-     * 光遇标准 15 键对应的标准 MIDI 音高（C4 到 C6 自然大调音阶）：
-     * Key 0..4  (Row 0): C4 (60), D4 (62), E4 (64), F4 (65), G4 (67)
-     * Key 5..9  (Row 1): A4 (69), B4 (71), C5 (72), D5 (74), E5 (76)
-     * Key 10..14(Row 2): F5 (77), G5 (79), A5 (81), B5 (83), C6 (84)
-     */
-    val SKY_KEY_PITCHES = intArrayOf(
-        60, 62, 64, 65, 67, 69, 71, // Key 0..6 (1, 2, 3, 4, 5, 6, 7)
-        72, 74, 76, 77, 79, 81, 83, // Key 7..13 (+1, +2, +3, +4, +5, +6, +7)
-        84                          // Key 14 (++1)
-    )
-
-    /**
-     * 解析标准 MIDI 文件输入流并完成高保真光遇 15 键智能音符映射
-     * 具备 demo.py 启发式主旋律识别、全局白键移调优化、声部音区独立折叠与伴奏和弦稀疏化（消除复杂优化）
+     * 解析标准 MIDI 文件输入流并基于“首调简谱”核心乐理重构转写为光遇 15 键乐谱
+     * 自动检测自然大调主音 Tonic，执行音区自适应安全下沉，并抽取旋律高音与伴奏最低根音（防砸琴骨架）
      */
     fun parse(inputStream: InputStream, defaultTitle: String = "MIDI 乐谱"): Song {
         val bytes = inputStream.readBytes()
@@ -70,18 +57,17 @@ object MidiParser {
         val division = buffer.short.toInt() // PPQ (Ticks per Quarter Note)
         val ppq = if (division > 0) division else 480
 
-        // 跳过 header 中多余字节（如果有）
         if (headerSize > 6) {
             buffer.position(buffer.position() + (headerSize - 6))
         }
 
-        val tracksNotes = mutableListOf<List<ParsedNote>>()
+        val allNotes = mutableListOf<RawNote>()
         val tempoChanges = mutableListOf<TempoChange>()
         tempoChanges.add(TempoChange(0L, 500_000L)) // 默认 120 BPM = 500,000 微秒/拍
 
         var songTitle = defaultTitle
 
-        // 2. 逐音轨解析（提取音符绝对 Tick、声部与时长，严格过滤打击乐）
+        // 2. 逐音轨提取有效音符（剔除 Channel 9 打击乐/鼓点）
         for (t in 0 until numTracks) {
             if (buffer.remaining() < 8) break
             val trackId = ByteArray(4)
@@ -91,9 +77,7 @@ object MidiParser {
 
             var currentTick = 0L
             var runningStatus = 0
-            val trackNotes = mutableListOf<ParsedNote>()
-            // key: (channel, noteNumber) -> value: (startTick, velocity)
-            val activeNotes = mutableMapOf<Pair<Int, Int>, Pair<Long, Int>>()
+            val activeNotes = mutableMapOf<Pair<Int, Int>, Long>() // (channel, note) -> startTick
 
             while (buffer.position() < trackEndPos && buffer.hasRemaining()) {
                 val delta = readVariableLength(buffer)
@@ -103,18 +87,11 @@ object MidiParser {
                 var status = buffer.get().toInt() and 0xFF
 
                 if (status < 0x80) {
-                    // Running status
-                    if (runningStatus == 0) {
-                        break
-                    }
+                    if (runningStatus == 0) break
                     status = runningStatus
                     buffer.position(buffer.position() - 1)
                 } else {
-                    if (status < 0xF0) {
-                        runningStatus = status
-                    } else {
-                        runningStatus = 0
-                    }
+                    runningStatus = if (status < 0xF0) status else 0
                 }
 
                 if (status == 0xFF) {
@@ -147,7 +124,6 @@ object MidiParser {
                         }
                     }
                 } else if (status == 0xF0 || status == 0xF7) {
-                    // SysEx 事件
                     val sysexLen = readVariableLength(buffer).toInt()
                     if (buffer.remaining() >= sysexLen) {
                         buffer.position(buffer.position() + sysexLen)
@@ -155,7 +131,6 @@ object MidiParser {
                         buffer.position(buffer.limit())
                     }
                 } else {
-                    // Channel 消息
                     val msgType = status and 0xF0
                     val channel = status and 0x0F
                     when (msgType) {
@@ -163,21 +138,20 @@ object MidiParser {
                             if (buffer.remaining() >= 2) {
                                 val note = buffer.get().toInt() and 0xFF
                                 val vel = buffer.get().toInt() and 0xFF
-                                // 过滤 Channel 9 (第10轨道打击乐/鼓点)
                                 if (channel != 9) {
                                     val key = Pair(channel, note)
                                     if (vel > 0) {
                                         val prev = activeNotes[key]
                                         if (prev != null) {
-                                            val dur = (currentTick - prev.first).coerceAtLeast(1L)
-                                            trackNotes.add(ParsedNote(note, prev.first, dur, prev.second, channel, t))
+                                            val dur = (currentTick - prev).coerceAtLeast(1L)
+                                            allNotes.add(RawNote(note, prev, dur, channel))
                                         }
-                                        activeNotes[key] = Pair(currentTick, vel)
+                                        activeNotes[key] = currentTick
                                     } else {
                                         val prev = activeNotes.remove(key)
                                         if (prev != null) {
-                                            val dur = (currentTick - prev.first).coerceAtLeast(1L)
-                                            trackNotes.add(ParsedNote(note, prev.first, dur, prev.second, channel, t))
+                                            val dur = (currentTick - prev).coerceAtLeast(1L)
+                                            allNotes.add(RawNote(note, prev, dur, channel))
                                         }
                                     }
                                 }
@@ -186,13 +160,13 @@ object MidiParser {
                         0x80 -> { // Note Off
                             if (buffer.remaining() >= 2) {
                                 val note = buffer.get().toInt() and 0xFF
-                                buffer.get() // velocity
+                                buffer.get() // vel
                                 if (channel != 9) {
                                     val key = Pair(channel, note)
                                     val prev = activeNotes.remove(key)
                                     if (prev != null) {
-                                        val dur = (currentTick - prev.first).coerceAtLeast(1L)
-                                        trackNotes.add(ParsedNote(note, prev.first, dur, prev.second, channel, t))
+                                        val dur = (currentTick - prev).coerceAtLeast(1L)
+                                        allNotes.add(RawNote(note, prev, dur, channel))
                                     }
                                 }
                             }
@@ -212,25 +186,18 @@ object MidiParser {
                 }
             }
 
-            // 处理可能未显式 NoteOff 的悬空尾音
-            for ((key, pair) in activeNotes) {
-                val (startTick, vel) = pair
-                val dur = ppq.toLong()
-                trackNotes.add(ParsedNote(key.second, startTick, dur, vel, key.first, t))
-            }
-
-            if (trackNotes.isNotEmpty()) {
-                tracksNotes.add(trackNotes)
+            for ((key, startTick) in activeNotes) {
+                allNotes.add(RawNote(key.second, startTick, ppq.toLong(), key.first))
             }
 
             buffer.position(trackEndPos.coerceAtMost(buffer.limit()))
         }
 
-        if (tracksNotes.isEmpty()) {
+        if (allNotes.isEmpty()) {
             return Song(
                 id = UUID.randomUUID().toString(),
                 title = songTitle,
-                artist = "MIDI 转换",
+                artist = "首调简谱转换",
                 bpm = 120,
                 notes = emptyList(),
                 durationMs = 0L,
@@ -238,109 +205,51 @@ object MidiParser {
             )
         }
 
-        // 3. 全局最佳移调优化（遍历 -6 到 +6 半音，白键 +1，黑键 -3 严厉扣分）
-        val allFlatNotes = tracksNotes.flatten()
-        val bestShift = findBestTranspose(allFlatNotes)
+        // 3. 首调根音识别（通过音阶统计与大调主三和弦 1, 3, 5 权重锁定最佳 Tonic）
+        val tonic = detectTonicRoot(allNotes)
 
-        // 4. 启发式主旋律识别与声部分流（Melody vs Accompaniment）
-        val melodyNotes = mutableListOf<ParsedNote>()
-        val accompanimentNotes = mutableListOf<ParsedNote>()
+        // 4. 旋律高度评估与全局八度自适应（若全曲平均音高高于中音 G (65)，下沉一个八度避免高音爆框）
+        val avgPitch = allNotes.map { it.pitch }.average()
+        val octaveShift = if (avgPitch > 65.0) -1 else 0
 
-        if (tracksNotes.size > 1) {
-            val trackScores = tracksNotes.mapIndexed { index, notes ->
-                Pair(index, scoreTrackForMelody(notes))
-            }.sortedByDescending { it.second }
-            val melodyTrackIdx = trackScores.first().first
+        // 5. 时间网格与和弦骨架提取（防砸琴：同拍 32 分音符容差内，必定保留最高音主旋律；伴奏只保留最低音根音）
+        allNotes.sortWith(compareBy<RawNote> { it.startTick }.thenByDescending { it.pitch })
+        val timeThreshold = (ppq / 8).coerceAtLeast(1)
 
-            for (i in tracksNotes.indices) {
-                if (i == melodyTrackIdx) {
-                    melodyNotes.addAll(tracksNotes[i])
-                } else {
-                    accompanimentNotes.addAll(tracksNotes[i])
-                }
-            }
-        } else {
-            // 单轨 MIDI (如 Type 0)：若包含多通道则按通道分流，否则按时间戳最高音为旋律
-            val singleTrack = tracksNotes[0]
-            val channels = singleTrack.map { it.channel }.distinct()
-            if (channels.size > 1) {
-                val channelGroups = singleTrack.groupBy { it.channel }.values.toList()
-                val chScores = channelGroups.mapIndexed { index, notes ->
-                    Pair(index, scoreTrackForMelody(notes))
-                }.sortedByDescending { it.second }
-                val melodyChIdx = chScores.first().first
-
-                for (i in channelGroups.indices) {
-                    if (i == melodyChIdx) {
-                        melodyNotes.addAll(channelGroups[i])
-                    } else {
-                        accompanimentNotes.addAll(channelGroups[i])
-                    }
-                }
-            } else {
-                val byStart = singleTrack.groupBy { it.startTick }
-                for ((_, group) in byStart) {
-                    val sorted = group.sortedByDescending { it.pitch }
-                    melodyNotes.add(sorted.first())
-                    if (sorted.size > 1) {
-                        accompanimentNotes.addAll(sorted.drop(1))
-                    }
-                }
-            }
-        }
-
-        // 5. 处理旋律音（移调 + 中高音区独立折叠 [57..72]）
         tempoChanges.sortBy { it.tick }
-        val processedEvents = mutableListOf<ProcessedEvent>()
-
-        for (n in melodyNotes) {
-            val shifted = n.pitch + bestShift
-            val skyKey = fitToSkyKey(shifted, isMelody = true)
-            val timeMs = tickToMillis(n.startTick, ppq, tempoChanges)
-            processedEvents.add(ProcessedEvent(n.startTick, timeMs, skyKey, isMelody = true))
-        }
-
-        // 6. 处理伴奏音：强行抽稀（消除复杂优化，至少间隔半拍避免砸琴；同时间戳只取最低音根音；低音区独立折叠 [48..60]）
-        val sortedAcc = accompanimentNotes.sortedWith(
-            compareBy<ParsedNote> { it.startTick }.thenBy { it.pitch }
-        )
-        val minIntervalTicks = (ppq / 2).coerceAtLeast(1)
-        var lastAccTick = -999_999L
-
-        for (n in sortedAcc) {
-            if (n.startTick - lastAccTick >= minIntervalTicks) {
-                val shifted = n.pitch + bestShift
-                val skyKey = fitToSkyKey(shifted, isMelody = false)
-                val timeMs = tickToMillis(n.startTick, ppq, tempoChanges)
-                processedEvents.add(ProcessedEvent(n.startTick, timeMs, skyKey, isMelody = false))
-                lastAccTick = n.startTick
-            }
-        }
-
-        // 7. 合并并按时间排序
-        processedEvents.sortBy { it.timeMs }
-
-        // 8. 25ms 时间窗微聚合（支持主旋律与伴奏根音构成干净双音/三音和弦）
         val timeMap = mutableMapOf<Long, MutableList<Int>>()
-        for (ev in processedEvents) {
-            val quantizedTime = Math.round(ev.timeMs / 25.0) * 25L
+
+        var i = 0
+        while (i < allNotes.size) {
+            val curTick = allNotes[i].startTick
+            val cluster = mutableListOf<RawNote>()
+            while (i < allNotes.size && (allNotes[i].startTick - curTick) <= timeThreshold) {
+                cluster.add(allNotes[i])
+                i++
+            }
+
+            val selected = mutableListOf<RawNote>()
+            selected.add(cluster.first()) // 最高音主旋律
+            if (cluster.size > 1 && cluster.last().pitch != cluster.first().pitch) {
+                selected.add(cluster.last()) // 最低音伴奏根音
+            }
+
+            val timeMs = tickToMillis(curTick, ppq, tempoChanges)
+            val quantizedTime = Math.round(timeMs / 25.0) * 25L
             val keys = timeMap.getOrPut(quantizedTime) { mutableListOf() }
-            if (!keys.contains(ev.keyIndex)) {
-                keys.add(ev.keyIndex)
+
+            for (n in selected) {
+                val skyKey = pitchToSkyKey(n.pitch, tonic, octaveShift)
+                if (!keys.contains(skyKey)) {
+                    keys.add(skyKey)
+                }
             }
         }
 
         val noteEvents = mutableListOf<NoteEvent>()
         for ((time, rawKeys) in timeMap) {
             val distinctSorted = rawKeys.distinct().sorted()
-            val refined = if (distinctSorted.size <= 3) {
-                distinctSorted
-            } else {
-                listOf(distinctSorted.first(), distinctSorted[distinctSorted.size / 2], distinctSorted.last()).distinct().sorted()
-            }
-            if (refined.isNotEmpty()) {
-                noteEvents.add(NoteEvent(timeMs = time, keys = refined))
-            }
+            noteEvents.add(NoteEvent(timeMs = time, keys = distinctSorted))
         }
         noteEvents.sort()
 
@@ -351,7 +260,7 @@ object MidiParser {
         return Song(
             id = UUID.randomUUID().toString(),
             title = songTitle,
-            artist = "MIDI 转换",
+            artist = "首调简谱转换",
             bpm = bpm,
             notes = noteEvents,
             durationMs = duration,
@@ -360,86 +269,79 @@ object MidiParser {
     }
 
     /**
-     * 全局移调优化：遍历 -6 到 +6 半音，找出落入自然白键最多的移调量
+     * 通过统计音级权重与三和弦探测，寻找最契合自然大调的主音 Tonic (0~11)
      */
-    private fun findBestTranspose(allNotes: List<ParsedNote>): Int {
-        var bestShift = 0
-        var maxScore = Int.MIN_VALUE
-        for (shift in -6..6) {
-            var score = 0
-            for (n in allNotes) {
-                val pitchClass = ((n.pitch + shift) % 12 + 12) % 12
-                if (pitchClass in NATURAL_NOTES) {
-                    score += 1 // 命中白键加分
-                } else {
-                    score -= 3 // 命中了黑键（半音）重罚
-                }
+    fun detectTonicRoot(notes: List<RawNote>): Int {
+        val counts = IntArray(12)
+        for (n in notes) {
+            val pc = ((n.pitch % 12) + 12) % 12
+            counts[pc]++
+        }
+
+        var bestRoot = 0
+        var maxScore = -1.0
+
+        for (candidateRoot in 0 until 12) {
+            var inScaleNotes = 0
+            for (step in MAJOR_STEPS) {
+                val pc = (candidateRoot + step) % 12
+                inScaleNotes += counts[pc]
             }
-            if (score > maxScore || (score == maxScore && Math.abs(shift) < Math.abs(bestShift))) {
-                maxScore = score
-                bestShift = shift
+
+            // 加分项：统计强拍/高频音是否落在大调三和弦 (1, 3, 5) 上
+            val triadBonus = (counts[candidateRoot] +
+                    counts[(candidateRoot + 4) % 12] +
+                    counts[(candidateRoot + 7) % 12]) * 0.5
+
+            val totalScore = inScaleNotes + triadBonus
+            if (totalScore > maxScore) {
+                maxScore = totalScore
+                bestRoot = candidateRoot
             }
         }
-        return bestShift
+        return bestRoot
     }
 
-    /**
-     * 旋律识别启发式评分：
-     * 主旋律特征：音高相对较高、多音重叠率低（单音纯净线条）、适度音符量覆盖全曲
-     */
-    private fun scoreTrackForMelody(notes: List<ParsedNote>): Double {
-        if (notes.isEmpty()) return -1.0
-        val avgPitch = notes.map { it.pitch }.average()
-        val timePoints = notes.map { it.startTick }
-        val overlapCount = timePoints.size - timePoints.toSet().size
-        val polyphonyRate = overlapCount.toDouble() / notes.size.toDouble()
-        val noteBonus = Math.min(notes.size, 400) * 0.02
-        return (avgPitch * 0.6) - (polyphonyRate * 50.0) + noteBonus
-    }
+    const val SKY_BASE_PITCH = 48 // C3 作为低音 1 (Do)
 
     /**
-     * 将音高折叠并强制吸附到光遇 15 键 (0..14)
-     * - 旋律区优先保留在中高音区 (57~72，即 key 5..14)
-     * - 伴奏区保留在低音区 (48~60，即 key 0..7)
+     * 核心乐理映射：将绝对音高转为光遇首调简谱键位 (0~14)
      */
-    fun fitToSkyKey(pitch: Int, isMelody: Boolean): Int {
-        var p = pitch
-        val pitchClass = ((p % 12) + 12) % 12
+    fun pitchToSkyKey(pitch: Int, root: Int, octaveShift: Int = 0): Int {
+        // 相对光遇低音组基准 (C3=48) 与主音的半音差
+        val relSemitone = (pitch - (SKY_BASE_PITCH + root)) + (octaveShift * 12)
+        val octave = Math.floorDiv(relSemitone, 12)
+        val semiInOctave = Math.floorMod(relSemitone, 12)
 
-        // 1. 强制消除非自然半音（就近修正到自然音）
-        if (pitchClass !in NATURAL_NOTES) {
-            val downClass = ((pitchClass - 1) % 12 + 12) % 12
-            p = if (downClass in NATURAL_NOTES) p - 1 else p + 1
-        }
-
-        // 2. 按功能区折叠八度
-        if (isMelody) {
-            while (p < 57) p += 12
-            while (p > 72) p -= 12
-        } else {
-            while (p < 48) p += 12
-            while (p > 60) p -= 12
-        }
-
-        // 3. 兜底匹配到 15 键最接近的值
-        var bestKey = 0
+        // 映射到简谱音级 (1~7 对应 step 0~6)
+        // 遇到黑键(不在大调里的半音)，按导音倾向吸附
+        var scaleStep = 0
         var minDiff = Int.MAX_VALUE
-        for (i in SKY_KEYS.indices) {
-            val diff = Math.abs(p - SKY_KEYS[i])
+        for (s in MAJOR_STEPS.indices) {
+            val diff = Math.abs(semiInOctave - MAJOR_STEPS[s])
             if (diff < minDiff) {
                 minDiff = diff
-                bestKey = i
+                scaleStep = s
                 if (diff == 0) break
             }
         }
-        return bestKey
+
+        // 换算为光遇 15 键索引：低音组从 0 开始 (octave 0: 0~6)，中音组从 7 开始 (octave 1: 7~13)
+        var alignedKey = (octave * 7) + scaleStep
+
+        // 边界限制与八度折叠
+        while (alignedKey < 0) {
+            alignedKey += 7
+        }
+        while (alignedKey > 14) {
+            alignedKey -= 7
+        }
+
+        return alignedKey
     }
 
-    /**
-     * 兼容方法：默认按旋律区将音高折叠映射为 0..14 键位
-     */
     fun foldPitchToSkyKey(pitch: Int): Int {
-        return fitToSkyKey(pitch, isMelody = true)
+        return pitchToSkyKey(pitch, 0, 0)
     }
 
     private fun readVariableLength(buffer: ByteBuffer): Long {
