@@ -40,6 +40,8 @@ jobs:
           cache-disabled: true
 
       - name: 5. 编译生成 Android Debug APK
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           echo "开始打包光遇自动弹琴 App..."
           gradle assembleDebug --stacktrace

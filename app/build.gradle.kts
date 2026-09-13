@@ -7,12 +7,15 @@ android {
     namespace = "com.skymusic.player"
     compileSdk = 34
 
+    val appVersionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 24
+    val appVersionName = "1.0.$appVersionCode"
+
     defaultConfig {
         applicationId = "com.skymusic.player"
         minSdk = 24 // Android 7.0 (Nougat) - required for dispatchGesture API
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -10,3 +10,10 @@
 .cxx
 *.apk
 *.ap_
+__pycache__/
+*.py[cod]
+*$py.class
+*.jar
+*.log
+sky_preview*.mid
+*_sheet*.txt

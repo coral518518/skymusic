@@ -70,6 +70,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
+        try {
+            val pkgInfo = packageManager.getPackageInfo(packageName, 0)
+            binding.tvAppVersion.text = "v${pkgInfo.versionName}"
+        } catch (e: Exception) {
+            binding.tvAppVersion.text = "v1.0"
+        }
+
         // 权限按钮跳转
         binding.btnRootPerm.setOnClickListener {
             val isRoot = RootTouchController.isRootModeEnabled(this)
