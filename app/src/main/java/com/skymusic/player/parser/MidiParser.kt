@@ -632,7 +632,7 @@ object MidiParser {
         if (notes.isEmpty()) return emptyList()
 
         val ordered = notes.sortedWith(compareBy<RawNote> { it.start }.thenBy { it.pitch })
-        val gapThreshold = max((ticksPerBeat * 0.72).toLong(), 1L)
+        val gapThreshold = max((ticksPerBeat * 0.85).toLong(), 1L)
 
         val segments = mutableListOf<MutableList<RawNote>>()
         var current = mutableListOf(ordered[0])
@@ -1273,6 +1273,28 @@ object MidiParser {
         return max(1L, bestGrid)
     }
 
+    private fun applyMotifConsistency(notes: List<RawNote>, ticksPerBeat: Int): List<RawNote> {
+        if (notes.size < 12) return notes
+
+        val phrases = phraseSegments(notes, ticksPerBeat)
+        if (phrases.size < 2) return notes
+
+        val flattened = mutableListOf<RawNote>()
+        for (phrase in phrases) {
+            flattened.addAll(phrase)
+        }
+
+        val result = flattened.toMutableList()
+        for (i in 1 until result.size - 1) {
+            val a = result[i - 1].pitch
+            val b = result[i].pitch
+            val c = result[i + 1].pitch
+            if (abs(b - a) >= 19 && abs(c - b) >= 19) continue
+            if (abs(b - a) >= 19 && abs(c - b) <= 4) continue
+        }
+        return result
+    }
+
     fun buildMelodyEvents(
         notes: List<RawNote>,
         normalizationShift: Int,
@@ -1281,8 +1303,9 @@ object MidiParser {
     ): Pair<List<MelodyEvent>, Long> {
         if (notes.isEmpty()) return Pair(emptyList(), max(1L, (ticksPerBeat / 4).toLong()))
 
-        val mappedPairs = mapMelodySequence(notes, normalizationShift, octaveShift)
-        val grid = chooseRhythmGrid(notes, ticksPerBeat)
+        val motifNotes = applyMotifConsistency(notes, ticksPerBeat)
+        val mappedPairs = mapMelodySequence(motifNotes, normalizationShift, octaveShift)
+        val grid = chooseRhythmGrid(motifNotes, ticksPerBeat)
         val result = mutableListOf<MelodyEvent>()
 
         for (i in mappedPairs.indices) {
