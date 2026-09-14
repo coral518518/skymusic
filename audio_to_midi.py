@@ -683,10 +683,10 @@ def intelligent_quantize(
     notes: List[NoteEvent],
     beat_times: List[float],
     subdivisions: int = 4,
-    max_snap_ratio: float = 0.18,
-    strength: float = 0.35,
+    max_snap_ratio: float = 0.30,
+    strength: float = 0.80,
 ) -> List[NoteEvent]:
-    """保守地向动态 Beat 网格吸附，避免把自由节奏硬掰直。"""
+    """向动态 Beat 节拍网格吸附，使转录音符与音乐小节规整对齐。"""
     if not notes or len(beat_times) < 2:
         return notes
 
@@ -780,7 +780,8 @@ def build_clean_midi(notes: List[NoteEvent], bpm: float = 120.0):
             "缺少 pretty_midi，请安装：pip install pretty_midi"
         ) from exc
 
-    midi = pretty_midi.PrettyMIDI(initial_tempo=float(bpm))
+    # 采用工业标准 480 TPB 分辨率，使 1/4、1/8、1/16 及三连音均为精确整数 ticks
+    midi = pretty_midi.PrettyMIDI(resolution=480, initial_tempo=float(bpm))
     instrument = pretty_midi.Instrument(program=0, name="Clean Piano")
 
     for n in notes:
@@ -817,7 +818,7 @@ def convert_audio_to_midi(
     merge_gap: float = 0.055,
     quantize: bool = True,
     quantize_subdivision: int = 4,
-    quantize_strength: float = 0.35,
+    quantize_strength: float = 0.80,
     density_limit: bool = True,
     density_window: float = 0.030,
     density_max_notes: int = 7,
@@ -941,7 +942,7 @@ def convert_audio_to_midi(
             notes,
             beat_times,
             subdivisions=quantize_subdivision,
-            max_snap_ratio=0.18,
+            max_snap_ratio=0.30,
             strength=quantize_strength,
         )
 
@@ -1011,7 +1012,7 @@ def main():
 
     parser.add_argument("--no-quantize", action="store_true")
     parser.add_argument("--quantize-subdivision", type=int, choices=[1, 2, 4, 8], default=4)
-    parser.add_argument("--quantize-strength", type=float, default=0.35)
+    parser.add_argument("--quantize-strength", type=float, default=0.80)
 
     parser.add_argument("--no-density-limit", action="store_true")
     parser.add_argument("--density-window", type=float, default=0.030)

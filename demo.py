@@ -322,19 +322,33 @@ def _track_melody_probability(notes, ticks_per_beat):
 
 
 def extract_single_track_melody_and_accompaniment(notes, ticks_per_beat):
-    """专门针对单轨钢琴/音频转录 MIDI 的天际线主声部提取算法（Skyline Algorithm）。
+    """专门针对单轨钢琴/音频转录 MIDI 的听觉流主声部隔离算法（Melodic Stream Segregation）。
 
-    核心乐理原则：
-    1. 钢琴独奏/伴奏织体中，最高音（Soprano）绝大多数情况下承载主旋律；
-    2. 左手伴奏织体（尤其是深低音 < 52）主要承担根音与和声支撑，不能作为旋律候选；
-    3. 按起音微窗口（同拍/同和弦）分簇，给予最高音极高的主旋律置信度（melody_prob = 1.0）；
-    4. 次高音根据音区与力度给予适量候选权重，防止漏掉双音中的旋律线；
-    5. 低音区（< 55）全量转入伴奏候选池，供低音生成器作为支撑。
+    核心乐理机制：
+    1. 钢琴独奏/伴奏织体中，右手主歌唱线条位于高音声部（通常在 MIDI 60/62 以上）；
+    2. 低于主旋律频带的音符多为分解和弦（琶音）与低音根音（如 F3 53、G3 55、C4 60）；
+       分解和弦是先后弹出的单音，若不设声部下限，算法会误把每个琶音音符当作孤立旋律选入，
+       导致光遇 15 键每半拍产生 15~24 半音的剧烈八度颠簸；
+    3. 动态自适应计算整曲高音能量分布（p75），将主旋律音区下限（melody_floor）锚定在 p75 - 15；
+    4. 低于 melody_floor 的琶音音符严格划入伴奏池，不进入旋律候选；
+    5. 允许主唱换气休止，主旋律留白期间绝不强行拾取低音琶音！
     """
     if not notes:
         return [], []
 
     ordered = sorted(notes, key=lambda n: (n["start"], n["pitch"]))
+
+    # 1. 动态自适应测算主旋律黄金音区下限
+    pitches = [n["pitch"] for n in ordered]
+    upper = [p for p in pitches if p >= 55]
+    if len(upper) >= len(notes) * 0.30:
+        sorted_upper = sorted(upper)
+        p75 = sorted_upper[int(len(sorted_upper) * 0.75)]
+        # 人声自然歌唱音域通常跨度在 15 个半音内，低于此线的音符属于伴奏琶音与低音
+        melody_floor = max(48, int(p75 - 15))
+    else:
+        melody_floor = 48
+
     # 聚类窗口：在约 1/16 拍内的音符视作同一和弦/同一时点动作
     onset_window = max(10, ticks_per_beat // 16)
 
@@ -365,39 +379,33 @@ def extract_single_track_melody_and_accompaniment(notes, ticks_per_beat):
             is_top = (pitch == max_p)
             diff_from_top = max_p - pitch
 
-            if is_top:
-                # 最高音：天际线主旋律
-                if pitch >= 55:
-                    prob = 1.0
-                elif pitch >= 48:
-                    prob = 0.65
-                else:
-                    # 极深低音区（如 < 48 即 C3 以下）通常只是独奏时的纯根音低音
-                    prob = 0.15
-            else:
-                # 和弦内声部：距离最高音很近且力度较高，可能是双音旋律
-                if diff_from_top <= 4 and pitch >= 55 and vel >= max_vel - 8:
-                    prob = 0.55
-                elif diff_from_top <= 7 and pitch >= 55:
-                    prob = 0.25
-                else:
-                    prob = 0.02
+            # 音符低于主旋律频带下限，坚决划入伴奏池，绝不允许作为旋律候选
+            if pitch < melody_floor:
+                accompaniment.append({**n, "melody_prob": 0.02, "is_skyline": False})
+                continue
 
-            # 注入属性
+            if is_top:
+                prob = 1.0
+            else:
+                # 仅当与最高音非常接近且力度突出时，作为双音备选
+                if diff_from_top <= 4 and vel >= max_vel - 8:
+                    prob = 0.55
+                else:
+                    prob = 0.15
+
             enriched_note = {
                 **n,
                 "melody_prob": prob,
                 "is_skyline": is_top,
             }
 
-            # 旋律候选筛选：旋律置信度合格且音高不低于 48（C3，光遇最低音）
-            if prob >= 0.20 and pitch >= 48:
+            if prob >= 0.50:
                 melody_candidates.append(enriched_note)
             else:
                 accompaniment.append(enriched_note)
 
-    # 兜底：如果旋律候选太少，放宽到所有 >= 48 的音符
-    if len(melody_candidates) < 5:
+    # 兜底保护：若旋律候选不足 20 个音符，放宽到 >= 48 的所有音符
+    if len(melody_candidates) < 20:
         melody_candidates = [
             {**n, "melody_prob": 0.8 if n["pitch"] >= 55 else 0.4}
             for n in notes if n["pitch"] >= 48
@@ -1029,7 +1037,8 @@ def choose_normalization_shift(notes, tonic, mode):
     best_shift = theoretical_shift
     best_score = -999999.0
 
-    for shift in range(-12, 13):
+    # 移调范围严格限制在 [-5, 6] 的 12 个半音内，只做调性归一化，严禁跨八度位移（八度平移由 choose_best_octave_shift 专门处理）
+    for shift in range(-5, 7):
         score = 0.0
         white_weight = 0.0
         total_weight = 0.0
@@ -1329,6 +1338,10 @@ def choose_best_octave_shift(notes, normalization_shift):
 # ============================================================
 
 def choose_rhythm_grid(notes, ticks_per_beat):
+    """为光遇 15 键选择最符合音乐常理的节奏网格（1/8 或 1/16）。
+
+    光遇按键谱绝不允许出现 1/32 极细碎网格（会导致 80% 全是空点且节奏抽搐）。
+    """
     if len(notes) < 4:
         return max(1, ticks_per_beat // 4)
 
@@ -1336,17 +1349,16 @@ def choose_rhythm_grid(notes, ticks_per_beat):
     if len(starts) < 3:
         return max(1, ticks_per_beat // 4)
 
-    # 同时尝试二分和三分节奏。
+    # 候选项坚决杜绝 1/32（会导致 80% 全是空点且节奏抽搐），死死锚定在 1/16 与 1/8
     candidates = [
-        max(1, ticks_per_beat // 2),   # 1/8
+        max(1, ticks_per_beat // 4),   # 1/16（流行音乐最通用标准）
+        max(1, ticks_per_beat // 2),   # 1/8（舒缓抒情歌标准）
         max(1, ticks_per_beat // 3),   # 1/8 三连音单位
-        max(1, ticks_per_beat // 4),   # 1/16
         max(1, ticks_per_beat // 6),   # 1/16 三连音单位
-        max(1, ticks_per_beat // 8),   # 1/32
     ]
 
     candidates = list(dict.fromkeys(candidates))
-    best_grid = candidates[2 if len(candidates) > 2 else 0]
+    best_grid = candidates[0]
     best_score = float("inf")
 
     for grid in candidates:
@@ -1354,21 +1366,16 @@ def choose_rhythm_grid(notes, ticks_per_beat):
         mean_error = mean(errors)
         exact_ratio = sum(1 for e in errors if e == 0) / len(errors)
 
-        # 网格太细会制造大量无意义空位；太粗则破坏切分。
         slots_per_beat = max(1.0, ticks_per_beat / grid)
-        complexity = 0.55 * max(0.0, slots_per_beat - 4.0)
+        complexity = 0.8 * max(0.0, slots_per_beat - 4.0)
 
-        # 对 1/16 给一个很轻的偏好，作为音乐性与复杂度的折中。
         musical_prior = 0.0
         if grid == ticks_per_beat // 4:
-            musical_prior = -0.35
+            musical_prior = -3.5  # 优先推荐 1/16
+        elif grid == ticks_per_beat // 2:
+            musical_prior = -2.0  # 优先推荐 1/8
 
-        score = (
-            mean_error
-            - exact_ratio * min(grid * 0.18, 8.0)
-            + complexity
-            + musical_prior
-        )
+        score = mean_error - exact_ratio * 4.0 + complexity + musical_prior
 
         if score < best_score:
             best_score = score
@@ -1415,6 +1422,7 @@ def build_melody_events(
             "key": SKY_KEYS_MIDI.index(note["mapped_pitch"]),
             "pitch": note["mapped_pitch"],
             "original_pitch": note["pitch"],
+            "original_start": note["start"],
             "start": start,
             "end": start + max(grid, quantized_dur),
             "dur": max(grid, quantized_dur),
@@ -1596,8 +1604,8 @@ def merge_events(melody_events, bass_events):
     return result
 
 
-def melody_quality_report(original_notes, melody_events, grid):
-    """输出几个非常实用的调试指标，方便判断 V6 是否真的比 V5 好。"""
+def melody_quality_report(original_notes, melody_events, grid, normalization_shift=0):
+    """输出调试指标，准确反映旋律走向与起音对齐质量。"""
     if not original_notes or not melody_events:
         return {
             "pitch_match": 0.0,
@@ -1609,9 +1617,10 @@ def melody_quality_report(original_notes, melody_events, grid):
     mapped = [e["pitch"] for e in melody_events]
     count = min(len(raw), len(mapped))
 
+    # 考虑调性位移后计算音级保真度（模 12 循环匹配）
     pitch_match = sum(
         1 for a, b in zip(raw[:count], mapped[:count])
-        if abs(a - b) <= 1
+        if pitch_class_distance((a + normalization_shift) % 12, b % 12) <= 1
     ) / max(1, count)
 
     raw_dirs = []
@@ -1624,13 +1633,12 @@ def melody_quality_report(original_notes, melody_events, grid):
 
     direction_match = sum(a == b for a, b in zip(raw_dirs, mapped_dirs)) / max(1, len(raw_dirs))
 
-    raw_starts = [n["start"] for n in original_notes]
-    mapped_starts = [e["start"] for e in melody_events]
-    c2 = min(len(raw_starts), len(mapped_starts))
-    rhythm_error = mean(
-        abs(raw_starts[i] - mapped_starts[i])
-        for i in range(c2)
-    ) if c2 else 0.0
+    # 起音误差：统计各个旋律事件吸附前后微调距离
+    rhythm_errors = [
+        abs(e["start"] - e.get("original_start", e["start"]))
+        for e in melody_events
+    ]
+    rhythm_error = mean(rhythm_errors) if rhythm_errors else 0.0
 
     return {
         "pitch_match": pitch_match,
@@ -2013,10 +2021,15 @@ def convert_midi_to_sky(
     print(f"[8/9] 旋律事件: {len(melody_events)}")
     print(f"      网格: {grid} ticks")
 
-    quality = melody_quality_report(melody, melody_events, grid)
+    quality = melody_quality_report(
+        melody,
+        melody_events,
+        grid,
+        normalization_shift=normalization_shift,
+    )
     print(f"      音高保真: {quality['pitch_match'] * 100:.1f}%")
     print(f"      方向保真: {quality['direction_match'] * 100:.1f}%")
-    print(f"      起音误差: {quality['rhythm_onset_error']:.1f} ticks")
+    print(f"      起音平均偏差: {quality['rhythm_onset_error']:.1f} ticks")
 
     # 9. Bass
     bass_events = build_bass_events(
@@ -2097,9 +2110,10 @@ def convert_midi_to_sky(
 #   1 : MIDI 转光遇 15 键       (需 .mid 文件，输出试听 MIDI、15键谱、数字简谱)
 #   2 : MP3/音频 转 MIDI        (需 .mp3/.wav 等，仅转录生成 .mid 钢琴谱)
 #   3 : MP3/音频 转 MIDI 再转光遇 15 键 (全流程一步到位)
-#   0 : 弹出控制台交互菜单，让您在终端输入 1 / 2 / 3 选择
+#   4 : MIDI 音符分析        (需 .mid 文件，仅分析音符)
+#   0 : 弹出控制台交互菜单，让您在终端输入 1 / 2 / 3 / 4 选择
 # ============================================================
-CONFIG_MODE = 0         # <- 在这里修改模式编号: 1, 2, 3 或 0 (0 为交互菜单)
+CONFIG_MODE = 0         # <- 在这里修改模式编号: 1, 2, 3 或 4 (0 为交互菜单)
 CONFIG_INPUT_FILE = ""  # <- 在这里指定文件路径（如 "晴天.mp3" 或 "晴天.mid"），留空 "" 则自动选择或提示
 
 
@@ -2151,6 +2165,7 @@ def run_interactive_menu():
     print("    [1] MIDI 转光遇 15 键       (已有 .mid，生成光遇 15 键谱与简谱)")
     print("    [2] MP3/音频 转 MIDI        (输入 .mp3，仅转录提取为钢琴 .mid)")
     print("    [3] MP3 转 MIDI 并转光遇 15 键 (输入 .mp3，全流程一键搞定)")
+    print("    [4] MIDI 音符分析        (需 .mid 文件，仅分析音符)")
     print("    [0] 退出")
     print("=" * 60)
 
@@ -2162,7 +2177,7 @@ def run_interactive_menu():
     if choice == "0":
         print("已退出程序。")
         sys.exit(0)
-    if choice not in ("1", "2", "3"):
+    if choice not in ("1", "2", "3" ,"4"):
         choice = "3"
 
     return int(choice)
@@ -2192,7 +2207,7 @@ def main():
     elif args.input is not None:
         # 用户命令行传入了文件，根据文件后缀智能判断
         mode = 1 if not is_audio_file(args.input) else 3
-    elif CONFIG_MODE in (1, 2, 3):
+    elif CONFIG_MODE in (1, 2, 3 ,4):
         mode = CONFIG_MODE
     else:
         mode = run_interactive_menu()
@@ -2200,7 +2215,7 @@ def main():
     # 2. 确定输入文件
     input_file = args.input or CONFIG_INPUT_FILE
     if not input_file:
-        if mode == 1:
+        if mode == 1 or mode == 4:
             input_file = select_file_interactively("midi")
         else:
             input_file = select_file_interactively("audio")
@@ -2247,7 +2262,44 @@ def main():
             onset_thresh=args.onset_thresh,
             frame_thresh=args.frame_thresh,
         )
+    elif mode == 4:
+        print(f"MIDI 音符分析 | 处理文件: {input_file}")
+        run_mid_note(input_file)    
 
+def run_mid_note(file_path):
+    mid = mido.MidiFile(file_path)
+
+    print(f"总时长: {mid.length:.2f} 秒")
+    print(f"轨道数: {len(mid.tracks)}")
+
+    notes = []
+    velocities = []
+
+    for track in mid.tracks:
+        for msg in track:
+            if msg.type == 'note_on' and msg.velocity > 0:
+                notes.append(msg.note)
+                velocities.append(msg.velocity)
+
+    if notes:
+        print(f"总音符数: {len(notes)}")
+        print(f"最高音(Pitch): {max(notes)}, 最低音: {min(notes)}")
+        print(f"平均力度(Velocity): {sum(velocities)/len(velocities):.1f}")
+        print(f"固定力度的音符占比: {velocities.count(velocities[0]) / len(velocities):.1%}")
+        # 打印前 30 个音符的数据片段供分析
+        print("前 30 个音符采样 (音高, 力度, 相对时间):")
+        sample_count = 0
+        for track in mid.tracks:
+            current_time = 0
+            for msg in track:
+                current_time += msg.time
+                if msg.type == 'note_on' and msg.velocity > 0:
+                    print(f"  Pitch: {msg.note}, Vel: {msg.velocity}, TimeDelta: {msg.time}")
+                    sample_count += 1
+                    if sample_count >= 30:
+                        break
+            if sample_count >= 30:
+                break
 
 if __name__ == "__main__":
     main()
