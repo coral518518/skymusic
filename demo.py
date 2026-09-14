@@ -1812,16 +1812,12 @@ def convert_midi_to_sky(
 
     # 如果输入是音频文件，先调用 audio_to_midi 转成 MIDI
     if is_audio_file(input_file):
-        base, _ = os.path.splitext(input_file)
-        converted_midi = f"{base}.mid"
-        convert_audio_to_midi(
+        input_file = convert_audio_to_midi(
             input_file,
-            output_midi_path=converted_midi,
             bpm=bpm,
             onset_threshold=onset_thresh,
             frame_threshold=frame_thresh,
         )
-        input_file = converted_midi
 
     mid = mido.MidiFile(input_file)
 
@@ -2014,7 +2010,7 @@ def select_file_interactively(file_type="audio"):
             f for f in os.listdir(".")
             if f.lower().endswith((".mid", ".midi")) and not f.startswith("sky_preview")
         ]
-        default_file = "晴天.mid"
+        default_file = "晴天_clean.mid" if os.path.exists("晴天_clean.mid") else "晴天.mid"
     else:
         desc = "音频文件 (.mp3, .wav, .flac 等)"
         candidates = [f for f in os.listdir(".") if is_audio_file(f)]
@@ -2132,12 +2128,10 @@ def main():
         print(f"音频转 MIDI 成功完成: {out_midi}")
     elif mode == 3:
         print(f"MP3 转 MIDI 并转光遇 15 键 | 处理文件: {input_file}")
-        # 第一步：转录生成 MIDI
-        base, _ = os.path.splitext(input_file)
-        target_mid = args.midi_out or f"{base}.mid"
-        convert_audio_to_midi(
+        # 第一步：转录生成 clean MIDI
+        target_mid = convert_audio_to_midi(
             input_file,
-            output_midi_path=target_mid,
+            output_midi_path=args.midi_out,
             bpm=args.bpm,
             onset_threshold=args.onset_thresh,
             frame_threshold=args.frame_thresh,
