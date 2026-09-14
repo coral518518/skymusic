@@ -1,14 +1,18 @@
 name: Build SkyMusic Android APK
 
 on:
-  push:
-    branches: [ "**" ]
-    paths-ignore:
-      - 'midi_downloads/**'
-      - 'downloaded_*.txt'
-      - 'midishow/**'
-      - '.github/workflows/download_midi.yml'
   workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Release 版本号/Tag (例如 v1.0.1，留空则默认按运行序号 v1.0.<RunID>)'
+        required: false
+        default: ''
+        type: string
+      release_title:
+        description: 'Release 标题 (留空则默认使用版本名称)'
+        required: false
+        default: ''
+        type: string
 
 # 授予创建与更新 GitHub Releases 的写入权限
 permissions:
@@ -57,12 +61,25 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: 7. 自动发布并上传至 GitHub Releases (免解压直接下载)
-        if: github.event_name != 'pull_request'
+      - name: 7. 解析发布版本号与标题
+        id: release_info
+        run: |
+          VERSION="${{ inputs.version_tag }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="v1.0.${{ github.run_number }}"
+          fi
+          TITLE="${{ inputs.release_title }}"
+          if [ -z "$TITLE" ]; then
+            TITLE="SkyMusic 琴灵 $VERSION"
+          fi
+          echo "tag_name=$VERSION" >> $GITHUB_OUTPUT
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+
+      - name: 8. 发布并上传至 GitHub Releases (免解压直接下载)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: SkyMusic 琴灵 v1.0.${{ github.run_number }}
+          tag_name: ${{ steps.release_info.outputs.tag_name }}
+          name: ${{ steps.release_info.outputs.title }}
           body: |
             ## ✨ SkyMusic 光遇自动弹琴助手 APK 已发布！
 
