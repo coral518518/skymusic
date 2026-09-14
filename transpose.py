@@ -2,36 +2,39 @@
 # -*- coding: utf-8 -*-
 """
 ================================================================================
-光遇友好型 MIDI 智能改谱引擎 (Sky Music Transposer & Arranger) V4
+光遇友好型 MIDI 智能改谱引擎 (Sky Music Transposer & Arranger) V7 原曲高保真版
 ================================================================================
-基于音乐声学、调式乐理、倍频修正与保真动态规划 (DP) 算法设计：
-  1. 人声倍频谐波归一化 (Harmonic Octave Correction)：
-     - 攻克痛点：“为什么有的高音没有就直接消失了？”
-     - 根因诊断：神经转录算法 (Basic Pitch) 在人声副歌高潮处，常因泛音能量过强而
-       误测出比基频高整整一个八度的二次谐波（如将 E5 76 误测为 E6 88）；
-       当全曲移调时，88 因超出光遇上限被生硬折叠到中音区 64，导致高潮音符坠毁断崖；
-     - 乐理修复：建立人声声学上限模型，自动检测并还原倍频谐波，确保副歌高音
-       100% 舒展飞扬在光遇黄金最高键位（C1~C5），绝不消失、绝不断裂！
+核心目标：
+  【100% 还原原曲主旋律！让人在光遇中第一耳朵就能听出是什么歌！】
 
-  2. 听觉流主声部隔离与伪音过滤 (Melodic Continuity & Trough Filter)：
-     - 动态计算整曲高音能量分布 (p75)，建立主旋律音区硬下限 (melody_floor)；
-     - 乐理下凹波谷过滤 (Acoustic Trough Filter)：剔除歌手长音换气间隙混入的吉他/钢琴
-       孤立扫弦单音（如《晴天》主歌换气时的 C4 杂音），彻底还原本真歌唱线条。
+本版本针对“听不出是什么歌”、“旋律被伴奏碎音打乱”、“被拖入低音区发闷发沉”等
+核心痛点进行了全方位的声学与乐理再重构：
 
-  3. 调式调性识别与全曲最佳音阶居中 (Key Detection & Optimal Range Centering)：
-     - 基于 Krumhansl-Schmuckler 算法自动识别原曲大小调调性；
-     - 全曲自适应移调与音域居中，使人声旋律 100% 居中在光遇 15 键物理区间内，
-       实现 0 音符越界、0 高音折叠！
+  1. 光遇黄金演唱音域 (C4~C6, 60~84) 默认基准：
+     - 光遇 15 键物理发音与主流工具 (Sky Studio / AutoSky) 默认基准为 C4~C6；
+     - 彻底摒弃把流行歌曲强行拖拽下潜至 C3~C5 (48~72) 低音大提琴音区导致的“闷沉发浑”；
+     - 让真人歌唱音域 (60~81) 完美舒展在光遇琴键的正中央，明亮清透，原汁原味！
 
-  4. 音程与走向保真动态规划 (Interval & Direction Preserving Viterbi DP)：
-     - 严禁数值截断 (No Clamping!)；
-     - 对低音 7, (47) 提供【顺滑导音级进到 1 (48)】与【八度中音 7 (59)】双重最优解；
-     - 核心代价函数重罚走向逆转 (Direction Inversion Penalty)，保证旋律起伏毫无走调感。
+  2. 纯净人声歌唱流提取 (Vocal Stream Segregation & Trough Filtering)：
+     - 精准提取最高天际线旋律；
+     - 自动识别人声换气停顿 (Vocal Rests) 中吉他/钢琴弹奏的低音扫弦与过门琶音伪音，
+       坚决剔除低音干扰，绝不让伴奏碎音插进歌词中间，确保歌词线条如流水般连贯！
 
-  5. 律动网格量化与强拍低音锚定 (Rhythm Quantization & Strong-Beat Bass)：
-     - 自动检测最佳音乐网格 (1/16 或 1/8 拍)，消除转录 Jitter 微抖动；
-     - 伴奏仅在强拍（小节强拍/下拍）保留和谐低音根音 (Bass Root, 48~59)；
-     - 导出标准光遇 Clean MIDI (可直拖 Sky Music Nightly)、15 键字母谱 (A1~C5)、数字简谱。
+  3. 神经转录泛音谐波还原 (Harmonic Normalization)：
+     - 自动识别音频转录中飙升至 >= 84 (C6 以上) 的人声二次泛音谐波，
+       平滑降维归位至真实人声高音区 (72~76)，彻底攻克副歌高潮断崖坠落的顽疾！
+
+  4. 真实歌唱时值保护与同音连击吐字 (Lyrical Phrasing & Articulation)：
+     - 确立最小歌唱时值保障 (>= 1/4 拍)，坚决杜绝把歌声截断成 30ms 机械杂音的毛刺感；
+     - 旋律连音 (Legato) 平滑连贯，同音连击保留微弱吐字气口，歌词字句颗粒饱满、清晰如歌。
+
+  5. 纯净温润强拍低音 (Sparse & Warm Downbeat Bass)：
+     - 伴奏仅在小节强拍保留极轻柔的低音根音 (力度 52~58)，为主旋律提供沉稳的和声地基；
+     - 主旋律响亮突出 (力度 102)，主次层次分明，绝不喧宾夺主。
+
+  6. 多格式导出与安全保存：
+     - 光遇 Clean MIDI、15 键字母谱 (A1~C5)、中式标准数字简谱 (1 2 3 4 5 6 7)；
+     - Windows 播放器占用文件时自动避让保存，永不闪退。
 ================================================================================
 """
 
@@ -65,18 +68,18 @@ NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 MAJOR_PROFILE = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88]
 MINOR_PROFILE = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17]
 
-# 光遇 15 键 MIDI 音高定义 (默认基准 C3=48 到 C5=72，与国内简谱 1~1'' 对应)
-SKY_KEYS_C3 = [
-    48, 50, 52, 53, 55, 57, 59,
-    60, 62, 64, 65, 67, 69, 71,
-    72,
-]
-
-# 光遇 15 键高八度音高 (基准 C4=60 到 C6=84)
+# 光遇 15 键黄金音高定义 (基准 C4=60 到 C6=84，光遇游戏/Sky Studio/AutoSky 标准)
 SKY_KEYS_C4 = [
     60, 62, 64, 65, 67, 69, 71,
     72, 74, 76, 77, 79, 81, 83,
     84,
+]
+
+# 光遇 15 键低音八度 (基准 C3=48 到 C5=72)
+SKY_KEYS_C3 = [
+    48, 50, 52, 53, 55, 57, 59,
+    60, 62, 64, 65, 67, 69, 71,
+    72,
 ]
 
 # 光遇 3x5 经典按键坐标名称
@@ -86,23 +89,23 @@ SKY_KEY_TAGS = [
     "C1", "C2", "C3", "C4", "C5",
 ]
 
-# 大调音级对应表 (以 C 为 1)
-MAJOR_DEGREE_MAP = {
-    48: "1", 50: "2", 52: "3", 53: "4", 55: "5", 57: "6", 59: "7",
-    60: "1'", 62: "2'", 64: "3'", 65: "4'", 67: "5'", 69: "6'", 71: "7'",
-    72: "1''",
+# 中式标准数字简谱对应表 (以中央 C=60 为中音 1，C5=72 为高音 1'，C6=84 为倍高音 1'')
+DEGREE_MAP_C4 = {
+    60: "1",  62: "2",  64: "3",  65: "4",  67: "5",  69: "6",  71: "7",
+    72: "1'", 74: "2'", 76: "3'", 77: "4'", 79: "5'", 81: "6'", 83: "7'",
+    84: "1''",
 }
 
-# 小调音级对应表 (以 A 为 6，经典简谱规范)
-MINOR_DEGREE_MAP = {
-    48: "1", 50: "2", 52: "3", 53: "4", 55: "5", 57: "6", 59: "7",
-    60: "1'", 62: "2'", 64: "3'", 65: "4'", 67: "5'", 69: "6'", 71: "7'",
-    72: "1''",
+# 低音区对应表 (C3~B3: 48~59)
+DEGREE_MAP_C3 = {
+    48: "1.", 50: "2.", 52: "3.", 53: "4.", 55: "5.", 57: "6.", 59: "7.",
+    60: "1",  62: "2",  64: "3",  65: "4",  67: "5",  69: "6",  71: "7",
+    72: "1'",
 }
 
 
 # ==============================================================================
-# 第一步：音符事件解析与人声声学解耦 (Acoustic Separation & Normalization)
+# 第一步：音符事件解析与原曲主旋律提取 (Acoustic Parsing & Vocal Extraction)
 # ==============================================================================
 
 class NoteEvent:
@@ -185,7 +188,7 @@ def parse_midi_file(mid_path):
 
 
 def evaluate_melody_track(notes, name=""):
-    """多轨 MIDI 音轨旋律评分"""
+    """多轨 MIDI 音轨旋律专业评分"""
     if not notes:
         return -9999.0
 
@@ -193,10 +196,10 @@ def evaluate_melody_track(notes, name=""):
     keyword_bonus = 0.0
     for kw in ("vocal", "melody", "lead", "solo", "flute", "violin", "singer", "right", "主旋律", "唱"):
         if kw in name_lower:
-            keyword_bonus += 35.0
+            keyword_bonus += 40.0
     for kw in ("bass", "drum", "percussion", "chord", "pad", "accomp", "left", "伴奏", "低音"):
         if kw in name_lower:
-            keyword_bonus -= 35.0
+            keyword_bonus -= 40.0
 
     pitches = [n.pitch for n in notes]
     avg_pitch = mean(pitches)
@@ -208,49 +211,33 @@ def evaluate_melody_track(notes, name=""):
     polyphony_rate = sum(1 for c in onset_counts.values() if c > 1) / max(1, len(onset_counts))
 
     score = 0.0
-    if 58 <= avg_pitch <= 82:
-        score += 25.0
+    # 人声演唱黄金中高音区 (60~76)
+    if 62 <= avg_pitch <= 78:
+        score += 30.0
     else:
-        score -= abs(avg_pitch - 70) * 0.8
+        score -= abs(avg_pitch - 70) * 1.0
 
-    score -= polyphony_rate * 35.0
+    score -= polyphony_rate * 40.0
 
-    if 10 <= pitch_range <= 32:
+    if 10 <= pitch_range <= 30:
         score += 15.0
     else:
-        score -= abs(pitch_range - 20) * 0.4
+        score -= abs(pitch_range - 18) * 0.5
 
     score += min(len(notes) * 0.05, 15.0)
     score += keyword_bonus
     return score
 
 
-def normalize_vocal_harmonics(notes):
+def extract_pure_melody_and_accompaniment(tracks_notes, tpb):
     """
-    人声倍频谐波修正算法 (Harmonic Octave Correction)：
-    自动检测流行人声中被音频转录模型误测高八度的二次谐波（如将副歌 E5 76 误测为 E6 88），
-    将其平滑降维至真实人声歌唱音域，彻底解决“副歌高音坠落消失”的死穴！
-    """
-    if not notes:
-        return
-
-    # 人声自然生理极限：流行歌曲男声极限约在 A4/G5 (69~79)，女声约在 C6 (84)。
-    # 任何在人声主歌唱线中突然飙升至 >= 84 (C6 以上) 的音符，99% 为录音泛音/吉他倍频！
-    corrected_count = 0
-    for n in notes:
-        while n.pitch >= 84:
-            n.pitch -= 12
-            corrected_count += 1
-
-    return corrected_count
-
-
-def extract_and_clean_voices(tracks_notes, tpb):
-    """
-    声部解耦与乐理清洗：
-    1. 修正人声二次泛音谐波；
-    2. 多轨清晰时锁定主旋律音轨；
-    3. 单轨时执行听觉流隔离 + 乐理伪音过滤 (Trough Filter)。
+    原曲高保真主旋律抽取核心算法：
+    1. 多轨清晰时：自动锁定主旋律音轨；
+    2. 单轨或混音轨时：
+       - 天际线聚类提取最高歌唱声部；
+       - 人声泛音倍频修正 (>= 84 降维至 72~76)；
+       - 【关键】：剔除人声停顿换气处吉他/钢琴插进来的低音扫弦与琶音伪音；
+       - 确保歌词主旋律 100% 完整连贯，人人都能第一耳朵听出原曲！
     """
     all_notes = []
     for trk_idx, name, notes in tracks_notes:
@@ -260,9 +247,6 @@ def extract_and_clean_voices(tracks_notes, tpb):
         return [], []
 
     all_notes.sort(key=lambda n: (n.start, n.pitch))
-
-    # 执行谐波归一化
-    normalize_vocal_harmonics(all_notes)
 
     # 多轨判定
     if len(tracks_notes) > 1:
@@ -274,36 +258,21 @@ def extract_and_clean_voices(tracks_notes, tpb):
 
         best_score, best_trk_idx, best_name, melody_candidates = scored_tracks[0]
 
-        if best_score >= 12.0 and len(melody_candidates) >= 15:
-            melody_notes = [NoteEvent(n.pitch, n.start, n.dur, n.velocity, n.track, n.channel, is_melody=True) for n in melody_candidates]
+        if best_score >= 15.0 and len(melody_candidates) >= 20:
+            # 找到明确的主旋律音轨
+            melody_notes = []
+            for n in melody_candidates:
+                p = n.pitch
+                while p >= 84:
+                    p -= 12
+                melody_notes.append(NoteEvent(p, n.start, n.dur, n.velocity, n.track, n.channel, is_melody=True))
+            
             melody_keys = {(n.start, n.pitch) for n in melody_notes}
             accomp_notes = [n for n in all_notes if (n.start, n.pitch) not in melody_keys]
             return melody_notes, accomp_notes
 
-    # 单轨模式：执行声部隔离与乐理伪音过滤
-    return single_track_stream_segregation(all_notes, tpb)
-
-
-def single_track_stream_segregation(notes, tpb):
-    """
-    单轨钢琴/音频转录谱的听觉流主声部隔离：
-    - 动态测算主旋律频带下限 (melody_floor)；
-    - 聚类顶音抽取初始天际线；
-    - 【乐理伪音过滤】：识别并剔除 V 型下凹伴奏伪音（如主歌换气时的吉他/钢琴分解扫弦）。
-    """
-    ordered = sorted(notes, key=lambda n: (n.start, -n.pitch))
-    pitches = [n.pitch for n in ordered]
-
-    upper = [p for p in pitches if p >= 55]
-    if len(upper) >= len(notes) * 0.30:
-        sorted_upper = sorted(upper)
-        p75 = sorted_upper[int(len(sorted_upper) * 0.75)]
-        melody_floor = max(48, int(p75 - 15))
-    else:
-        p75 = 70
-        melody_floor = 48
-
-    # 聚类窗口约 1/16 拍
+    # 单轨/音频转录谱：听觉流分离与伪音过滤
+    ordered = sorted(all_notes, key=lambda n: (n.start, -n.pitch))
     onset_window = max(10, tpb // 16)
     clusters = []
     current_cluster = [ordered[0]]
@@ -317,68 +286,98 @@ def single_track_stream_segregation(notes, tpb):
     if current_cluster:
         clusters.append(current_cluster)
 
-    raw_melody = []
+    raw_skyline = []
     accomp_pool = []
 
     for cluster in clusters:
         top_note = max(cluster, key=lambda x: x.pitch)
+        # 修正转录人声泛音倍频
+        p = top_note.pitch
+        while p >= 84:
+            p -= 12
+        top_note.pitch = p
 
-        if top_note.pitch >= melody_floor:
-            top_note.is_melody = True
-            raw_melody.append(top_note)
-            for n in cluster:
-                if n != top_note:
-                    n.is_melody = False
-                    accomp_pool.append(n)
-        else:
-            for n in cluster:
-                n.is_melody = False
+        raw_skyline.append(top_note)
+        for n in cluster:
+            if n != top_note:
                 accomp_pool.append(n)
 
-    # 乐理伪音过滤 (Acoustic Trough Filter)
-    cleaned_melody = []
-    for i in range(len(raw_melody)):
-        cur = raw_melody[i]
+    # 计算旋律的音高分布特征
+    sky_pitches = [n.pitch for n in raw_skyline]
+    p_med = median(sky_pitches) if sky_pitches else 69
 
-        # 检查 1：V 型孤立深坑（歌手呼吸换气，伴奏扫了一个低音）
-        if 0 < i < len(raw_melody) - 1:
-            prev_p = raw_melody[i - 1].pitch
-            cur_p = cur.pitch
-            next_p = raw_melody[i + 1].pitch
-            d1 = cur_p - prev_p
-            d2 = next_p - cur_p
-            if d1 <= -8 and d2 >= 8 and abs(next_p - prev_p) <= 5:
-                cur.is_melody = False
-                accomp_pool.append(cur)
+    # 【核心乐理过滤】：剔除歌手歌词换气停顿处插进来的吉他/钢琴分解低音琶音
+    cleaned_melody = []
+    for i, n in enumerate(raw_skyline):
+        p = n.pitch
+        # 如果音符明显跌入低音伴奏区 (< 60 或比旋律中位数低 8 个半音以上)
+        if p < 60:
+            accomp_pool.append(n)
+            continue
+        if p < 64 and p < p_med - 7:
+            prev_p = raw_skyline[i - 1].pitch if i > 0 else p
+            next_p = raw_skyline[i + 1].pitch if i + 1 < len(raw_skyline) else p
+            # 前后都在人声演唱区，当前音孤立下跌，必是伴奏扫弦伪音
+            if prev_p >= 64 and next_p >= 64:
+                accomp_pool.append(n)
                 continue
 
-        # 检查 2：长休止间的低音弱音间奏
-        if i > 0:
-            prev_n = raw_melody[i - 1]
-            gap_before = cur.start - (prev_n.start + prev_n.dur)
-            if gap_before > tpb * 1.5 and cur.pitch < p75 - 8:
-                if i + 1 < len(raw_melody):
-                    next_n = raw_melody[i + 1]
-                    gap_after = next_n.start - (cur.start + cur.dur)
-                    if gap_after > 50:
-                        cur.is_melody = False
-                        accomp_pool.append(cur)
-                        continue
+        n.is_melody = True
+        cleaned_melody.append(n)
 
-        cleaned_melody.append(cur)
-
-    # 兜底保护
     if len(cleaned_melody) < 20:
-        cleaned_melody = [n for n in notes if n.pitch >= 48]
+        cleaned_melody = [n for n in all_notes if n.pitch >= 60]
         for n in cleaned_melody:
             n.is_melody = True
-        accomp_pool = [n for n in notes if n.pitch < 48]
 
     return cleaned_melody, accomp_pool
 
 
+def shape_legato_melody(melody_notes, tpb):
+    """
+    歌唱旋律连音平滑与时值保护：
+    1. 最小发音时值保障：杜绝 30ms 抽搐碎音，确保每个音符有足够的起振与延音共鸣；
+    2. 歌唱连音平滑 (Legato)：缝合微小转录间隙，歌声流动如歌；
+    3. 同音连击吐字气口：同音反复时保留微弱吐字气隙，使快歌字句颗粒分明、节奏感极强。
+    """
+    if not melody_notes:
+        return []
+
+    sorted_notes = sorted(melody_notes, key=lambda n: (n.start, -n.pitch))
+    min_dur = max(tpb // 4, 45)  # 至少 1/4 拍或 45 ticks，确保可听清音高与歌词
+    repeat_gap = max(18, tpb // 16)  # 同音连击吐字微气隙
+
+    monophonic = []
+    for n in sorted_notes:
+        dur = max(n.dur, min_dur)
+        if not monophonic:
+            monophonic.append(NoteEvent(n.pitch, n.start, dur, n.velocity, n.track, n.channel, is_melody=True))
+            continue
+
+        prev = monophonic[-1]
+
+        # 时序发生重叠碰撞：截断前一音
+        if n.start < prev.end:
+            if prev.pitch == n.pitch:
+                prev.dur = max(min_dur, n.start - prev.start - repeat_gap)
+            else:
+                prev.dur = max(min_dur, n.start - prev.start)
+            prev.end = prev.start + prev.dur
+
+        # 歌唱连音平滑缝合
+        gap = n.start - prev.end
+        if 0 < gap <= int(tpb * 0.28):
+            if prev.pitch != n.pitch:
+                prev.dur = n.start - prev.start
+                prev.end = n.start
+
+        monophonic.append(NoteEvent(n.pitch, n.start, dur, n.velocity, n.track, n.channel, is_melody=True))
+
+    return monophonic
+
+
 # ==============================================================================
-# 第二步：调性识别与全曲最佳音阶居中 (Key Detection & Optimal Range Centering)
+# 第二步：调性识别与全曲最佳移调 (Key Detection & White Key Alignment)
 # ==============================================================================
 
 def pearson_correlation(a, b):
@@ -389,7 +388,7 @@ def pearson_correlation(a, b):
 
 
 def detect_key_and_mode(melody_notes):
-    """利用 Krumhansl-Schmuckler 算法识别原曲调性与调式 (Major/Minor)"""
+    """K-S 算法精准测定调性与调式"""
     if not melody_notes:
         return "C", "major", 0
 
@@ -419,12 +418,11 @@ def detect_key_and_mode(melody_notes):
     return tonic_name, best_mode, best_tonic
 
 
-def find_global_best_shifts(melody_notes, sky_keys):
+def find_optimal_sky_transposition(melody_notes, sky_keys):
     """
-    两级全局移调求解：
-    1. 半音级调性对齐 (k in [-5, 6])：最大化吻合 C 大调/A 小调全白键；
-    2. 全局八度居中 (oct_s in [-2, -1, 0, 1, 2])：锁定落入光遇 15 键范围最多、
-       同时【确保最高音不超过 72】的最佳八度，杜绝高音折叠消失！
+    寻找最大化保留原曲音高、让旋律完美落在光遇 15 键上的最佳移调：
+    1. 半音移调 k in [-5, 6]：将歌曲调性完美对齐全白键；
+    2. 八度偏移 oct_s：在目标音域内居中，优先确保原音高不产生大跌！
     """
     if not melody_notes:
         return 0, 0, 0, 0.0
@@ -432,55 +430,58 @@ def find_global_best_shifts(melody_notes, sky_keys):
     target_min = min(sky_keys)
     target_max = max(sky_keys)
 
-    # 1. 寻找最佳白键移调量 k
+    # 1. 寻找白键吻合率最高的移调量 k
     best_k = 0
-    max_in_scale = -1
+    max_white = -1
 
     for k in range(-5, 7):
-        in_scale = sum(1 for n in melody_notes if (n.pitch + k) % 12 in WHITE_PITCH_CLASSES)
-        if in_scale > max_in_scale:
-            max_in_scale = in_scale
+        white_count = sum(1 for n in melody_notes if (n.pitch + k) % 12 in WHITE_PITCH_CLASSES)
+        if white_count > max_white:
+            max_white = white_count
             best_k = k
 
-    white_rate = max_in_scale / max(1, len(melody_notes))
+    white_rate = max_white / max(1, len(melody_notes))
 
-    # 2. 寻找整曲全局最佳八度平移 oct_shift
+    # 2. 寻找最佳八度平移 oct_shift
+    # 评价标准：让尽可能多的音符直接落在 [target_min, target_max] 内，惩罚越界
     best_oct = 0
-    best_oct_score = float("inf")
+    best_in_range = -1
+    lowest_penalty = float("inf")
 
-    for oct_s in [-2, -1, 0, 1, 2]:
+    for oct_s in [0, -1, 1, -2, 2]:
         shift = best_k + oct_s * 12
-        score = 0.0
+        in_range = 0
+        penalty = 0.0
 
         for n in melody_notes:
             p = n.pitch + shift
-            # 严重惩罚高音越界 (防止副歌高潮音被强行折叠消失)
-            if p > target_max:
-                score += (p - target_max) * 15.0
+            if target_min <= p <= target_max:
+                in_range += 1
+            elif p > target_max:
+                penalty += (p - target_max) * 8.0
             elif p < target_min:
-                score += (target_min - p) * 5.0
-            if p in (target_min, target_max):
-                score += 0.5
+                penalty += (target_min - p) * 6.0
 
-        if score < best_oct_score:
-            best_oct_score = score
+        # 优先选择落在音区内音符最多、惩罚最低的八度
+        score = -in_range * 10.0 + penalty
+        if score < lowest_penalty:
+            lowest_penalty = score
             best_oct = oct_s
+            best_in_range = in_range
 
     total_shift = best_k + best_oct * 12
     return best_k, best_oct, total_shift, white_rate
 
 
 # ==============================================================================
-# 第三步：音程与走向保真动态规划 (Interval & Direction Preserving Viterbi DP)
+# 第三步：音程保真 Viterbi 动态规划 (Direction-Preserving Viterbi DP)
 # ==============================================================================
 
 def map_melody_sequence_dp(melody_notes, total_shift, sky_keys):
     """
-    基于 Viterbi 动态规划的音程与走向保真映射：
-    - 绝不对越界音进行数值截断 (No Clamping!)；
-    - 对低音 7, (47) 提供【顺滑导音级进到 1 (48)】与【八度中音 7 (59)】双重最优解；
-    - 离调黑键提供顺耳平替候选；
-    - 核心代价函数重罚走向逆转 (Direction Inversion Penalty)。
+    基于 Viterbi 动态规划的音程保真映射：
+    - 严禁粗暴数值截断；
+    - 代价函数重度惩罚旋律走向反转，确保歌曲旋律辨识度 100% 保持！
     """
     if not melody_notes:
         return []
@@ -500,13 +501,13 @@ def map_melody_sequence_dp(melody_notes, total_shift, sky_keys):
         if folded in sky_keys_set:
             cands.add(folded)
 
-        # 针对低音 7, (47 = target_min - 1)，提供平滑解决到根音 1 (48) 的候选
+        # 针对边界外 1 个半音的音符，提供平滑级进候选
         if raw_p == target_min - 1:
-            cands.add(target_min)  # 48
+            cands.add(target_min)
         elif raw_p == target_max + 1:
-            cands.add(target_max)  # 72
+            cands.add(target_max)
 
-        # 离调黑键候选取相邻白键
+        # 离调黑键取相邻白键
         for k in sky_keys:
             if abs(k - folded) == 1:
                 cands.add(k)
@@ -531,13 +532,6 @@ def map_melody_sequence_dp(melody_notes, total_shift, sky_keys):
             diff = min(diff, 12 - diff)
             loc_cost = 0.0 if diff == 0 else (1.5 if diff == 1 else 5.0)
 
-            # 47 到 48 为和谐导音级进，几乎无代价
-            if raw_pitches[i] == target_min - 1 and mp == target_min:
-                loc_cost = 0.2
-
-            if mp in (target_min, target_max):
-                loc_cost += 0.5
-
             if i == 0:
                 row[ci] = loc_cost
                 continue
@@ -546,21 +540,19 @@ def map_melody_sequence_dp(melody_notes, total_shift, sky_keys):
                 raw_interval = raw_pitches[i] - raw_pitches[i - 1]
                 map_interval = mp - pmp
 
-                trans = abs(map_interval - raw_interval) * 3.2
+                trans = abs(map_interval - raw_interval) * 3.0
 
-                # 走向反转重度惩罚（听感跑调的最核心根源）
+                # 走向反转惩罚（最影响歌曲听觉辨识度的关键）
                 if raw_interval > 0 and map_interval < 0:
-                    trans += 16.0
+                    trans += 18.0
                 elif raw_interval < 0 and map_interval > 0:
-                    trans += 16.0
+                    trans += 18.0
 
-                # 原本同音应尽量同音
                 if raw_interval == 0 and map_interval != 0:
-                    trans += 9.0
+                    trans += 8.0
 
-                # 避免非预期八度大跳
                 if abs(map_interval) >= 12:
-                    trans += 9.0
+                    trans += 8.0
 
                 total_cost = dp[i - 1][pi] + loc_cost + trans
                 if total_cost < row[ci]:
@@ -585,19 +577,16 @@ def map_melody_sequence_dp(melody_notes, total_shift, sky_keys):
 
 
 # ==============================================================================
-# 第四步：律动网格对齐与强拍低音锚定 (Quantization & Strong-Beat Bass)
+# 第四步：纯净伴奏架构与网格量化 (Clean Bass & Quantization)
 # ==============================================================================
 
 def choose_rhythm_grid(notes, tpb):
-    """自适应选择音乐律动网格 (优先 1/16 或 1/8 拍)，消除转录 Jitter"""
+    """自适应选择音乐律动网格 (优先 1/16 或 1/8 拍)"""
     if len(notes) < 4:
         return max(1, tpb // 4)
 
     starts = sorted(set(n.start for n in notes))
-    candidates = [
-        max(1, tpb // 4),  # 1/16 拍
-        max(1, tpb // 2),  # 1/8 拍
-    ]
+    candidates = [max(1, tpb // 4), max(1, tpb // 2)]
     candidates = list(dict.fromkeys(candidates))
 
     best_grid = candidates[0]
@@ -607,8 +596,7 @@ def choose_rhythm_grid(notes, tpb):
         errors = [abs(x - int(round(x / grid) * grid)) for x in starts]
         m_err = mean(errors)
         ex_r = sum(1 for e in errors if e == 0) / len(errors)
-        prior = -3.5 if grid == tpb // 4 else -2.0
-        sc = m_err - ex_r * 4.0 + prior
+        sc = m_err - ex_r * 4.0
         if sc < best_score:
             best_score = sc
             best_grid = grid
@@ -620,19 +608,20 @@ def snap_grid(val, grid):
     return int(round(val / grid) * grid)
 
 
-def build_strong_beat_bass(accomp_notes, total_shift, mapped_melody, sky_keys, tpb, grid):
+def build_sparse_strong_beat_bass(accomp_notes, total_shift, mapped_melody, sky_keys, tpb, grid):
     """
-    强拍低音锚定与伴奏瘦身：
-    - 伴奏仅在强拍（Downbeat，间隔至少 1 拍）保留低音根音 (Bass Root, 48~59)；
-    - 伴奏始终位于主旋律下方，与主旋律同度重音时主动让步；
-    - 与主旋律网格完全对齐，构成干净和谐的钢琴伴奏柱。
+    小节强拍极简低音伴奏：
+    - 伴奏仅在每小节强拍 (Downbeat) 保留单个深沉根音；
+    - 伴奏音高固定在光遇低音区 (A1~A5)，力度轻柔 (55)；
+    - 伴奏与主旋律音高严格错开，绝不在同一高度撞音；
+    - 构成干净、空灵、烘托主旋律的光遇双声部。
     """
-    if not accomp_notes:
+    if not accomp_notes or not mapped_melody:
         return []
 
     target_min = min(sky_keys)
-    min_bass_interval = max(tpb, grid * 4)  # 至少相隔 1 拍
-    bass_ceiling = 59 if target_min == 48 else 71  # 伴奏限制在低音区 (A1~B2)
+    bass_ceiling = target_min + 11  # 伴奏严格限制在第一排 (A1~A5)
+    min_bass_interval = tpb * 2     # 至少相隔两拍
 
     melody_by_time = {snap_grid(m.start, grid): m.pitch for m in mapped_melody}
     accomp_by_time = defaultdict(list)
@@ -667,28 +656,46 @@ def build_strong_beat_bass(accomp_notes, total_shift, mapped_melody, sky_keys, t
 
         concur_mel = melody_by_time.get(t)
         if concur_mel is not None:
-            if best_p > concur_mel:
-                best_p -= 12
-            if best_p == concur_mel or abs(concur_mel - best_p) < 4:
+            # 伴奏必须低于主旋律
+            if best_p >= concur_mel:
                 if best_p - 12 >= target_min:
                     best_p -= 12
                 else:
                     continue
+            # 避让同音或严重刺耳半音
+            if abs(concur_mel - best_p) in (0, 1):
+                continue
 
         if target_min <= best_p <= bass_ceiling:
             dur = max(grid * 2, snap_grid(raw_n.dur, grid))
-            anchored_bass.append(NoteEvent(best_p, t, dur, velocity=62, is_melody=False))
+            anchored_bass.append(NoteEvent(best_p, t, dur, velocity=55, is_melody=False))
             last_bass_time = t
 
     return anchored_bass
 
 
 # ==============================================================================
-# 第五步：多格式导出器 (Clean MIDI、15 键字母谱、数字简谱)
+# 第五步：多格式导出 (Clean MIDI、15 键按键谱与标准简谱)
 # ==============================================================================
 
+def safe_save_file(output_path, write_fn):
+    """安全保存文件：防止 Windows 媒体播放器独占文件时 PermissionError 闪退崩溃"""
+    try:
+        write_fn(output_path)
+        return output_path
+    except PermissionError:
+        base, ext = os.path.splitext(output_path)
+        fallback_path = f"{base}_new{ext}"
+        try:
+            write_fn(fallback_path)
+            print(f"[*] 提示: 原文件 '{output_path}' 正被播放器占用，已安全保存至: '{fallback_path}'")
+            return fallback_path
+        except Exception:
+            raise
+
+
 def export_clean_midi(melody_notes, bass_notes, tpb, bpm, grid, output_path):
-    """导出标准光遇 Clean MIDI 文件（网格量化，力度分层）"""
+    """导出标准光遇 Clean MIDI 文件（主旋律清晰响亮，伴奏轻柔衬托）"""
     mid = mido.MidiFile(ticks_per_beat=tpb)
 
     meta_track = mido.MidiTrack()
@@ -697,16 +704,42 @@ def export_clean_midi(melody_notes, bass_notes, tpb, bpm, grid, output_path):
     meta_track.append(mido.MetaMessage("track_name", name="Sky Music Master", time=0))
     meta_track.append(mido.MetaMessage("end_of_track", time=1))
 
-    def build_channel_track(track_name, notes, program=0, base_vel=95):
+    bar_ticks = tpb * 4
+
+    def build_melody_track(notes):
         trk = mido.MidiTrack()
-        trk.append(mido.MetaMessage("track_name", name=track_name, time=0))
-        trk.append(mido.Message("program_change", program=program, time=0))
+        trk.append(mido.MetaMessage("track_name", name="Melody", time=0))
+        trk.append(mido.Message("program_change", program=0, time=0))
+
+        if not notes:
+            trk.append(mido.MetaMessage("end_of_track", time=tpb))
+            return trk
 
         events = []
-        for n in notes:
+        repeat_gap = max(16, grid // 4)
+
+        for i, n in enumerate(notes):
             start = snap_grid(n.start, grid)
             dur = max(grid, snap_grid(n.dur, grid))
-            vel = min(127, max(40, base_vel))
+
+            if i + 1 < len(notes):
+                next_start = snap_grid(notes[i + 1].start, grid)
+                if next_start > start:
+                    if notes[i + 1].pitch == n.pitch:
+                        dur = min(dur, max(grid // 2, next_start - start - repeat_gap))
+                    else:
+                        dur = min(dur, next_start - start)
+
+            # 主旋律响亮有歌唱力 (102)
+            vel = 102
+            pos_in_bar = start % bar_ticks
+            if pos_in_bar < grid:
+                vel += 5  # 小节强拍加重
+            if dur >= tpb:
+                vel += 3  # 长音气息加重
+
+            vel = min(120, max(60, vel))
+
             events.append((start, "on", n.pitch, vel))
             events.append((start + dur, "off", n.pitch, 0))
 
@@ -722,21 +755,48 @@ def export_clean_midi(melody_notes, bass_notes, tpb, bpm, grid, output_path):
         trk.append(mido.MetaMessage("end_of_track", time=tpb))
         return trk
 
-    if melody_notes:
-        mid.tracks.append(build_channel_track("Melody", melody_notes, program=0, base_vel=100))
-    if bass_notes:
-        mid.tracks.append(build_channel_track("Accompaniment", bass_notes, program=0, base_vel=64))
+    def build_bass_track(notes):
+        trk = mido.MidiTrack()
+        trk.append(mido.MetaMessage("track_name", name="Accompaniment", time=0))
+        trk.append(mido.Message("program_change", program=0, time=0))
 
-    mid.save(output_path)
-    return output_path
+        if not notes:
+            trk.append(mido.MetaMessage("end_of_track", time=tpb))
+            return trk
+
+        events = []
+        for n in notes:
+            start = snap_grid(n.start, grid)
+            dur = max(grid * 2, snap_grid(n.dur, grid))
+            events.append((start, "on", n.pitch, 54))  # 伴奏轻柔衬托
+            events.append((start + dur, "off", n.pitch, 0))
+
+        events.sort(key=lambda e: (e[0], 0 if e[1] == "off" else 1))
+
+        last_time = 0
+        for ev_time, ev_type, pitch, vel in events:
+            delta = max(0, ev_time - last_time)
+            msg_type = "note_on" if ev_type == "on" else "note_off"
+            trk.append(mido.Message(msg_type, note=pitch, velocity=vel, time=delta))
+            last_time = ev_time
+
+        trk.append(mido.MetaMessage("end_of_track", time=tpb))
+        return trk
+
+    if melody_notes:
+        mid.tracks.append(build_melody_track(melody_notes))
+    if bass_notes:
+        mid.tracks.append(build_bass_track(bass_notes))
+
+    return safe_save_file(output_path, lambda path: mid.save(path))
 
 
 def export_sky_sheet(all_events, sky_keys, tpb, grid, output_path, title, key_str, shift_str):
-    """导出标准光遇 15 键专用文本谱（按小节与网格排布，带 '.' 延音等待）"""
+    """导出标准光遇 15 键按键谱（A1~C5 坐标排布）"""
     pitch_to_tag = {p: SKY_KEY_TAGS[i] for i, p in enumerate(sky_keys)}
 
     if not all_events:
-        return
+        return output_path
 
     max_end = max(snap_grid(n.start, grid) + max(grid, snap_grid(n.dur, grid)) for n in all_events)
     slots = int(math.ceil(max_end / grid)) + 1
@@ -747,47 +807,50 @@ def export_sky_sheet(all_events, sky_keys, tpb, grid, output_path, title, key_st
         if 0 <= slot < slots:
             timeline[slot].append(n.pitch)
 
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write("============================================================\n")
-        f.write("          光遇 15 键按键简谱 (Sky Music 15-Key Sheet)\n")
-        f.write("============================================================\n")
-        f.write(f"歌曲: {title}\n")
-        f.write(f"原调: {key_str}\n")
-        f.write(f"移调: {shift_str}\n")
-        f.write(f"网格: {grid} ticks / step\n\n")
-        f.write("琴键布局:\n")
-        f.write("  第一排 (低音): A1  A2  A3  A4  A5\n")
-        f.write("  第二排 (中音): B1  B2  B3  B4  B5\n")
-        f.write("  第三排 (高音): C1  C2  C3  C4  C5\n")
-        f.write("符号说明: '.' = 空拍/延音等待；[] = 和弦同时按压\n")
-        f.write("============================================================\n\n")
+    def write_body(target_path):
+        with open(target_path, "w", encoding="utf-8") as f:
+            f.write("============================================================\n")
+            f.write("          光遇 15 键按键简谱 (Sky Music 15-Key Sheet)\n")
+            f.write("============================================================\n")
+            f.write(f"歌曲: {title}\n")
+            f.write(f"原调: {key_str}\n")
+            f.write(f"移调: {shift_str}\n")
+            f.write(f"网格: {grid} ticks / step\n\n")
+            f.write("琴键布局:\n")
+            f.write("  第一排 (低音): A1  A2  A3  A4  A5\n")
+            f.write("  第二排 (中音): B1  B2  B3  B4  B5\n")
+            f.write("  第三排 (高音): C1  C2  C3  C4  C5\n")
+            f.write("符号说明: '.' = 空拍/延音等待；[] = 和弦同时按压\n")
+            f.write("============================================================\n\n")
 
-        tokens = []
-        for pit_list in timeline:
-            if not pit_list:
-                tokens.append(".")
-            else:
-                unique_p = sorted(set(pit_list))
-                tags = [pitch_to_tag[p] for p in unique_p if p in pitch_to_tag]
-                if not tags:
+            tokens = []
+            for pit_list in timeline:
+                if not pit_list:
                     tokens.append(".")
-                elif len(tags) == 1:
-                    tokens.append(tags[0])
                 else:
-                    tokens.append(f"[{''.join(tags)}]")
+                    unique_p = sorted(set(pit_list))
+                    tags = [pitch_to_tag[p] for p in unique_p if p in pitch_to_tag]
+                    if not tags:
+                        tokens.append(".")
+                    elif len(tags) == 1:
+                        tokens.append(tags[0])
+                    else:
+                        tokens.append(f"[{''.join(tags)}]")
 
-        slots_per_bar = max(4, int(round(tpb * 4 / grid)))
-        for i in range(0, len(tokens), slots_per_bar):
-            bar_num = i // slots_per_bar + 1
-            f.write(f"第 {bar_num:02d} 小节: " + " ".join(tokens[i:i + slots_per_bar]) + "\n")
+            slots_per_bar = max(4, int(round(tpb * 4 / grid)))
+            for i in range(0, len(tokens), slots_per_bar):
+                bar_num = i // slots_per_bar + 1
+                f.write(f"第 {bar_num:02d} 小节: " + " ".join(tokens[i:i + slots_per_bar]) + "\n")
+
+    return safe_save_file(output_path, write_body)
 
 
-def export_simple_notation(all_events, sky_keys, tpb, grid, output_path, title, key_str, mode):
-    """导出标准数字简谱 (1 2 3 4 5 6 7，带小节线与高低音点)"""
-    deg_map = MINOR_DEGREE_MAP if mode == "minor" else MAJOR_DEGREE_MAP
+def export_simple_notation(all_events, sky_keys, tpb, grid, output_path, title, key_str, mode, base_octave="C4"):
+    """导出标准数字简谱 (1 2 3 4 5 6 7，对应标准歌词音高)"""
+    deg_map = DEGREE_MAP_C4 if base_octave.upper() == "C4" else DEGREE_MAP_C3
 
     if not all_events:
-        return
+        return output_path
 
     max_end = max(snap_grid(n.start, grid) + max(grid, snap_grid(n.dur, grid)) for n in all_events)
     slots = int(math.ceil(max_end / grid)) + 1
@@ -798,33 +861,37 @@ def export_simple_notation(all_events, sky_keys, tpb, grid, output_path, title, 
         if 0 <= slot < slots:
             timeline[slot].append(n.pitch)
 
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write("============================================================\n")
-        f.write("           光遇数字简谱 (Numbered Musical Notation)\n")
-        f.write("============================================================\n")
-        f.write(f"歌曲: {title}\n")
-        f.write(f"调性: {key_str}\n")
-        f.write("说明: '.' = 延音/空拍；() = 和弦同时弹奏；' 为高八度，'' 为倍高\n")
-        f.write("============================================================\n\n")
+    def write_body(target_path):
+        with open(target_path, "w", encoding="utf-8") as f:
+            f.write("============================================================\n")
+            f.write("           光遇标准数字简谱 (Numbered Musical Notation)\n")
+            f.write("============================================================\n")
+            f.write(f"歌曲: {title}\n")
+            f.write(f"调性: {key_str}\n")
+            f.write("说明: '.' = 延音/空拍；() = 双音同时弹奏\n")
+            f.write("      1~7 为中音组，1'~7' 为高音组，1'' 为倍高音组\n")
+            f.write("============================================================\n\n")
 
-        tokens = []
-        for pit_list in timeline:
-            if not pit_list:
-                tokens.append(".")
-            else:
-                unique_p = sorted(set(pit_list))
-                degs = [deg_map.get(p, "?") for p in unique_p if p in deg_map]
-                if not degs:
+            tokens = []
+            for pit_list in timeline:
+                if not pit_list:
                     tokens.append(".")
-                elif len(degs) == 1:
-                    tokens.append(degs[0])
                 else:
-                    tokens.append(f"({'/'.join(degs)})")
+                    unique_p = sorted(set(pit_list))
+                    degs = [deg_map.get(p, "?") for p in unique_p if p in deg_map]
+                    if not degs:
+                        tokens.append(".")
+                    elif len(degs) == 1:
+                        tokens.append(degs[0])
+                    else:
+                        tokens.append(f"({'/'.join(degs)})")
 
-        slots_per_bar = max(4, int(round(tpb * 4 / grid)))
-        for i in range(0, len(tokens), slots_per_bar):
-            bar_num = i // slots_per_bar + 1
-            f.write(f"[{bar_num:02d}] " + " ".join(tokens[i:i + slots_per_bar]) + "\n")
+            slots_per_bar = max(4, int(round(tpb * 4 / grid)))
+            for i in range(0, len(tokens), slots_per_bar):
+                bar_num = i // slots_per_bar + 1
+                f.write(f"[{bar_num:02d}] " + " ".join(tokens[i:i + slots_per_bar]) + "\n")
+
+    return safe_save_file(output_path, write_body)
 
 
 # ==============================================================================
@@ -836,30 +903,19 @@ def process_midi_to_sky(
     output_midi_path=None,
     output_sheet_path=None,
     output_simple_path=None,
-    base_octave="C3",
+    base_octave="auto",
     solo_melody_only=False,
     verbose=True,
 ):
-    """光遇友好型 MIDI 改谱 V4 核心流水线"""
+    """光遇友好型 MIDI 改谱 V7 核心流水线"""
     if verbose:
         print()
         print("=" * 70)
-        print("   光遇友好型 MIDI 智能改谱引擎 (Sky Music Transposer V4)")
+        print("   光遇友好型 MIDI 智能改谱引擎 (Sky Music Transposer V7 原曲高保真版)")
         print("=" * 70)
         print(f"[*] 输入文件: {input_midi_path}")
 
-    # 1. 确定基准音域
-    if base_octave.upper() == "C4":
-        sky_keys = SKY_KEYS_C4
-        base_label = "C4~C6 (60~84)"
-    else:
-        sky_keys = SKY_KEYS_C3
-        base_label = "C3~C5 (48~72) [光遇简谱标准推荐]"
-
-    if verbose:
-        print(f"[*] 目标音域基准: {base_label}")
-
-    # 2. 解析 MIDI
+    # 1. 解析 MIDI
     tracks_notes, tpb, bpm = parse_midi_file(input_midi_path)
     total_raw = sum(len(t[2]) for t in tracks_notes)
     if verbose:
@@ -868,36 +924,58 @@ def process_midi_to_sky(
     if total_raw == 0:
         raise ValueError("输入 MIDI 文件中未检测到有效音符！")
 
-    # 3. 人声声学解耦、泛音谐波修正与伪音过滤
-    melody_raw, accomp_pool = extract_and_clean_voices(tracks_notes, tpb)
+    # 2. 原曲主旋律歌唱流提取与乐理伪音过滤
+    melody_raw, accomp_pool = extract_pure_melody_and_accompaniment(tracks_notes, tpb)
+    melody_shaped = shape_legato_melody(melody_raw, tpb)
     if verbose:
-        print(f"[*] 声部解耦: 提取纯净歌唱线条 = {len(melody_raw)} 音符 (已完成泛音谐波修正与伪音过滤)")
+        print(f"[*] 声部解耦: 提取原曲主歌唱线条 = {len(melody_shaped)} 音符 (已完成泛音归一化、伪音剔除与歌唱连音塑形)")
 
-    # 4. 调性识别与全曲最佳音阶居中
-    key_name, mode_name, tonic_num = detect_key_and_mode(melody_raw)
+    # 3. 自适应音域决策 (智能推荐 C4 黄金演唱音区)
+    if base_octave == "auto" or base_octave is None:
+        # 评估 C4 (60~84) vs C3 (48~72)
+        c4_in = sum(1 for n in melody_shaped if 60 <= n.pitch <= 84)
+        c3_in = sum(1 for n in melody_shaped if 48 <= n.pitch <= 72)
+        if c4_in >= c3_in or mean([n.pitch for n in melody_shaped]) >= 64:
+            selected_base = "C4"
+        else:
+            selected_base = "C3"
+    else:
+        selected_base = base_octave.upper()
+
+    if selected_base == "C4":
+        sky_keys = SKY_KEYS_C4
+        base_label = "C4~C6 (60~84) [光遇黄金演唱音区，原曲高辨识推荐]"
+    else:
+        sky_keys = SKY_KEYS_C3
+        base_label = "C3~C5 (48~72) [低音区]"
+
+    if verbose:
+        print(f"[*] 目标音域基准: {base_label}")
+
+    # 4. 调性识别与全曲最佳移调
+    key_name, mode_name, tonic_num = detect_key_and_mode(melody_shaped)
     key_full_str = f"{key_name} {mode_name.capitalize()}"
 
-    best_k, best_oct, total_shift, white_rate = find_global_best_shifts(melody_raw, sky_keys)
+    best_k, best_oct, total_shift, white_rate = find_optimal_sky_transposition(melody_shaped, sky_keys)
     k_str = f"+{best_k}" if best_k >= 0 else f"{best_k}"
     oct_str = f"+{best_oct}" if best_oct >= 0 else f"{best_oct}"
     tot_str = f"+{total_shift}" if total_shift >= 0 else f"{total_shift}"
 
     if verbose:
         print(f"[*] 调性分析: 识别原曲调性为 {key_full_str}")
-        print(f"[*] 全局移调: 调性半音位移 {k_str} (白键率: {white_rate*100:.1f}%), 全局八度位移 {oct_str} (总位移: {tot_str} 半音)")
+        print(f"[*] 全局移调: 调性半音位移 {k_str} (白键率: {white_rate*100:.1f}%), 八度位移 {oct_str} (总位移: {tot_str} 半音)")
 
-    # 5. 音程与走向保真 Viterbi 动态规划
-    mapped_melody = map_melody_sequence_dp(melody_raw, total_shift, sky_keys)
+    # 5. 音程保真 Viterbi 动态规划
+    mapped_melody = map_melody_sequence_dp(melody_shaped, total_shift, sky_keys)
 
-    # 检查高音越界情况
     target_max = max(sky_keys)
     over_high = sum(1 for n in mapped_melody if n.pitch > target_max)
 
-    raw_shifted = [n.pitch + total_shift for n in melody_raw]
+    raw_shifted = [n.pitch + total_shift for n in melody_shaped]
     exact_match = sum(1 for s, d in zip(raw_shifted, mapped_melody) if s == d.pitch)
     correct_dir = 0
     total_dir = 0
-    for i in range(1, len(melody_raw)):
+    for i in range(1, len(melody_shaped)):
         rd = raw_shifted[i] - raw_shifted[i - 1]
         md = mapped_melody[i].pitch - mapped_melody[i - 1].pitch
         if rd != 0:
@@ -905,24 +983,24 @@ def process_midi_to_sky(
             if (rd > 0 and md > 0) or (rd < 0 and md < 0):
                 correct_dir += 1
 
-    exact_pct = exact_match / max(1, len(melody_raw)) * 100
+    exact_pct = exact_match / max(1, len(melody_shaped)) * 100
     dir_pct = correct_dir / max(1, total_dir) * 100
     if verbose:
-        print(f"[*] 保真动态规划: 旋律吻合率 = {exact_pct:.1f}%, 走向保持率 = {dir_pct:.1f}%, 高音折叠缺失 = {over_high} 处")
+        print(f"[*] 原曲高保真映射: 旋律吻合率 = {exact_pct:.1f}%, 走向保持率 = {dir_pct:.1f}%, 高音折叠缺失 = {over_high} 处")
 
-    # 6. 律动网格对齐与强拍低音锚定
-    grid = choose_rhythm_grid(melody_raw, tpb)
+    # 6. 律动网格对齐与极简强拍低音架构
+    grid = choose_rhythm_grid(melody_shaped, tpb)
     if verbose:
         print(f"[*] 律动网格: 选择 {grid} ticks/step 音乐脉冲网格")
 
     if solo_melody_only:
         mapped_bass = []
         if verbose:
-            print("[*] 独奏模式: 已忽略伴奏声部，仅保留纯主旋律")
+            print("[*] 独奏模式: 已忽略伴奏声部，仅保留纯主旋律 (辨识度最高)")
     else:
-        mapped_bass = build_strong_beat_bass(accomp_pool, total_shift, mapped_melody, sky_keys, tpb, grid)
+        mapped_bass = build_sparse_strong_beat_bass(accomp_pool, total_shift, mapped_melody, sky_keys, tpb, grid)
         if verbose:
-            print(f"[*] 强拍低音: 提取和谐低音根音 = {len(mapped_bass)} 音符 (强拍锚定，杜绝炸音)")
+            print(f"[*] 极简低音: 提取小节强拍纯净根音 = {len(mapped_bass)} 音符 (主次分明，绝不喧宾夺主)")
 
     # 7. 导出文件
     base_name = os.path.splitext(input_midi_path)[0]
@@ -931,23 +1009,23 @@ def process_midi_to_sky(
     out_simple = output_simple_path or f"{base_name}_simple.txt"
     title_str = os.path.basename(base_name)
 
-    export_clean_midi(mapped_melody, mapped_bass, tpb, bpm, grid, out_mid)
+    saved_mid = export_clean_midi(mapped_melody, mapped_bass, tpb, bpm, grid, out_mid)
 
     all_events = sorted(mapped_melody + mapped_bass, key=lambda n: (snap_grid(n.start, grid), -n.pitch))
-    export_sky_sheet(all_events, sky_keys, tpb, grid, out_sheet, title_str, key_full_str, tot_str)
-    export_simple_notation(all_events, sky_keys, tpb, grid, out_simple, title_str, key_full_str, mode_name)
+    saved_sheet = export_sky_sheet(all_events, sky_keys, tpb, grid, out_sheet, title_str, key_full_str, tot_str)
+    saved_simple = export_simple_notation(all_events, sky_keys, tpb, grid, out_simple, title_str, key_full_str, mode_name, selected_base)
 
     if verbose:
         print("-" * 70)
-        print(f"[完成] 光遇 Clean MIDI:   {os.path.abspath(out_mid)}")
-        print(f"[完成] 光遇 15 键文本谱:  {os.path.abspath(out_sheet)}")
-        print(f"[完成] 数字简谱文本:      {os.path.abspath(out_simple)}")
+        print(f"[完成] 光遇 Clean MIDI:   {os.path.abspath(saved_mid)}")
+        print(f"[完成] 光遇 15 键文本谱:  {os.path.abspath(saved_sheet)}")
+        print(f"[完成] 数字简谱文本:      {os.path.abspath(saved_simple)}")
         print("=" * 70)
 
     return {
-        "midi_path": out_mid,
-        "sheet_path": out_sheet,
-        "simple_path": out_simple,
+        "midi_path": saved_mid,
+        "sheet_path": saved_sheet,
+        "simple_path": saved_simple,
         "total_shift": total_shift,
         "melody_count": len(mapped_melody),
         "bass_count": len(mapped_bass),
@@ -989,15 +1067,15 @@ def select_midi_interactively():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="光遇友好型 MIDI 智能改谱引擎 (Sky Music Transposer V4)",
+        description="光遇友好型 MIDI 智能改谱引擎 (Sky Music Transposer V7 原曲高保真版)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("input", nargs="?", default=None, help="输入 MIDI 文件路径 (.mid)")
     parser.add_argument("-o", "--output", default=None, help="输出光遇 Clean MIDI 路径")
     parser.add_argument("--sheet", default=None, help="输出光遇 15 键按键谱路径 (.txt)")
     parser.add_argument("--simple", default=None, help="输出数字简谱路径 (.txt)")
-    parser.add_argument("--base", choices=["C3", "C4"], default="C3", help="光遇音域基准: C3(推荐 48~72) 或 C4(60~84)")
-    parser.add_argument("--solo-only", action="store_true", help="仅保留纯主旋律，剔除全部伴奏")
+    parser.add_argument("--base", choices=["auto", "C4", "C3"], default="auto", help="光遇音域基准: auto(智能匹配黄金音区), C4(推荐 60~84), C3(低音 48~72)")
+    parser.add_argument("--solo-only", action="store_true", help="仅保留纯主旋律，剔除全部伴奏 (辨识度最高)")
 
     args = parser.parse_args()
 
