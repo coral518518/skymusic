@@ -299,10 +299,10 @@ def convert_note_events(note_events: Optional[Sequence]) -> List[NoteEvent]:
 
 def filter_basic_notes(
     notes: List[NoteEvent],
-    min_duration: float = 0.075,
-    min_amplitude: float = 0.055,
+    min_duration: float = 0.050,
+    min_amplitude: float = 0.048,
 ) -> List[NoteEvent]:
-    """删除明显碎片，但保持足够宽松，避免吃掉短旋律音。"""
+    """删除明显碎片，但保持足够宽松，避免吃掉短旋律音与轻倚音。"""
     return [
         n for n in notes
         if n.duration >= min_duration and n.amplitude >= min_amplitude
@@ -315,10 +315,10 @@ def filter_basic_notes(
 
 def adaptive_amplitude_filter(
     notes: List[NoteEvent],
-    percentile: float = 8.0,
-    max_threshold: float = 0.12,
+    percentile: float = 5.0,
+    max_threshold: float = 0.08,
 ) -> List[NoteEvent]:
-    """按当前歌曲响度分布轻度删除最底部异常弱音。"""
+    """按当前歌曲响度分布轻度删除最底部异常弱音，保护钢琴轻触键。"""
     if len(notes) < 20:
         return notes
 
@@ -499,19 +499,15 @@ def remove_obvious_isolated_notes(
 def remove_harmonic_ghost_notes(
     notes: List[NoteEvent],
     max_start_gap: float = 0.025,
-    amplitude_ratio: float = 0.30,
-    min_base_amplitude: float = 0.42,
+    amplitude_ratio: float = 0.25,
+    min_base_amplitude: float = 0.50,
 ) -> List[NoteEvent]:
     """保守删除疑似同起音泛音伪影。
 
-    只考虑 +12 / +19 半音，而且必须满足：
-        - 基音很强
-        - 候选音显著更弱
-        - 几乎同时开始
-        - 时长相近
-        - 没有其它较强和弦音支持
-
-    真实八度/五度一般不会同时满足这些条件，因此不会轻易被删除。
+    核心保护原则：
+        - 钢琴中右手真实旋律音（>= 53 即 F3 及以上）绝不能按 +12 / +19 误删，
+          因为左手低音根音配合右手八度/属音是极为普遍的伴奏与主调织体。
+        - 只有音高属于极端高频泛音区或振幅极度微弱（< 0.08）且为基音镜像时才考虑剔除。
     """
     if len(notes) < 2:
         return notes
@@ -532,6 +528,11 @@ def remove_harmonic_ghost_notes(
             if other is base or id(other) in remove_ids:
                 continue
             if other.pitch not in (base.pitch + 12, base.pitch + 19):
+                continue
+
+            # 核心保护：若候选音落在主要旋律/和弦区（F3及以上，MIDI 53+），
+            # 除非力度极度微弱（< 0.08），否则一律保留，绝不误杀右手旋律音
+            if other.pitch >= 53 and other.amplitude >= 0.08:
                 continue
 
             if other.amplitude > base.amplitude * amplitude_ratio:
@@ -682,8 +683,8 @@ def intelligent_quantize(
     notes: List[NoteEvent],
     beat_times: List[float],
     subdivisions: int = 4,
-    max_snap_ratio: float = 0.22,
-    strength: float = 0.65,
+    max_snap_ratio: float = 0.18,
+    strength: float = 0.35,
 ) -> List[NoteEvent]:
     """保守地向动态 Beat 网格吸附，避免把自由节奏硬掰直。"""
     if not notes or len(beat_times) < 2:
@@ -806,17 +807,17 @@ def convert_audio_to_midi(
     audio_path: str,
     output_midi_path: Optional[str] = None,
     bpm: Optional[float] = None,
-    onset_threshold: float = 0.55,
+    onset_threshold: float = 0.50,
     frame_threshold: float = 0.30,
-    minimum_note_length: float = 80.0,
+    minimum_note_length: float = 58.0,
     minimum_frequency: Optional[float] = None,
     maximum_frequency: Optional[float] = None,
-    clean_min_duration: float = 0.075,
-    clean_min_amplitude: float = 0.055,
+    clean_min_duration: float = 0.050,
+    clean_min_amplitude: float = 0.048,
     merge_gap: float = 0.055,
     quantize: bool = True,
     quantize_subdivision: int = 4,
-    quantize_strength: float = 0.65,
+    quantize_strength: float = 0.35,
     density_limit: bool = True,
     density_window: float = 0.030,
     density_max_notes: int = 7,
@@ -906,7 +907,7 @@ def convert_audio_to_midi(
     )
     after_basic = len(notes)
 
-    notes = adaptive_amplitude_filter(notes, percentile=8.0, max_threshold=0.12)
+    notes = adaptive_amplitude_filter(notes, percentile=5.0, max_threshold=0.08)
     after_amplitude = len(notes)
 
     notes = merge_same_pitch_notes(notes, max_gap=merge_gap)
@@ -940,7 +941,7 @@ def convert_audio_to_midi(
             notes,
             beat_times,
             subdivisions=quantize_subdivision,
-            max_snap_ratio=0.22,
+            max_snap_ratio=0.18,
             strength=quantize_strength,
         )
 
@@ -1000,17 +1001,17 @@ def main():
     parser.add_argument("-o", "--output", default=None, help="输出 MIDI")
     parser.add_argument("--bpm", type=float, default=None, help="手动指定 BPM")
 
-    parser.add_argument("--onset", type=float, default=0.55)
+    parser.add_argument("--onset", type=float, default=0.50)
     parser.add_argument("--frame", type=float, default=0.30)
-    parser.add_argument("--min-len", type=float, default=80.0)
+    parser.add_argument("--min-len", type=float, default=58.0)
 
-    parser.add_argument("--clean-min-duration", type=float, default=0.075)
-    parser.add_argument("--clean-min-amplitude", type=float, default=0.055)
+    parser.add_argument("--clean-min-duration", type=float, default=0.050)
+    parser.add_argument("--clean-min-amplitude", type=float, default=0.048)
     parser.add_argument("--merge-gap", type=float, default=0.055)
 
     parser.add_argument("--no-quantize", action="store_true")
     parser.add_argument("--quantize-subdivision", type=int, choices=[1, 2, 4, 8], default=4)
-    parser.add_argument("--quantize-strength", type=float, default=0.65)
+    parser.add_argument("--quantize-strength", type=float, default=0.35)
 
     parser.add_argument("--no-density-limit", action="store_true")
     parser.add_argument("--density-window", type=float, default=0.030)

@@ -300,6 +300,9 @@ def _track_melody_probability(notes, ticks_per_beat):
     for n in notes:
         onset_group = groups[n["start"]]
         chord_size = len(onset_group)
+        is_top = (n["pitch"] == max(item["pitch"] for item in onset_group))
+        top_bonus = 0.28 if is_top else 0.0
+
         pitch_pref = 1.0 - min(1.0, abs(n["pitch"] - center) / spread)
         duration_pref = min(1.0, n["dur"] / max(1, ticks_per_beat))
         velocity_pref = n.get("velocity", 64) / 127.0
@@ -307,14 +310,101 @@ def _track_melody_probability(notes, ticks_per_beat):
         # 和弦内部声部仍允许进入候选池，但明显降低权重。
         chord_penalty = 1.0 / (1.0 + max(0, chord_size - 1) * 0.28)
         score = (
-            0.32 * pitch_pref
-            + 0.32 * duration_pref
-            + 0.16 * velocity_pref
-            + 0.20
+            0.28 * pitch_pref
+            + 0.22 * duration_pref
+            + 0.18 * velocity_pref
+            + top_bonus
+            + 0.14
         ) * chord_penalty
         result[id(n)] = score
 
     return result
+
+
+def extract_single_track_melody_and_accompaniment(notes, ticks_per_beat):
+    """专门针对单轨钢琴/音频转录 MIDI 的天际线主声部提取算法（Skyline Algorithm）。
+
+    核心乐理原则：
+    1. 钢琴独奏/伴奏织体中，最高音（Soprano）绝大多数情况下承载主旋律；
+    2. 左手伴奏织体（尤其是深低音 < 52）主要承担根音与和声支撑，不能作为旋律候选；
+    3. 按起音微窗口（同拍/同和弦）分簇，给予最高音极高的主旋律置信度（melody_prob = 1.0）；
+    4. 次高音根据音区与力度给予适量候选权重，防止漏掉双音中的旋律线；
+    5. 低音区（< 55）全量转入伴奏候选池，供低音生成器作为支撑。
+    """
+    if not notes:
+        return [], []
+
+    ordered = sorted(notes, key=lambda n: (n["start"], n["pitch"]))
+    # 聚类窗口：在约 1/16 拍内的音符视作同一和弦/同一时点动作
+    onset_window = max(10, ticks_per_beat // 16)
+
+    clusters = []
+    current_cluster = [ordered[0]]
+
+    for n in ordered[1:]:
+        if n["start"] - current_cluster[0]["start"] <= onset_window:
+            current_cluster.append(n)
+        else:
+            clusters.append(current_cluster)
+            current_cluster = [n]
+    if current_cluster:
+        clusters.append(current_cluster)
+
+    melody_candidates = []
+    accompaniment = []
+
+    for cluster in clusters:
+        cluster_pitches = [n["pitch"] for n in cluster]
+        max_p = max(cluster_pitches)
+        max_vel = max(n.get("velocity", 64) for n in cluster)
+
+        for n in cluster:
+            pitch = n["pitch"]
+            vel = n.get("velocity", 64)
+
+            is_top = (pitch == max_p)
+            diff_from_top = max_p - pitch
+
+            if is_top:
+                # 最高音：天际线主旋律
+                if pitch >= 55:
+                    prob = 1.0
+                elif pitch >= 48:
+                    prob = 0.65
+                else:
+                    # 极深低音区（如 < 48 即 C3 以下）通常只是独奏时的纯根音低音
+                    prob = 0.15
+            else:
+                # 和弦内声部：距离最高音很近且力度较高，可能是双音旋律
+                if diff_from_top <= 4 and pitch >= 55 and vel >= max_vel - 8:
+                    prob = 0.55
+                elif diff_from_top <= 7 and pitch >= 55:
+                    prob = 0.25
+                else:
+                    prob = 0.02
+
+            # 注入属性
+            enriched_note = {
+                **n,
+                "melody_prob": prob,
+                "is_skyline": is_top,
+            }
+
+            # 旋律候选筛选：旋律置信度合格且音高不低于 48（C3，光遇最低音）
+            if prob >= 0.20 and pitch >= 48:
+                melody_candidates.append(enriched_note)
+            else:
+                accompaniment.append(enriched_note)
+
+    # 兜底：如果旋律候选太少，放宽到所有 >= 48 的音符
+    if len(melody_candidates) < 5:
+        melody_candidates = [
+            {**n, "melody_prob": 0.8 if n["pitch"] >= 55 else 0.4}
+            for n in notes if n["pitch"] >= 48
+        ]
+        accompaniment = [n for n in notes if n["pitch"] < 55]
+
+    return melody_candidates, accompaniment
 
 
 def _merge_melody_candidates(tracks, ticks_per_beat, top_track_count=3):
@@ -395,13 +485,8 @@ def select_melody(tracks, ticks_per_beat):
 
     if len(tracks) == 1:
         # 单轨情况（如钢琴独奏/纯音乐音频转录）：
-        # 高音区及主线条作为旋律候选，低音区作为伴奏候选
-        notes = tracks[0]
-        melody_candidates = [n for n in notes if n["pitch"] >= 53]  # F3 及以上为旋律候选
-        if not melody_candidates:
-            melody_candidates = notes
-        accompaniment = [n for n in notes if n["pitch"] < 60]       # C4 以下为伴奏低音
-        return melody_candidates, accompaniment
+        # 使用天际线主声部提取算法（Skyline Algorithm）分离右手主旋律与左手伴奏
+        return extract_single_track_melody_and_accompaniment(tracks[0], ticks_per_beat)
 
     candidate_pool, selected_track_indices = _merge_melody_candidates(
         tracks,
@@ -441,7 +526,7 @@ def select_melody(tracks, ticks_per_beat):
 # ============================================================
 
 def _build_onset_groups(notes, ticks_per_beat):
-    """按 onset 组织候选音，并保留旋律识别所需的少量高质量候选。"""
+    """按 onset 组织候选音，高音（天际线主声部）与高旋律概率优先。"""
     min_duration = max(1, ticks_per_beat // 48)
     groups = defaultdict(list)
 
@@ -461,12 +546,12 @@ def _build_onset_groups(notes, ticks_per_beat):
             old = best_by_pitch.get(pitch)
             if old is None or (
                 note.get("melody_prob", 0.0),
-                note["dur"],
                 note.get("velocity", 64),
+                note["dur"],
             ) > (
                 old.get("melody_prob", 0.0),
-                old["dur"],
                 old.get("velocity", 64),
+                old["dur"],
             ):
                 best_by_pitch[pitch] = note
 
@@ -474,15 +559,15 @@ def _build_onset_groups(notes, ticks_per_beat):
         dedup.sort(
             key=lambda n: (
                 n.get("melody_prob", 0.5),
-                min(n["dur"], ticks_per_beat * 2),
+                n["pitch"],                          # 高音（天际线主旋律）必须排在前面！
                 n.get("velocity", 64),
-                n["pitch"],
+                min(n["dur"], ticks_per_beat),
             ),
             reverse=True,
         )
 
-        # 高音不再天然第一；保留分布，避免内声部被永远过滤。
-        result.append((start, dedup[:8]))
+        # 优先保留高置信度高音声部（保留前4个高质量候选，避免 DP 状态爆炸与低音污染）
+        result.append((start, dedup[:4]))
 
     return result
 
@@ -537,25 +622,18 @@ def _transition_cost_for_melody(prev_note, note, ticks_per_beat):
     if a == 0:
         cost -= 1.8
     elif a <= 2:
-        cost -= 2.7
+        cost -= 2.6
     elif a <= 4:
-        cost -= 2.1
+        cost -= 2.0
     elif a <= 7:
-        cost -= 0.7
+        cost -= 1.0  # 纯四、纯五度跳进在旋律中非常普遍
     elif a <= 9:
-        cost += 0.3
-    elif a <= 11:
-        cost += 1.2
+        cost += 0.2
+    elif a <= 12:
+        cost += 1.0  # 八度大跳在旋律中正常允许
     else:
-        cost += 3.0 + (a - 12) * 0.35
-
-    # 过大的单向漂移不是致命问题，但轻微抑制。
-    if a >= 19:
-        cost += 4.0
-
-    # 长音后的大跳稍微更可疑。
-    if prev_note["dur"] >= ticks_per_beat * 1.5 and a >= 10:
-        cost += 1.8
+        # 超过八度的超大跨度施加重罚，彻底锁死在同一主旋律层，杜绝旋律与伴奏上下乱窜
+        cost += 4.5 + (a - 12) * 0.65
 
     return cost
 
@@ -633,11 +711,27 @@ def _choose_phrase_path(
     ref = motif_reference or []
 
     def local_cost(note, pos, phrase_len):
-        cost = (
-            -note.get("melody_prob", 0.5) * 4.6
-            -min(note["dur"] / max(1, ticks_per_beat), 2.5) * 0.65
-            +abs(note["pitch"] - 69) * 0.028
-        )
+        prob = note.get("melody_prob", 0.5)
+        # 旋律概率越高 cost 越低（强正向奖励）
+        cost = -prob * 6.0
+
+        pitch = note["pitch"]
+        # 音高区域惩罚与奖励：
+        # 流行/人声主旋律黄金音区通常在 57 (A3) ~ 84 (C6)
+        if pitch < 52:
+            # 坚决严厉惩罚掉入低音区（防止被左手伴奏诱导）
+            cost += (52 - pitch) * 1.8
+        elif pitch < 57:
+            cost += (57 - pitch) * 0.5
+        elif pitch > 84:
+            cost += (pitch - 84) * 0.4
+        else:
+            cost -= 0.6  # 黄金旋律区适度奖励
+
+        # 力度轻微偏好（主旋律触键通常更清晰）
+        vel = note.get("velocity", 64)
+        cost -= (vel / 127.0) * 0.5
+
         if tonic is not None:
             cost += _scale_cost(
                 note,
@@ -645,15 +739,6 @@ def _choose_phrase_path(
                 mode,
                 phrase_end=(pos == phrase_len - 1),
             )
-
-        # 重复乐句弱约束：比较“相对首音”的音程轮廓。
-        if ref and pos < len(ref):
-            ref_rel = ref[pos]["pitch"] - ref[0]["pitch"]
-            cur_rel = note["pitch"] - ref[0]["pitch"] if pos == 0 else None
-            # pos=0 不比较绝对音高；后续由当前 phrase 的首音决定。
-            if pos > 0:
-                # 这个绝对值只是候选初筛，真正的相对轮廓在扩展状态中计算。
-                pass
         return cost
 
     for i, a in enumerate(first):
@@ -939,7 +1024,7 @@ def choose_normalization_shift(notes, tonic, mode):
         return 0
 
     target_tonic = 0 if mode == "major" else 9
-    theoretical_shift = target_tonic - tonic
+    theoretical_shift = (target_tonic - tonic) % 12
 
     best_shift = theoretical_shift
     best_score = -999999.0
@@ -953,7 +1038,7 @@ def choose_normalization_shift(notes, tonic, mode):
             weight = (
                 1.0
                 + min(note["dur"] / 480.0, 3.0)
-                + note["velocity"] / 255.0 * 0.25
+                + note.get("velocity", 64) / 255.0 * 0.25
             )
 
             p = note["pitch"] + shift
@@ -974,17 +1059,28 @@ def choose_normalization_shift(notes, tonic, mode):
 
         white_ratio = white_weight / max(1e-6, total_weight)
 
-        # 理论调性仍然非常重要，避免为了几个 accidentals 把调子搞歪
-        distance_from_theory = abs(shift - theoretical_shift)
-        theory_penalty = min(distance_from_theory, 12) * 4.5
+        # 理论调性偏离计算：采用模 12 循环距离！
+        # 例如 G 大调移到 C 大调，shift = +5 与 shift = -7 是等价的调性转换，两者理论距离都为 0！
+        shift_pc = shift % 12
+        theory_distance = pitch_class_distance(shift_pc, theoretical_shift)
+        theory_penalty = theory_distance * 6.0
 
-        # 目标主音偏离 C/A 越大越不利
+        # 目标主音偏离 C/A 的惩罚
         shifted_tonic = (tonic + shift) % 12
-        target_penalty = pitch_class_distance(shifted_tonic, target_tonic) * 5.0
+        target_penalty = pitch_class_distance(shifted_tonic, target_tonic) * 6.0
 
-        score += white_ratio * 80.0
+        # 光遇 15 键黄金中心（C4 = 60，范围 [48, 72]）居中性奖励
+        # 偏好让旋律音主体落在 57~69 之间，避免全部缩在底端 A1~A3 (48~55)
+        shifted_pitches = [n["pitch"] + shift for n in notes]
+        avg_pitch = mean(shifted_pitches) if shifted_pitches else 60.0
+        center_error = abs(avg_pitch - 61.5)  # 61.5 略高于中央 C，恰好是光遇中排键
+        center_penalty = max(0.0, center_error - 4.0) * 1.5
+
+        score += white_ratio * 85.0
         score -= theory_penalty
         score -= target_penalty
+        score -= center_penalty
+        score -= abs(shift) * 0.2
 
         if score > best_score:
             best_score = score
@@ -1014,39 +1110,44 @@ def choose_normalization_shift(notes, tonic, mode):
 # ============================================================
 
 def _sky_candidates(raw_pitch):
-    candidates = set()
+    # 将超范围音高折叠到光遇 15 键范围 [48, 72] 内的对应八度
+    folded = raw_pitch
+    while folded < 48:
+        folded += 12
+    while folded > 72:
+        folded -= 12
 
-    for octave in range(-2, 3):
-        base = raw_pitch + octave * 12
+    # 如果已经在 15 键中（白键），直接作为首选
+    if folded in SKY_KEYS_MIDI:
+        return [folded]
 
-        for sky_pitch in SKY_KEYS_MIDI:
-            distance = abs(sky_pitch - base)
+    # 若是黑键，取相邻的两个白键（距离均为 1）
+    neighbors = [p for p in SKY_KEYS_MIDI if abs(p - folded) == 1]
+    if neighbors:
+        return sorted(neighbors)
 
-            if distance <= 3:
-                candidates.add(sky_pitch)
+    # 兜底：距离 <= 2 的候选键
+    cands = [p for p in SKY_KEYS_MIDI if abs(p - folded) <= 2]
+    if cands:
+        return sorted(cands)
 
-    # 极端音域没有候选时，取最接近的几个键
-    if not candidates:
-        nearest = sorted(
-            SKY_KEYS_MIDI,
-            key=lambda p: abs(p - raw_pitch),
-        )
-        candidates.update(nearest[:3])
-
-    return sorted(candidates)
+    return sorted(SKY_KEYS_MIDI, key=lambda p: abs(p - folded))[:2]
 
 
 def _mapping_local_cost(raw_pitch, mapped_pitch):
+    # 将 raw_pitch 规范到同一度量空间，计算循环音程差
     diff = abs(mapped_pitch - raw_pitch)
+    while diff >= 12:
+        diff -= 12
+    diff = min(diff, 12 - diff)
 
-    # 距离 1 的黑键修正很常见，距离 2 已经明显不自然
     if diff == 0:
         return 0.0
     if diff == 1:
-        return 1.8
+        return 1.5
     if diff == 2:
-        return 7.0
-    return 15.0 + diff * 2.5
+        return 5.0
+    return 10.0 + diff * 2.0
 
 
 def _mapping_transition_cost(raw_a, mapped_a, raw_b, mapped_b):
@@ -1321,7 +1422,7 @@ def build_melody_events(
             "is_melody": True,
         })
 
-    # 同一网格碰撞采用“看前后”的选择，而不是只看前一个。
+    # 同一网格碰撞仲裁：优先保留最高音（天际线主声部）与强音
     grouped = defaultdict(list)
     for event in result:
         grouped[event["start"]].append(event)
@@ -1333,24 +1434,24 @@ def build_melody_events(
             final.append(group[0])
             continue
 
-        prev_pitch = final[-1]["pitch"] if final else None
-        next_pitch = None
-        # 找下一个不同 start 的事件音高。
-        for s2 in sorted(grouped):
-            if s2 > start:
-                next_pitch = min(grouped[s2], key=lambda e: abs(e["pitch"] - (prev_pitch or e["pitch"]))) ["pitch"]
-                break
+        # 同一网格内，优先保留高音（主旋律天际线）与清晰触键
+        group.sort(
+            key=lambda e: (
+                e["pitch"],
+                e.get("velocity", 64),
+                e["dur"],
+            ),
+            reverse=True,
+        )
+        final.append(group[0])
 
-        def rank(event):
-            continuity = abs(event["pitch"] - prev_pitch) if prev_pitch is not None else 0.0
-            future = abs(next_pitch - event["pitch"]) if next_pitch is not None else 0.0
-            return (
-                continuity * 0.65 + future * 0.35,
-                -event["dur"],
-                -event["velocity"],
-            )
-
-        final.append(min(group, key=rank))
+    # 规范单音旋律时值衔接，避免重叠粘音
+    for i in range(len(final) - 1):
+        cur = final[i]
+        nxt = final[i + 1]
+        if cur["end"] > nxt["start"]:
+            cur["end"] = nxt["start"]
+            cur["dur"] = max(grid, nxt["start"] - cur["start"])
 
     return final, grid
 
@@ -1415,7 +1516,7 @@ def build_bass_events(
             "start": start,
             "end": start + max(grid, snap_grid(note["dur"], grid)),
             "dur": max(grid, snap_grid(note["dur"], grid)),
-            "velocity": note["velocity"],
+            "velocity": min(note.get("velocity", 64), 42),
             "is_melody": False,
         })
 
@@ -1732,7 +1833,7 @@ def export_preview_midi(events, ticks_per_beat, output_file, bpm):
     midi_events = []
 
     for event in events:
-        velocity = 100 if event["is_melody"] else 45
+        velocity = 105 if event["is_melody"] else 40
 
         midi_events.append((
             event["start"],
@@ -1802,8 +1903,8 @@ def convert_midi_to_sky(
     output_sky="sky_sheet_v7.txt",
     output_simple="simple_sheet_v7.txt",
     bpm=None,
-    onset_thresh=0.5,
-    frame_thresh=0.3,
+    onset_thresh=0.50,
+    frame_thresh=0.30,
 ):
     print()
     print("=" * 60)
