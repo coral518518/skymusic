@@ -17,3 +17,6 @@ __pycache__/
 *.log
 sky_preview*.mid
 *_sheet*.txt
+.browser_session/
+downmidi/.browser_session/
+downmidi/cookie.txt

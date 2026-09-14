@@ -6,12 +6,17 @@ on:
       pages:
         description: '抓取翻页数量 (Pages, 每页约25首; 填 0 为翻到最后一页)'
         required: false
-        default: '3'
+        default: '5'
         type: string
       delay:
         description: '每首歌下载间隔延迟秒数 (Delay, 建议 2~5 秒防风控)'
         required: false
         default: '3.0'
+        type: string
+      push_interval:
+        description: '每成功下载多少首就自动 Git Commit & Push 提交到仓库'
+        required: false
+        default: '100'
         type: string
       url:
         description: '抓取的目标页面 URL'
@@ -24,7 +29,7 @@ on:
         default: ''
         type: string
 
-# 授予工作流推送提交代码的权限
+# 授予工作流向仓库推送代码与文件的权限
 permissions:
   contents: write
 
@@ -50,7 +55,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4 playwright tqdm
           playwright install chromium --with-deps
-          # 安装 Xvfb 虚拟显示器（启动 1080P 虚拟桌面，让浏览器以真实 GUI 模式运行，完美绕过无头人机检测）
+          # 安装 Xvfb 虚拟显示器（启动 1080P 虚拟桌面，让浏览器以真实桌面窗口运行，彻底消除 Headless 爬虫特征）
           sudo apt-get update
           sudo apt-get install -y xvfb
 
@@ -72,12 +77,13 @@ jobs:
             echo "$COOKIE_VAL" > downmidi/cookie.txt
             echo "✅ Cookie 已成功写入 downmidi/cookie.txt"
           else
-            echo "⚠️ 未检测到 Cookie，将尝试直接使用仓库中已有的 cookie.txt"
+            echo "⚠️ 未输入新 Cookie，将直接使用代码/本地已有的配置"
           fi
 
-      - name: 5. 启动虚拟显示器并执行全自动抓取
+      - name: 5. 启动虚拟显示器并执行全自动抓取与分段提交
         env:
           DISPLAY: ':99'
+          GITHUB_ACTIONS: 'true'
         run: |
           # 启动 Xvfb 虚拟显示器（1920x1080 分辨率，24位真实色深）
           Xvfb :99 -screen 0 1920x1080x24 &
@@ -85,28 +91,30 @@ jobs:
           echo "🖥️ Xvfb 虚拟屏幕已启动在 $DISPLAY"
 
           # 启动全自动抓取脚本
-          # 在 Xvfb 下加上 --gui，浏览器即以真实的桌面窗口模式运行，彻底消除 Headless 爬虫指纹
-          PAGES="${{ github.event.inputs.pages || '3' }}"
+          PAGES="${{ github.event.inputs.pages || '5' }}"
           DELAY="${{ github.event.inputs.delay || '3.0' }}"
+          PUSH_INTERVAL="${{ github.event.inputs.push_interval || '100' }}"
           TARGET_URL="${{ github.event.inputs.url || 'https://www.aigei.com/music/midi/' }}"
 
+          # 在 Xvfb 下加上 --gui，浏览器即以真实的桌面窗口模式运行在虚拟屏幕上
           python downmidi/auto_downloader.py \
             --pages "$PAGES" \
             --delay "$DELAY" \
+            --push-interval "$PUSH_INTERVAL" \
             --url "$TARGET_URL" \
             --gui
 
-      - name: 6. 提交并推送下载的音频到 Git 仓库
+      - name: 6. 兜底提交未保存的音频与记录
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add downmidi/downloads/ downmidi/download_success.txt || true
+          git add downmidi/downloads/ downmidi/downloaded_ids.txt downmidi/download_success.txt || true
           if ! git diff --staged --quiet; then
-            git commit -m "chore: 自动同步爱给网音频成果 [skip ci]"
+            git commit -m "chore: 兜底提交本次爱给网下载成果与历史记录 [skip ci]"
             git pull --rebase || true
             git push || true
-            echo "✅ 代码与音频已成功推送到仓库"
+            echo "✅ 最终成果已成功推送到仓库"
           else
             echo "ℹ️ 无新增文件需提交"
           fi
@@ -118,6 +126,7 @@ jobs:
           name: aigei-audio-downloads
           path: |
             downmidi/downloads/
+            downmidi/downloaded_ids.txt
             downmidi/download_success.txt
           if-no-files-found: ignore
           retention-days: 30
