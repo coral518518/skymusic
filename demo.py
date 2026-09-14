@@ -1,8 +1,18 @@
 import math
+import os
+import sys
 from collections import defaultdict
 from statistics import mean, median
 
+# 确保控制台支持 UTF-8 输出
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 import mido
+from audio_to_midi import convert_audio_to_midi, is_audio_file
 
 
 # ============================================================
@@ -384,7 +394,14 @@ def select_melody(tracks, ticks_per_beat):
         return [], []
 
     if len(tracks) == 1:
-        return tracks[0], []
+        # 单轨情况（如钢琴独奏/纯音乐音频转录）：
+        # 高音区及主线条作为旋律候选，低音区作为伴奏候选
+        notes = tracks[0]
+        melody_candidates = [n for n in notes if n["pitch"] >= 53]  # F3 及以上为旋律候选
+        if not melody_candidates:
+            melody_candidates = notes
+        accompaniment = [n for n in notes if n["pitch"] < 60]       # C4 以下为伴奏低音
+        return melody_candidates, accompaniment
 
     candidate_pool, selected_track_indices = _merge_melody_candidates(
         tracks,
@@ -1428,11 +1445,12 @@ def build_bass_events(
 
         event = candidates[0]
 
-        # 低音只保留在明显强拍附近
-        beat_pos = start % strong_interval
-        if beat_pos != 0 and not result:
+        # 低音只保留在明显强拍附近（容许网格内的轻微节拍浮动）
+        beat_offset = min(start % strong_interval, strong_interval - (start % strong_interval))
+        is_on_beat = (beat_offset <= grid)
+        if not is_on_beat and not result:
             continue
-        if beat_pos != 0 and result and start - result[-1]["start"] < strong_interval:
+        if not is_on_beat and result and start - result[-1]["start"] < strong_interval:
             continue
 
         result.append(event)
@@ -1783,19 +1801,35 @@ def convert_midi_to_sky(
     output_midi="sky_preview_v7.mid",
     output_sky="sky_sheet_v7.txt",
     output_simple="simple_sheet_v7.txt",
+    bpm=None,
+    onset_thresh=0.5,
+    frame_thresh=0.3,
 ):
     print()
     print("=" * 60)
-    print("       MIDI -> 光遇 15 键简谱 V7")
+    print("       MIDI / 音频 -> 光遇 15 键简谱 V7")
     print("=" * 60)
+
+    # 如果输入是音频文件，先调用 audio_to_midi 转成 MIDI
+    if is_audio_file(input_file):
+        base, _ = os.path.splitext(input_file)
+        converted_midi = f"{base}.mid"
+        convert_audio_to_midi(
+            input_file,
+            output_midi_path=converted_midi,
+            bpm=bpm,
+            onset_threshold=onset_thresh,
+            frame_threshold=frame_thresh,
+        )
+        input_file = converted_midi
 
     mid = mido.MidiFile(input_file)
 
     print(f"文件: {input_file}")
     print(f"TPB: {mid.ticks_per_beat}")
 
-    bpm = get_bpm(mid)
-    print(f"BPM: {bpm:.2f}")
+    effective_bpm = get_bpm(mid) if bpm is None else float(bpm)
+    print(f"BPM: {effective_bpm:.2f}")
 
     # 1. 提取
     tracks = extract_tracks(mid)
@@ -1925,7 +1959,7 @@ def convert_midi_to_sky(
         key_desc,
         normalization_shift,
         octave_shift,
-        bpm,
+        effective_bpm,
     )
 
     write_simple_sheet(
@@ -1942,7 +1976,7 @@ def convert_midi_to_sky(
         final_events,
         mid.ticks_per_beat,
         output_midi,
-        bpm,
+        effective_bpm,
     )
 
     print()
@@ -1960,19 +1994,165 @@ def convert_midi_to_sky(
     print("=" * 60)
 
 
-if __name__ == "__main__":
+# ============================================================
+# 【执行模式配置】
+# 您可以直接在下方代码修改数字，快速决定执行哪项功能：
+#   1 : MIDI 转光遇 15 键       (需 .mid 文件，输出试听 MIDI、15键谱、数字简谱)
+#   2 : MP3/音频 转 MIDI        (需 .mp3/.wav 等，仅转录生成 .mid 钢琴谱)
+#   3 : MP3/音频 转 MIDI 再转光遇 15 键 (全流程一步到位)
+#   0 : 弹出控制台交互菜单，让您在终端输入 1 / 2 / 3 选择
+# ============================================================
+CONFIG_MODE = 0         # <- 在这里修改模式编号: 1, 2, 3 或 0 (0 为交互菜单)
+CONFIG_INPUT_FILE = ""  # <- 在这里指定文件路径（如 "晴天.mp3" 或 "晴天.mid"），留空 "" 则自动选择或提示
+
+
+def select_file_interactively(file_type="audio"):
+    """交互式列出并选择文件"""
+    if file_type == "midi":
+        desc = "MIDI 文件 (.mid)"
+        candidates = [
+            f for f in os.listdir(".")
+            if f.lower().endswith((".mid", ".midi")) and not f.startswith("sky_preview")
+        ]
+        default_file = "晴天.mid"
+    else:
+        desc = "音频文件 (.mp3, .wav, .flac 等)"
+        candidates = [f for f in os.listdir(".") if is_audio_file(f)]
+        default_file = "晴天.mp3"
+
+    if candidates:
+        print(f"\n检测到当前目录下的 {desc}：")
+        for idx, fname in enumerate(candidates, start=1):
+            print(f"  [{idx}] {fname}")
+        default_choice = candidates[0]
+        try:
+            val = input(f"请选择序号 (1~{len(candidates)}) 或直接输入文件名 [默认: [1] {default_choice}]: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return default_choice
+        if not val:
+            return default_choice
+        if val.isdigit():
+            i = int(val)
+            if 1 <= i <= len(candidates):
+                return candidates[i - 1]
+        return val
+    else:
+        try:
+            val = input(f"请输入 {desc} 路径 [默认: {default_file}]: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return default_file
+        return val if val else default_file
+
+
+def run_interactive_menu():
+    """终端交互菜单"""
+    print()
+    print("=" * 60)
+    print("           光遇音乐转换工具箱 V7 (Sky Music Toolkit)")
+    print("=" * 60)
+    print("  请选择要执行的功能：")
+    print("    [1] MIDI 转光遇 15 键       (已有 .mid，生成光遇 15 键谱与简谱)")
+    print("    [2] MP3/音频 转 MIDI        (输入 .mp3，仅转录提取为钢琴 .mid)")
+    print("    [3] MP3 转 MIDI 并转光遇 15 键 (输入 .mp3，全流程一键搞定)")
+    print("    [0] 退出")
+    print("=" * 60)
+
+    try:
+        choice = input("请输入功能编号 (1/2/3/0) [默认 3]: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        choice = "3"
+
+    if choice == "0":
+        print("已退出程序。")
+        sys.exit(0)
+    if choice not in ("1", "2", "3"):
+        choice = "3"
+
+    return int(choice)
+
+
+def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="MIDI -> 光遇 15 键 V7")
-    parser.add_argument("input", nargs="?", default="半壶纱.mid", help="输入 MIDI 文件")
-    parser.add_argument("--preview", default="sky_preview_v7.mid", help="试听 MIDI 输出")
-    parser.add_argument("--sky", default="sky_sheet_v7.txt", help="15键谱输出")
-    parser.add_argument("--simple", default="simple_sheet_v7.txt", help="数字简谱输出")
+    parser = argparse.ArgumentParser(description="MIDI / 音频 -> 光遇 15 键简谱 V7")
+    parser.add_argument("input", nargs="?", default=None, help="输入文件路径 (.mid, .mp3 等)")
+    parser.add_argument("--mode", type=int, choices=[1, 2, 3], default=None, help="执行模式: 1=MIDI转光遇, 2=音频转MIDI, 3=音频转MIDI转光遇")
+    parser.add_argument("--preview", default="sky_preview_v7.mid", help="试听 MIDI 输出路径")
+    parser.add_argument("--sky", default="sky_sheet_v7.txt", help="15键谱输出路径")
+    parser.add_argument("--simple", default="simple_sheet_v7.txt", help="数字简谱输出路径")
+    parser.add_argument("--to-midi-only", "--midi-only", action="store_true", help="等同于 --mode 2")
+    parser.add_argument("--midi-out", default=None, help="音频转 MIDI 时的输出路径")
+    parser.add_argument("--bpm", type=float, default=None, help="指定速度 BPM (默认自动检测)")
+    parser.add_argument("--onset-thresh", type=float, default=0.5, help="转录起音阈值 (默认 0.5)")
+    parser.add_argument("--frame-thresh", type=float, default=0.3, help="转录持续帧能量阈值 (默认 0.3)")
     args = parser.parse_args()
 
-    convert_midi_to_sky(
-        args.input,
-        args.preview,
-        args.sky,
-        args.simple,
-    )
+    # 1. 确定运行模式
+    if args.to_midi_only:
+        mode = 2
+    elif args.mode is not None:
+        mode = args.mode
+    elif args.input is not None:
+        # 用户命令行传入了文件，根据文件后缀智能判断
+        mode = 1 if not is_audio_file(args.input) else 3
+    elif CONFIG_MODE in (1, 2, 3):
+        mode = CONFIG_MODE
+    else:
+        mode = run_interactive_menu()
+
+    # 2. 确定输入文件
+    input_file = args.input or CONFIG_INPUT_FILE
+    if not input_file:
+        if mode == 1:
+            input_file = select_file_interactively("midi")
+        else:
+            input_file = select_file_interactively("audio")
+
+    print(f"\n[当前执行模式 {mode}]: ", end="")
+    if mode == 1:
+        print(f"MIDI 转光遇 15 键 | 处理文件: {input_file}")
+        convert_midi_to_sky(
+            input_file,
+            output_midi=args.preview,
+            output_sky=args.sky,
+            output_simple=args.simple,
+            bpm=args.bpm,
+            onset_thresh=args.onset_thresh,
+            frame_thresh=args.frame_thresh,
+        )
+    elif mode == 2:
+        print(f"MP3/音频 转 MIDI | 处理文件: {input_file}")
+        out_midi = convert_audio_to_midi(
+            input_file,
+            output_midi_path=args.midi_out,
+            bpm=args.bpm,
+            onset_threshold=args.onset_thresh,
+            frame_threshold=args.frame_thresh,
+        )
+        print(f"音频转 MIDI 成功完成: {out_midi}")
+    elif mode == 3:
+        print(f"MP3 转 MIDI 并转光遇 15 键 | 处理文件: {input_file}")
+        # 第一步：转录生成 MIDI
+        base, _ = os.path.splitext(input_file)
+        target_mid = args.midi_out or f"{base}.mid"
+        convert_audio_to_midi(
+            input_file,
+            output_midi_path=target_mid,
+            bpm=args.bpm,
+            onset_threshold=args.onset_thresh,
+            frame_threshold=args.frame_thresh,
+        )
+        # 第二步：将生成的 MIDI 转为光遇简谱
+        convert_midi_to_sky(
+            target_mid,
+            output_midi=args.preview,
+            output_sky=args.sky,
+            output_simple=args.simple,
+            bpm=args.bpm,
+            onset_thresh=args.onset_thresh,
+            frame_thresh=args.frame_thresh,
+        )
+
+
+if __name__ == "__main__":
+    main()
