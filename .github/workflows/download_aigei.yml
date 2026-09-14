@@ -1,0 +1,123 @@
+name: Download Aigei Music (Auto & Xvfb)
+
+on:
+  workflow_dispatch:
+    inputs:
+      pages:
+        description: '抓取翻页数量 (Pages, 每页约25首; 填 0 为翻到最后一页)'
+        required: false
+        default: '3'
+        type: string
+      delay:
+        description: '每首歌下载间隔延迟秒数 (Delay, 建议 2~5 秒防风控)'
+        required: false
+        default: '3.0'
+        type: string
+      url:
+        description: '抓取的目标页面 URL'
+        required: false
+        default: 'https://www.aigei.com/music/midi/'
+        type: string
+      cookie:
+        description: '自定义 Cookie (留空则默认读取 Secrets.AIGEI_COOKIE)'
+        required: false
+        default: ''
+        type: string
+
+# 授予工作流推送提交代码的权限
+permissions:
+  contents: write
+
+jobs:
+  crawl-aigei:
+    name: Crawl & Download Aigei Audio
+    runs-on: ubuntu-latest
+    timeout-minutes: 360 # 最长运行 6 小时
+
+    steps:
+      - name: 1. 检出仓库代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 2. 配置 Python 3.11 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 3. 安装依赖与 Xvfb 虚拟显示器
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4 playwright tqdm
+          playwright install chromium --with-deps
+          # 安装 Xvfb 虚拟显示器（启动 1080P 虚拟桌面，让浏览器以真实 GUI 模式运行，完美绕过无头人机检测）
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+
+      - name: 4. 配置 Cookie 凭证
+        env:
+          INPUT_COOKIE: ${{ github.event.inputs.cookie }}
+          SECRET_COOKIE: ${{ secrets.AIGEI_COOKIE }}
+        run: |
+          COOKIE_VAL=""
+          if [ -n "$INPUT_COOKIE" ]; then
+            COOKIE_VAL="$INPUT_COOKIE"
+            echo "✅ 使用手动输入的 Cookie"
+          elif [ -n "$SECRET_COOKIE" ]; then
+            COOKIE_VAL="$SECRET_COOKIE"
+            echo "✅ 使用 Secrets.AIGEI_COOKIE 中的配置"
+          fi
+
+          if [ -n "$COOKIE_VAL" ]; then
+            echo "$COOKIE_VAL" > downmidi/cookie.txt
+            echo "✅ Cookie 已成功写入 downmidi/cookie.txt"
+          else
+            echo "⚠️ 未检测到 Cookie，将尝试直接使用仓库中已有的 cookie.txt"
+          fi
+
+      - name: 5. 启动虚拟显示器并执行全自动抓取
+        env:
+          DISPLAY: ':99'
+        run: |
+          # 启动 Xvfb 虚拟显示器（1920x1080 分辨率，24位真实色深）
+          Xvfb :99 -screen 0 1920x1080x24 &
+          sleep 3
+          echo "🖥️ Xvfb 虚拟屏幕已启动在 $DISPLAY"
+
+          # 启动全自动抓取脚本
+          # 在 Xvfb 下加上 --gui，浏览器即以真实的桌面窗口模式运行，彻底消除 Headless 爬虫指纹
+          PAGES="${{ github.event.inputs.pages || '3' }}"
+          DELAY="${{ github.event.inputs.delay || '3.0' }}"
+          TARGET_URL="${{ github.event.inputs.url || 'https://www.aigei.com/music/midi/' }}"
+
+          python downmidi/auto_downloader.py \
+            --pages "$PAGES" \
+            --delay "$DELAY" \
+            --url "$TARGET_URL" \
+            --gui
+
+      - name: 6. 提交并推送下载的音频到 Git 仓库
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add downmidi/downloads/ downmidi/download_success.txt || true
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: 自动同步爱给网音频成果 [skip ci]"
+            git pull --rebase || true
+            git push || true
+            echo "✅ 代码与音频已成功推送到仓库"
+          else
+            echo "ℹ️ 无新增文件需提交"
+          fi
+
+      - name: 7. 上传 Artifact 压缩包附件
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aigei-audio-downloads
+          path: |
+            downmidi/downloads/
+            downmidi/download_success.txt
+          if-no-files-found: ignore
+          retention-days: 30
