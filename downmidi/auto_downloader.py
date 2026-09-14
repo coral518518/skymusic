@@ -32,7 +32,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DOWNLOAD_DIR = os.path.join(BASE_DIR, "downloads")
 DOWNLOADED_IDS_FILE = os.path.join(BASE_DIR, "downloaded_ids.txt")
 SUCCESS_LOG = os.path.join(BASE_DIR, "download_success.txt")
-COOKIE_FILE = os.path.join(BASE_DIR, "cookie.txt")
 
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
@@ -41,20 +40,9 @@ DEFAULT_COOKIE = "audio_play_last_position=246907.601; gei_d_u=1c3032a6b40f4b75b
 
 
 def get_cookie_string() -> str:
-    """获取用户 Cookie（环境变量 > cookie.txt > 默认内置）"""
     env_cookie = os.environ.get("AIGEI_COOKIE", "").strip()
     if env_cookie:
         return env_cookie
-
-    if os.path.exists(COOKIE_FILE):
-        try:
-            with open(COOKIE_FILE, "r", encoding="utf-8", errors="ignore") as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#"):
-                        return line
-        except Exception:
-            pass
 
     return DEFAULT_COOKIE
 
