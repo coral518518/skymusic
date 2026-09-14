@@ -1,0 +1,1444 @@
+{
+  "log": {
+    "version": "1.2",
+    "creator": {
+      "name": "WebInspector",
+      "version": "537.36"
+    },
+    "pages": [
+      {
+        "startedDateTime": "2026-09-14T07:19:59.104Z",
+        "id": "page_1",
+        "title": "https://www.aigei.com/music/midi/",
+        "pageTimings": {
+          "onContentLoad": 1984.6950000001016,
+          "onLoad": 3333.505000000059
+        }
+      }
+    ],
+    "entries": [
+      {
+        "_initiator": {
+          "type": "script",
+          "stack": {
+            "callFrames": [
+              {
+                "functionName": "send",
+                "scriptId": "75",
+                "url": "https://cdn-sqn.aigei.com/assets/lib/jquery/jquery.min.js?v=141",
+                "lineNumber": 0,
+                "columnNumber": 82804
+              },
+              {
+                "functionName": "ajax",
+                "scriptId": "75",
+                "url": "https://cdn-sqn.aigei.com/assets/lib/jquery/jquery.min.js?v=141",
+                "lineNumber": 0,
+                "columnNumber": 78253
+              },
+              {
+                "functionName": "",
+                "scriptId": "102",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei.js",
+                "lineNumber": 0,
+                "columnNumber": 345418
+              },
+              {
+                "functionName": "audioInit",
+                "scriptId": "104",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                "lineNumber": 0,
+                "columnNumber": 111435
+              },
+              {
+                "functionName": "",
+                "scriptId": "104",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                "lineNumber": 0,
+                "columnNumber": 51484
+              },
+              {
+                "functionName": "",
+                "scriptId": "104",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                "lineNumber": 0,
+                "columnNumber": 50526
+              },
+              {
+                "functionName": "",
+                "scriptId": "102",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei.js",
+                "lineNumber": 0,
+                "columnNumber": 358109
+              },
+              {
+                "functionName": "",
+                "scriptId": "104",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                "lineNumber": 0,
+                "columnNumber": 50432
+              },
+              {
+                "functionName": "create",
+                "scriptId": "104",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                "lineNumber": 0,
+                "columnNumber": 57795
+              },
+              {
+                "functionName": "playByEl",
+                "scriptId": "104",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                "lineNumber": 0,
+                "columnNumber": 85131
+              },
+              {
+                "functionName": "togglePlay",
+                "scriptId": "104",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                "lineNumber": 0,
+                "columnNumber": 84546
+              },
+              {
+                "functionName": "",
+                "scriptId": "104",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                "lineNumber": 0,
+                "columnNumber": 87421
+              },
+              {
+                "functionName": "dispatch",
+                "scriptId": "75",
+                "url": "https://cdn-sqn.aigei.com/assets/lib/jquery/jquery.min.js?v=141",
+                "lineNumber": 0,
+                "columnNumber": 46452
+              },
+              {
+                "functionName": "",
+                "scriptId": "75",
+                "url": "https://cdn-sqn.aigei.com/assets/lib/jquery/jquery.min.js?v=141",
+                "lineNumber": 0,
+                "columnNumber": 43180
+              }
+            ]
+          }
+        },
+        "_priority": "High",
+        "_resourceType": "xhr",
+        "cache": {},
+        "connection": "3067",
+        "request": {
+          "method": "GET",
+          "url": "https://www.aigei.com/gei-common/jsonComp/f/awd/logData.json?t=152639415-rowPc&enableEnc=false&f=false",
+          "httpVersion": "http/2.0",
+          "headers": [
+            {
+              "name": ":authority",
+              "value": "www.aigei.com"
+            },
+            {
+              "name": ":method",
+              "value": "GET"
+            },
+            {
+              "name": ":path",
+              "value": "/gei-common/jsonComp/f/awd/logData.json?t=152639415-rowPc&enableEnc=false&f=false"
+            },
+            {
+              "name": ":scheme",
+              "value": "https"
+            },
+            {
+              "name": "accept",
+              "value": "application/json, text/javascript, */*; q=0.01"
+            },
+            {
+              "name": "accept-encoding",
+              "value": "gzip, deflate, br, zstd"
+            },
+            {
+              "name": "accept-language",
+              "value": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7"
+            },
+            {
+              "name": "cccllpptttgt",
+              "value": "1fbbb5c413db3aef902c04960048ae3c"
+            },
+            {
+              "name": "g-program",
+              "value": "p"
+            },
+            {
+              "name": "priority",
+              "value": "u=1, i"
+            },
+            {
+              "name": "referer",
+              "value": "https://www.aigei.com/music/midi/"
+            },
+            {
+              "name": "sec-ch-ua",
+              "value": "\"Chromium\";v=\"152\", \"Not?A_Brand\";v=\"24\", \"Google Chrome\";v=\"152\""
+            },
+            {
+              "name": "sec-ch-ua-mobile",
+              "value": "?0"
+            },
+            {
+              "name": "sec-ch-ua-platform",
+              "value": "\"Windows\""
+            },
+            {
+              "name": "sec-fetch-dest",
+              "value": "empty"
+            },
+            {
+              "name": "sec-fetch-mode",
+              "value": "cors"
+            },
+            {
+              "name": "sec-fetch-site",
+              "value": "same-origin"
+            },
+            {
+              "name": "user-agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "x-requested-with",
+              "value": "XMLHttpRequest"
+            }
+          ],
+          "queryString": [
+            {
+              "name": "t",
+              "value": "152639415-rowPc"
+            },
+            {
+              "name": "enableEnc",
+              "value": "false"
+            },
+            {
+              "name": "f",
+              "value": "false"
+            }
+          ],
+          "cookies": [],
+          "headersSize": -1,
+          "bodySize": 0
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "httpVersion": "http/2.0",
+          "headers": [
+            {
+              "name": "ai-s",
+              "value": "143"
+            },
+            {
+              "name": "content-encoding",
+              "value": "gzip"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json;charset=UTF-8"
+            },
+            {
+              "name": "date",
+              "value": "Mon, 14 Sep 2026 07:20:48 GMT"
+            },
+            {
+              "name": "vary",
+              "value": "accept-encoding"
+            }
+          ],
+          "cookies": [],
+          "content": {
+            "size": 1228,
+            "mimeType": "application/json"
+          },
+          "redirectURL": "",
+          "headersSize": -1,
+          "bodySize": -1,
+          "_transferSize": 807,
+          "_error": null,
+          "_fetchedViaServiceWorker": false
+        },
+        "serverIPAddress": "127.0.0.1",
+        "startedDateTime": "2026-09-14T07:20:48.681Z",
+        "time": 57.831999999962136,
+        "timings": {
+          "blocked": 2.4879999998558926,
+          "dns": -1,
+          "ssl": -1,
+          "connect": -1,
+          "send": 0.33299999999999996,
+          "wait": 52.802999999996565,
+          "receive": 2.208000000109678,
+          "_blocked_queueing": 1.4979999998558924,
+          "_workerStart": -1,
+          "_workerReady": -1,
+          "_workerFetchStart": -1,
+          "_workerRespondWithSettled": -1
+        },
+        "_connectionId": "1778",
+        "pageref": "page_1"
+      },
+      {
+        "_initiator": {
+          "type": "script",
+          "stack": {
+            "callFrames": [
+              {
+                "functionName": "send",
+                "scriptId": "75",
+                "url": "https://cdn-sqn.aigei.com/assets/lib/jquery/jquery.min.js?v=141",
+                "lineNumber": 0,
+                "columnNumber": 82804
+              },
+              {
+                "functionName": "ajax",
+                "scriptId": "75",
+                "url": "https://cdn-sqn.aigei.com/assets/lib/jquery/jquery.min.js?v=141",
+                "lineNumber": 0,
+                "columnNumber": 78253
+              },
+              {
+                "functionName": "itemFileDownAjaxPost",
+                "scriptId": "102",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei.js",
+                "lineNumber": 0,
+                "columnNumber": 425924
+              },
+              {
+                "functionName": "itemFileDownProc",
+                "scriptId": "102",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei.js",
+                "lineNumber": 0,
+                "columnNumber": 425643
+              },
+              {
+                "functionName": "fget",
+                "scriptId": "102",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei.js",
+                "lineNumber": 0,
+                "columnNumber": 424773
+              },
+              {
+                "functionName": "fileGet",
+                "scriptId": "102",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei.js",
+                "lineNumber": 0,
+                "columnNumber": 430398
+              },
+              {
+                "functionName": "audioUrlRequest",
+                "scriptId": "104",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                "lineNumber": 0,
+                "columnNumber": 86723
+              },
+              {
+                "functionName": "playByEl",
+                "scriptId": "104",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                "lineNumber": 0,
+                "columnNumber": 85652
+              },
+              {
+                "functionName": "togglePlay",
+                "scriptId": "104",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                "lineNumber": 0,
+                "columnNumber": 84546
+              },
+              {
+                "functionName": "",
+                "scriptId": "104",
+                "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                "lineNumber": 0,
+                "columnNumber": 87421
+              },
+              {
+                "functionName": "dispatch",
+                "scriptId": "75",
+                "url": "https://cdn-sqn.aigei.com/assets/lib/jquery/jquery.min.js?v=141",
+                "lineNumber": 0,
+                "columnNumber": 46452
+              },
+              {
+                "functionName": "",
+                "scriptId": "75",
+                "url": "https://cdn-sqn.aigei.com/assets/lib/jquery/jquery.min.js?v=141",
+                "lineNumber": 0,
+                "columnNumber": 43180
+              }
+            ]
+          }
+        },
+        "_priority": "High",
+        "_resourceType": "xhr",
+        "cache": {},
+        "connection": "3067",
+        "request": {
+          "method": "POST",
+          "url": "https://www.aigei.com/f/d",
+          "httpVersion": "http/2.0",
+          "headers": [
+            {
+              "name": ":authority",
+              "value": "www.aigei.com"
+            },
+            {
+              "name": ":method",
+              "value": "POST"
+            },
+            {
+              "name": ":path",
+              "value": "/f/d"
+            },
+            {
+              "name": ":scheme",
+              "value": "https"
+            },
+            {
+              "name": "accept",
+              "value": "*/*"
+            },
+            {
+              "name": "accept-encoding",
+              "value": "gzip, deflate, br, zstd"
+            },
+            {
+              "name": "accept-language",
+              "value": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7"
+            },
+            {
+              "name": "cccllpptttgt",
+              "value": "1fbbb5c413db3aef902c04960048ae3c"
+            },
+            {
+              "name": "content-length",
+              "value": "413"
+            },
+            {
+              "name": "content-type",
+              "value": "application/x-www-form-urlencoded; charset=UTF-8"
+            },
+            {
+              "name": "g-program",
+              "value": "p"
+            },
+            {
+              "name": "origin",
+              "value": "https://www.aigei.com"
+            },
+            {
+              "name": "priority",
+              "value": "u=1, i"
+            },
+            {
+              "name": "referer",
+              "value": "https://www.aigei.com/music/midi/"
+            },
+            {
+              "name": "sec-ch-ua",
+              "value": "\"Chromium\";v=\"152\", \"Not?A_Brand\";v=\"24\", \"Google Chrome\";v=\"152\""
+            },
+            {
+              "name": "sec-ch-ua-mobile",
+              "value": "?0"
+            },
+            {
+              "name": "sec-ch-ua-platform",
+              "value": "\"Windows\""
+            },
+            {
+              "name": "sec-fetch-dest",
+              "value": "empty"
+            },
+            {
+              "name": "sec-fetch-mode",
+              "value": "cors"
+            },
+            {
+              "name": "sec-fetch-site",
+              "value": "same-origin"
+            },
+            {
+              "name": "user-agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "x-requested-etag",
+              "value": "mQqTKfwnBVCAFebnXg5JxX/f1ES0Db8bkX+Lf6g9X3gdGPfvbTl364z4/I5t/UWMAzZCNYrwFSqUIJ0JhPAJeBJKThqA+2fRxaeNM/9oZpSddI662AuaXE1FxBLMVa7jhWJmUv1exizU6PZeyKHx+EWJukVBkzqt"
+            },
+            {
+              "name": "x-requested-with",
+              "value": "XMLHttpRequest"
+            }
+          ],
+          "queryString": [],
+          "cookies": [],
+          "headersSize": -1,
+          "bodySize": 413,
+          "postData": {
+            "mimeType": "application/x-www-form-urlencoded; charset=UTF-8",
+            "text": "v=WMZ0h%2BI5D%2BDsmIt4wTEW9W0qEK10OpuA1JN2OQ%2Fj3XT2sLGw8aW0cQqI2rMAou7pGhiRMLX1SJAC%2FzhZivOL8kHq5%2BcksonS9pWTTmu8jkrS6d03Y%2FEpe6%2F0Rw6ihWNx%2BxQw4Gz8%2F5rWiD0mHFM7reRKUYCRpzf5s2EAcxpTxf2FIYtGdcpbOoiMVRUd998uNlfoQ64HPdSSXcvC4sDhVxArDv%2BuOL%2B2O%2BwfhvO50YcXUnhwd05GtiSvB3ZzB18J6CNXRu0bXSwHLWHeCIVTIs8GpYmtY9158zzfL3dvrTxvv1BybZnoSccDAfQpPTf8pvuJVmjY%2FTutXgpThkIF0pdDIgazIEcM7ZBC3rjPMzhYUxKT5J5%2Fw%2Fg%3D%3D",
+            "params": [
+              {
+                "name": "v",
+                "value": "WMZ0h%2BI5D%2BDsmIt4wTEW9W0qEK10OpuA1JN2OQ%2Fj3XT2sLGw8aW0cQqI2rMAou7pGhiRMLX1SJAC%2FzhZivOL8kHq5%2BcksonS9pWTTmu8jkrS6d03Y%2FEpe6%2F0Rw6ihWNx%2BxQw4Gz8%2F5rWiD0mHFM7reRKUYCRpzf5s2EAcxpTxf2FIYtGdcpbOoiMVRUd998uNlfoQ64HPdSSXcvC4sDhVxArDv%2BuOL%2B2O%2BwfhvO50YcXUnhwd05GtiSvB3ZzB18J6CNXRu0bXSwHLWHeCIVTIs8GpYmtY9158zzfL3dvrTxvv1BybZnoSccDAfQpPTf8pvuJVmjY%2FTutXgpThkIF0pdDIgazIEcM7ZBC3rjPMzhYUxKT5J5%2Fw%2Fg%3D%3D"
+              }
+            ]
+          }
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "httpVersion": "http/2.0",
+          "headers": [
+            {
+              "name": "ai-s",
+              "value": "143"
+            },
+            {
+              "name": "content-encoding",
+              "value": "gzip"
+            },
+            {
+              "name": "content-language",
+              "value": "zh-CN"
+            },
+            {
+              "name": "content-type",
+              "value": "text/html;charset=UTF-8"
+            },
+            {
+              "name": "date",
+              "value": "Mon, 14 Sep 2026 07:20:48 GMT"
+            },
+            {
+              "name": "routesid",
+              "value": "ba09c75fd28448329a716912df54325f"
+            },
+            {
+              "name": "vary",
+              "value": "Accept-Encoding"
+            }
+          ],
+          "cookies": [],
+          "content": {
+            "size": 1056,
+            "mimeType": "text/html"
+          },
+          "redirectURL": "",
+          "headersSize": -1,
+          "bodySize": -1,
+          "_transferSize": 1126,
+          "_error": null,
+          "_fetchedViaServiceWorker": false
+        },
+        "serverIPAddress": "127.0.0.1",
+        "startedDateTime": "2026-09-14T07:20:48.761Z",
+        "time": 88.00799999994524,
+        "timings": {
+          "blocked": 2.3360000000474104,
+          "dns": -1,
+          "ssl": -1,
+          "connect": -1,
+          "send": 0.395,
+          "wait": 83.4010000000868,
+          "receive": 1.8759999998110288,
+          "_blocked_queueing": 1.1970000000474101,
+          "_workerStart": -1,
+          "_workerReady": -1,
+          "_workerFetchStart": -1,
+          "_workerRespondWithSettled": -1
+        },
+        "_connectionId": "1778",
+        "pageref": "page_1"
+      },
+      {
+        "_initiator": {
+          "type": "script",
+          "stack": {
+            "callFrames": [],
+            "parent": {
+              "description": "Image",
+              "callFrames": [
+                {
+                  "functionName": "",
+                  "scriptId": "261",
+                  "url": "https://hm.baidu.com/hm.js?0e0ebfc9c3bdbfdcaa48ccbc43e864f9",
+                  "lineNumber": 26,
+                  "columnNumber": 213
+                },
+                {
+                  "functionName": "m",
+                  "scriptId": "261",
+                  "url": "https://hm.baidu.com/hm.js?0e0ebfc9c3bdbfdcaa48ccbc43e864f9",
+                  "lineNumber": 62,
+                  "columnNumber": 492
+                },
+                {
+                  "functionName": "_trackEvent",
+                  "scriptId": "261",
+                  "url": "https://hm.baidu.com/hm.js?0e0ebfc9c3bdbfdcaa48ccbc43e864f9",
+                  "lineNumber": 53,
+                  "columnNumber": 172
+                },
+                {
+                  "functionName": "$",
+                  "scriptId": "261",
+                  "url": "https://hm.baidu.com/hm.js?0e0ebfc9c3bdbfdcaa48ccbc43e864f9",
+                  "lineNumber": 52,
+                  "columnNumber": 105
+                },
+                {
+                  "functionName": "push",
+                  "scriptId": "261",
+                  "url": "https://hm.baidu.com/hm.js?0e0ebfc9c3bdbfdcaa48ccbc43e864f9",
+                  "lineNumber": 51,
+                  "columnNumber": 88
+                },
+                {
+                  "functionName": "statFileGet",
+                  "scriptId": "102",
+                  "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei.js",
+                  "lineNumber": 0,
+                  "columnNumber": 412552
+                },
+                {
+                  "functionName": "fileGet",
+                  "scriptId": "102",
+                  "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei.js",
+                  "lineNumber": 0,
+                  "columnNumber": 429453
+                },
+                {
+                  "functionName": "audioUrlRequest",
+                  "scriptId": "104",
+                  "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                  "lineNumber": 0,
+                  "columnNumber": 86723
+                },
+                {
+                  "functionName": "playByEl",
+                  "scriptId": "104",
+                  "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                  "lineNumber": 0,
+                  "columnNumber": 85652
+                },
+                {
+                  "functionName": "togglePlay",
+                  "scriptId": "104",
+                  "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                  "lineNumber": 0,
+                  "columnNumber": 84546
+                },
+                {
+                  "functionName": "",
+                  "scriptId": "104",
+                  "url": "https://cdn-sqn.aigei.com/assets/site/js-release-20260910015319/aigei-a.js",
+                  "lineNumber": 0,
+                  "columnNumber": 87421
+                },
+                {
+                  "functionName": "dispatch",
+                  "scriptId": "75",
+                  "url": "https://cdn-sqn.aigei.com/assets/lib/jquery/jquery.min.js?v=141",
+                  "lineNumber": 0,
+                  "columnNumber": 46452
+                },
+                {
+                  "functionName": "",
+                  "scriptId": "75",
+                  "url": "https://cdn-sqn.aigei.com/assets/lib/jquery/jquery.min.js?v=141",
+                  "lineNumber": 0,
+                  "columnNumber": 43180
+                }
+              ]
+            }
+          }
+        },
+        "_priority": "Low",
+        "_resourceType": "image",
+        "cache": {},
+        "connection": "3067",
+        "request": {
+          "method": "GET",
+          "url": "https://hm.baidu.com/hm.gif?hca=03BF5BAF8908C98B&cc=1&ck=1&cl=24-bit&ds=1920x1080&vl=919&ep=%E6%B5%8F%E8%A7%88-MIDI%E5%BA%93*play&et=4&ja=0&ln=zh-cn&lo=0&lt=1789370056&rnd=836571835&si=0e0ebfc9c3bdbfdcaa48ccbc43e864f9&v=1.3.2&lv=2&api=8_0&sn=2762&r=0&ww=1241&u=https%3A%2F%2Fwww.aigei.com%2Fmusic%2Fmidi%2F",
+          "httpVersion": "HTTP/1.1",
+          "headers": [
+            {
+              "name": "Accept",
+              "value": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+            },
+            {
+              "name": "Accept-Encoding",
+              "value": "gzip, deflate, br, zstd"
+            },
+            {
+              "name": "Accept-Language",
+              "value": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7"
+            },
+            {
+              "name": "Connection",
+              "value": "keep-alive"
+            },
+            {
+              "name": "Host",
+              "value": "hm.baidu.com"
+            },
+            {
+              "name": "Referer",
+              "value": "https://www.aigei.com/"
+            },
+            {
+              "name": "Sec-Fetch-Dest",
+              "value": "image"
+            },
+            {
+              "name": "Sec-Fetch-Mode",
+              "value": "no-cors"
+            },
+            {
+              "name": "Sec-Fetch-Site",
+              "value": "cross-site"
+            },
+            {
+              "name": "Sec-Fetch-Storage-Access",
+              "value": "active"
+            },
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "sec-ch-ua",
+              "value": "\"Chromium\";v=\"152\", \"Not?A_Brand\";v=\"24\", \"Google Chrome\";v=\"152\""
+            },
+            {
+              "name": "sec-ch-ua-mobile",
+              "value": "?0"
+            },
+            {
+              "name": "sec-ch-ua-platform",
+              "value": "\"Windows\""
+            }
+          ],
+          "queryString": [
+            {
+              "name": "hca",
+              "value": "03BF5BAF8908C98B"
+            },
+            {
+              "name": "cc",
+              "value": "1"
+            },
+            {
+              "name": "ck",
+              "value": "1"
+            },
+            {
+              "name": "cl",
+              "value": "24-bit"
+            },
+            {
+              "name": "ds",
+              "value": "1920x1080"
+            },
+            {
+              "name": "vl",
+              "value": "919"
+            },
+            {
+              "name": "ep",
+              "value": "%E6%B5%8F%E8%A7%88-MIDI%E5%BA%93*play"
+            },
+            {
+              "name": "et",
+              "value": "4"
+            },
+            {
+              "name": "ja",
+              "value": "0"
+            },
+            {
+              "name": "ln",
+              "value": "zh-cn"
+            },
+            {
+              "name": "lo",
+              "value": "0"
+            },
+            {
+              "name": "lt",
+              "value": "1789370056"
+            },
+            {
+              "name": "rnd",
+              "value": "836571835"
+            },
+            {
+              "name": "si",
+              "value": "0e0ebfc9c3bdbfdcaa48ccbc43e864f9"
+            },
+            {
+              "name": "v",
+              "value": "1.3.2"
+            },
+            {
+              "name": "lv",
+              "value": "2"
+            },
+            {
+              "name": "api",
+              "value": "8_0"
+            },
+            {
+              "name": "sn",
+              "value": "2762"
+            },
+            {
+              "name": "r",
+              "value": "0"
+            },
+            {
+              "name": "ww",
+              "value": "1241"
+            },
+            {
+              "name": "u",
+              "value": "https%3A%2F%2Fwww.aigei.com%2Fmusic%2Fmidi%2F"
+            }
+          ],
+          "cookies": [],
+          "headersSize": 1062,
+          "bodySize": 0
+        },
+        "response": {
+          "status": 200,
+          "statusText": "OK",
+          "httpVersion": "HTTP/1.1",
+          "headers": [
+            {
+              "name": "Cache-Control",
+              "value": "private, max-age=0, no-cache"
+            },
+            {
+              "name": "Content-Length",
+              "value": "43"
+            },
+            {
+              "name": "Content-Type",
+              "value": "image/gif"
+            },
+            {
+              "name": "Date",
+              "value": "Mon, 14 Sep 2026 07:20:48 GMT"
+            },
+            {
+              "name": "Pragma",
+              "value": "no-cache"
+            },
+            {
+              "name": "Server",
+              "value": "apache"
+            },
+            {
+              "name": "Strict-Transport-Security",
+              "value": "max-age=172800"
+            },
+            {
+              "name": "X-Content-Type-Options",
+              "value": "nosniff"
+            }
+          ],
+          "cookies": [],
+          "content": {
+            "size": 43,
+            "mimeType": "image/gif",
+            "compression": 0
+          },
+          "redirectURL": "",
+          "headersSize": 256,
+          "bodySize": 43,
+          "_transferSize": 299,
+          "_error": null,
+          "_fetchedViaServiceWorker": false
+        },
+        "serverIPAddress": "127.0.0.1",
+        "startedDateTime": "2026-09-14T07:20:48.762Z",
+        "time": 40.8310000000256,
+        "timings": {
+          "blocked": 3.2480000000980507,
+          "dns": -1,
+          "ssl": -1,
+          "connect": -1,
+          "send": 0.2729999999999999,
+          "wait": 35.99200000007195,
+          "receive": 1.3179999998556013,
+          "_blocked_queueing": 1.2670000000980508,
+          "_workerStart": -1,
+          "_workerReady": -1,
+          "_workerFetchStart": -1,
+          "_workerRespondWithSettled": -1
+        },
+        "_connectionId": "2269",
+        "pageref": "page_1"
+      },
+      {
+        "_initiator": {
+          "type": "parser",
+          "url": "https://cdn-sqn.aigei.com/assets/site/css-release-20260910015319/aigei.css"
+        },
+        "_priority": "High",
+        "_resourceType": "image",
+        "cache": {},
+        "connection": "3067",
+        "request": {
+          "method": "GET",
+          "url": "https://cdn-sqn.aigei.com/assets/site/img/icon/itemDetail/editIcon-small.png",
+          "httpVersion": "http/2.0",
+          "headers": [
+            {
+              "name": "sec-ch-ua-platform",
+              "value": "\"Windows\""
+            },
+            {
+              "name": "Referer",
+              "value": "https://cdn-sqn.aigei.com/assets/site/css-release-20260910015319/aigei.css"
+            },
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "sec-ch-ua",
+              "value": "\"Chromium\";v=\"152\", \"Not?A_Brand\";v=\"24\", \"Google Chrome\";v=\"152\""
+            },
+            {
+              "name": "sec-ch-ua-mobile",
+              "value": "?0"
+            }
+          ],
+          "queryString": [],
+          "cookies": [],
+          "headersSize": -1,
+          "bodySize": 0
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "httpVersion": "http/2.0",
+          "headers": [
+            {
+              "name": "x-request-ip",
+              "value": "27.47.4.143"
+            },
+            {
+              "name": "content-md5",
+              "value": "QntpDm6+vl4St/rxIXxi6g=="
+            },
+            {
+              "name": "access-control-max-age",
+              "value": "2592000"
+            },
+            {
+              "name": "x-request-id",
+              "value": "49925efb633be6830ac272f8e4c41bfa"
+            },
+            {
+              "name": "access-control-expose-headers",
+              "value": "X-Log, X-Reqid"
+            },
+            {
+              "name": "x-bdcdn-cache-status",
+              "value": "TCP_HIT"
+            },
+            {
+              "name": "x-reqid",
+              "value": "mKQAAACCX304fccY"
+            },
+            {
+              "name": "etag",
+              "value": "\"FgMbhrFSDEgH9ZZY8OATUug5Q63z\""
+            },
+            {
+              "name": "age",
+              "value": "1168198"
+            },
+            {
+              "name": "x-qnm-cache",
+              "value": "Hit"
+            },
+            {
+              "name": "x-m-reqid",
+              "value": "Ca4AANzyXKa9stAY"
+            },
+            {
+              "name": "date",
+              "value": "Sun, 13 Sep 2026 10:02:57 GMT"
+            },
+            {
+              "name": "content-type",
+              "value": "image/png"
+            },
+            {
+              "name": "content-disposition",
+              "value": "inline; filename=\"editIcon-small.png\"; filename*=utf-8''editIcon-small.png"
+            },
+            {
+              "name": "last-modified",
+              "value": "Wed, 09 Jul 2025 03:28:25 GMT"
+            },
+            {
+              "name": "cache-control",
+              "value": "public, max-age=31536000"
+            },
+            {
+              "name": "x-qiniu-zone",
+              "value": "0"
+            },
+            {
+              "name": "x-m-log",
+              "value": "QNM:yzh155;QNM3:18/304"
+            },
+            {
+              "name": "x-tt-trace-tag",
+              "value": "id=5"
+            },
+            {
+              "name": "content-transfer-encoding",
+              "value": "binary"
+            },
+            {
+              "name": "via",
+              "value": "cache10.sdqingdao-cu13"
+            },
+            {
+              "name": "accept-ranges",
+              "value": "bytes"
+            },
+            {
+              "name": "access-control-allow-origin",
+              "value": "*"
+            },
+            {
+              "name": "x-log",
+              "value": "X-Log"
+            },
+            {
+              "name": "content-length",
+              "value": "268"
+            },
+            {
+              "name": "x-svr",
+              "value": "IO"
+            },
+            {
+              "name": "x-response-cache",
+              "value": "edge_hit"
+            },
+            {
+              "name": "server",
+              "value": "Byte-nginx"
+            },
+            {
+              "name": "x-response-cinfo",
+              "value": "27.47.4.143"
+            }
+          ],
+          "cookies": [],
+          "content": {
+            "size": 268,
+            "mimeType": "image/png"
+          },
+          "redirectURL": "",
+          "headersSize": -1,
+          "bodySize": 0,
+          "_transferSize": 0,
+          "_error": null,
+          "_fetchedViaServiceWorker": false
+        },
+        "serverIPAddress": "127.0.0.1",
+        "startedDateTime": "2026-09-14T07:20:48.899Z",
+        "time": 3.390999999965061,
+        "timings": {
+          "blocked": 1.7360000000927829,
+          "dns": -1,
+          "ssl": -1,
+          "connect": -1,
+          "send": 0,
+          "wait": 0.706999999992011,
+          "receive": 0.9479999998802668,
+          "_blocked_queueing": 1.134000000092783,
+          "_workerStart": -1,
+          "_workerReady": -1,
+          "_workerFetchStart": -1,
+          "_workerRespondWithSettled": -1
+        },
+        "_fromCache": "disk",
+        "pageref": "page_1"
+      },
+      {
+        "_initiator": {
+          "type": "other"
+        },
+        "_priority": "Low",
+        "_resourceType": "media",
+        "cache": {},
+        "connection": "3067",
+        "request": {
+          "method": "GET",
+          "url": "https://s5.aigei.com/src/aud/mp3/48/48d05a648cbb4f5eb2e567b3ad10da15.mp3?e=1789374000&token=P7S2Xpzfz11vAkASLTkfHN7Fw-oOZBecqeJaxypL:6aQstFXiA8D9xWn28yqXIhoIbnI=",
+          "httpVersion": "http/2.0",
+          "headers": [
+            {
+              "name": ":authority",
+              "value": "s5.aigei.com"
+            },
+            {
+              "name": ":method",
+              "value": "GET"
+            },
+            {
+              "name": ":path",
+              "value": "/src/aud/mp3/48/48d05a648cbb4f5eb2e567b3ad10da15.mp3?e=1789374000&token=P7S2Xpzfz11vAkASLTkfHN7Fw-oOZBecqeJaxypL:6aQstFXiA8D9xWn28yqXIhoIbnI="
+            },
+            {
+              "name": ":scheme",
+              "value": "https"
+            },
+            {
+              "name": "accept",
+              "value": "*/*"
+            },
+            {
+              "name": "accept-encoding",
+              "value": "identity;q=1, *;q=0"
+            },
+            {
+              "name": "accept-language",
+              "value": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7"
+            },
+            {
+              "name": "priority",
+              "value": "i"
+            },
+            {
+              "name": "range",
+              "value": "bytes=0-"
+            },
+            {
+              "name": "referer",
+              "value": "https://www.aigei.com/"
+            },
+            {
+              "name": "sec-ch-ua",
+              "value": "\"Chromium\";v=\"152\", \"Not?A_Brand\";v=\"24\", \"Google Chrome\";v=\"152\""
+            },
+            {
+              "name": "sec-ch-ua-mobile",
+              "value": "?0"
+            },
+            {
+              "name": "sec-ch-ua-platform",
+              "value": "\"Windows\""
+            },
+            {
+              "name": "sec-fetch-dest",
+              "value": "audio"
+            },
+            {
+              "name": "sec-fetch-mode",
+              "value": "no-cors"
+            },
+            {
+              "name": "sec-fetch-site",
+              "value": "same-site"
+            },
+            {
+              "name": "user-agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
+            }
+          ],
+          "queryString": [
+            {
+              "name": "e",
+              "value": "1789374000"
+            },
+            {
+              "name": "token",
+              "value": "P7S2Xpzfz11vAkASLTkfHN7Fw-oOZBecqeJaxypL:6aQstFXiA8D9xWn28yqXIhoIbnI="
+            }
+          ],
+          "cookies": [],
+          "headersSize": -1,
+          "bodySize": 0
+        },
+        "response": {
+          "status": 206,
+          "statusText": "",
+          "httpVersion": "http/2.0",
+          "headers": [
+            {
+              "name": "Content-Length",
+              "value": "2208749"
+            },
+            {
+              "name": "Content-Range",
+              "value": "bytes 0-2208748/2208749"
+            },
+            {
+              "name": "accept-ranges",
+              "value": "bytes"
+            },
+            {
+              "name": "access-control-allow-origin",
+              "value": "*"
+            },
+            {
+              "name": "access-control-expose-headers",
+              "value": "X-Log, X-Reqid"
+            },
+            {
+              "name": "access-control-max-age",
+              "value": "2592000"
+            },
+            {
+              "name": "age",
+              "value": "1217938"
+            },
+            {
+              "name": "content-disposition",
+              "value": "inline; filename=\"48d05a648cbb4f5eb2e567b3ad10da15.mp3\"; filename*=utf-8''48d05a648cbb4f5eb2e567b3ad10da15.mp3"
+            },
+            {
+              "name": "content-md5",
+              "value": "OMPCgUWoa4r8rUVWpyAaNA=="
+            },
+            {
+              "name": "content-transfer-encoding",
+              "value": "binary"
+            },
+            {
+              "name": "content-type",
+              "value": "audio/mpeg"
+            },
+            {
+              "name": "date",
+              "value": "Mon, 14 Sep 2026 07:20:48 GMT"
+            },
+            {
+              "name": "etag",
+              "value": "\"FiVI3ykXQzZuyhJ8fgIBd2qtBQn5\""
+            },
+            {
+              "name": "last-modified",
+              "value": "Tue, 04 Aug 2026 02:53:53 GMT"
+            },
+            {
+              "name": "ohc-cache-hit",
+              "value": "cs5un65 [3], xiangyix94 [4]"
+            },
+            {
+              "name": "ohc-file-size",
+              "value": "2208749"
+            },
+            {
+              "name": "ohc-global-saved-time",
+              "value": "Wed, 05 Aug 2026 06:14:26 GMT"
+            },
+            {
+              "name": "server",
+              "value": "nginx"
+            },
+            {
+              "name": "x-cache-status",
+              "value": "HIT"
+            },
+            {
+              "name": "x-log",
+              "value": "X-Log"
+            },
+            {
+              "name": "x-m-log",
+              "value": "QNM:yzh169;QNM3:26"
+            },
+            {
+              "name": "x-m-reqid",
+              "value": "ksUAABmc32sb1MgY"
+            },
+            {
+              "name": "x-private",
+              "value": "1"
+            },
+            {
+              "name": "x-qiniu-zone",
+              "value": "0"
+            },
+            {
+              "name": "x-qnm-cache",
+              "value": "Miss,MissFg"
+            },
+            {
+              "name": "x-reqid",
+              "value": "BjoAAADP2msb1MgY"
+            },
+            {
+              "name": "x-svr",
+              "value": "IO"
+            }
+          ],
+          "cookies": [],
+          "content": {
+            "size": 2208749,
+            "mimeType": "audio/mpeg"
+          },
+          "redirectURL": "",
+          "headersSize": -1,
+          "bodySize": -1,
+          "_transferSize": 2211844,
+          "_error": null,
+          "_fetchedViaServiceWorker": false
+        },
+        "serverIPAddress": "127.0.0.1",
+        "startedDateTime": "2026-09-14T07:20:48.968Z",
+        "time": 842.0900000000984,
+        "timings": {
+          "blocked": 3.325000000047919,
+          "dns": -1,
+          "ssl": 525.398,
+          "connect": 527.1,
+          "send": 0.8999999999999773,
+          "wait": 90.0139999999866,
+          "receive": 220.75100000006387,
+          "_blocked_queueing": 1.5120000000479195,
+          "_workerStart": -1,
+          "_workerReady": -1,
+          "_workerFetchStart": -1,
+          "_workerRespondWithSettled": -1
+        },
+        "_connectionId": "2518",
+        "pageref": "page_1"
+      },
+      {
+        "_initiator": {
+          "type": "other"
+        },
+        "_priority": "High",
+        "_resourceType": "other",
+        "cache": {},
+        "connection": "3067",
+        "request": {
+          "method": "GET",
+          "url": "https://www.aigei.com/favicon.ico",
+          "httpVersion": "http/2.0",
+          "headers": [
+            {
+              "name": "sec-ch-ua-platform",
+              "value": "\"Windows\""
+            },
+            {
+              "name": "Referer",
+              "value": "https://www.aigei.com/music/midi/"
+            },
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "sec-ch-ua",
+              "value": "\"Chromium\";v=\"152\", \"Not?A_Brand\";v=\"24\", \"Google Chrome\";v=\"152\""
+            },
+            {
+              "name": "sec-ch-ua-mobile",
+              "value": "?0"
+            }
+          ],
+          "queryString": [],
+          "cookies": [],
+          "headersSize": -1,
+          "bodySize": 0
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "httpVersion": "http/2.0",
+          "headers": [
+            {
+              "name": "cache-control",
+              "value": "max-age=5999940"
+            },
+            {
+              "name": "etag",
+              "value": "W/\"5430-1759135172000\""
+            },
+            {
+              "name": "expires",
+              "value": "Sat, 21 Nov 2026 20:41:58 GMT"
+            },
+            {
+              "name": "accept-ranges",
+              "value": "bytes"
+            },
+            {
+              "name": "ai-s",
+              "value": "143"
+            },
+            {
+              "name": "content-length",
+              "value": "5430"
+            },
+            {
+              "name": "date",
+              "value": "Sun, 13 Sep 2026 10:02:58 GMT"
+            },
+            {
+              "name": "content-type",
+              "value": "image/x-icon;charset=utf-8"
+            },
+            {
+              "name": "last-modified",
+              "value": "Mon, 29 Sep 2025 08:39:32 GMT"
+            }
+          ],
+          "cookies": [],
+          "content": {
+            "size": 5430,
+            "mimeType": "image/x-icon"
+          },
+          "redirectURL": "",
+          "headersSize": -1,
+          "bodySize": 0,
+          "_transferSize": 0,
+          "_error": null,
+          "_fetchedViaServiceWorker": false
+        },
+        "serverIPAddress": "127.0.0.1",
+        "startedDateTime": "2026-09-14T07:20:49.715Z",
+        "time": 5.169000000023516,
+        "timings": {
+          "blocked": 2.695999999997497,
+          "dns": -1,
+          "ssl": -1,
+          "connect": -1,
+          "send": 0,
+          "wait": 0.42000000009343785,
+          "receive": 2.052999999932581,
+          "_blocked_queueing": 1.576999999997497,
+          "_workerStart": -1,
+          "_workerReady": -1,
+          "_workerFetchStart": -1,
+          "_workerRespondWithSettled": -1
+        },
+        "_fromCache": "disk",
+        "pageref": "page_1"
+      }
+    ]
+  }
+}
