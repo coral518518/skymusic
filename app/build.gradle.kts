@@ -70,3 +70,18 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }
+
+// 自动将 音游伴侣/scores 目录下的最新 JSON 乐谱同步打包为内置示范曲库
+val syncPresetScoresTask = tasks.register<Copy>("syncPresetScores") {
+    val scoresDir = rootProject.file("音游伴侣/scores")
+    if (scoresDir.exists()) {
+        from(scoresDir) {
+            include("*.json")
+        }
+        into(file("src/main/assets/preset_scores"))
+    }
+}
+
+tasks.matching { it.name.startsWith("pre") && it.name.contains("Build", ignoreCase = true) }.configureEach {
+    dependsOn(syncPresetScoresTask)
+}

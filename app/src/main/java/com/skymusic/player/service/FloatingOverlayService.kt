@@ -138,7 +138,7 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         }
 
         if (currentSongList.isEmpty()) {
-            currentSongList.addAll(PresetSongs.getPresetList())
+            currentSongList.addAll(PresetSongs.getPresetList(this))
         }
 
         val songId = intent?.getStringExtra(EXTRA_SONG_ID)

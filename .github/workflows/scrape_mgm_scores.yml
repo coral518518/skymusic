@@ -168,12 +168,12 @@ jobs:
             echo "❌ 致命错误：所有 $CONFIG_COUNT 个节点均不可用！Action 被终止。"
             exit 1
           fi
-          
+
       - name: 4. 在虚拟显示器中执行自动化抓取与简谱转换
         env:
           PYTHONUNBUFFERED: '1' # 强制 Python 禁用输出缓冲区，保证 GitHub Actions 实时刷新日志
           MAX_COUNT: ${{ github.event.inputs.max_count || '100' }}
-          RATE_PER_MINUTE: ${{ github.event.inputs.rate_per_minute || '5' }}
+          RATE_PER_MINUTE: ${{ github.event.inputs.rate_per_minute || '1' }}
           START_PAGE: ${{ github.event.inputs.start_page || '1' }}
           MGM_USERNAME: ${{ github.event.inputs.username || secrets.MGM_USERNAME || 'lollol' }}
           MGM_PASSWORD: ${{ github.event.inputs.password || secrets.MGM_PASSWORD || '123456' }}

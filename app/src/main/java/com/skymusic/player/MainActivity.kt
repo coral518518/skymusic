@@ -62,7 +62,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun initData() {
         presetSongs.clear()
-        presetSongs.addAll(PresetSongs.getPresetList())
+        presetSongs.addAll(PresetSongs.getPresetList(this))
 
         selectedSong = presetSongs.firstOrNull()
         FloatingOverlayService.currentSongList.clear()
