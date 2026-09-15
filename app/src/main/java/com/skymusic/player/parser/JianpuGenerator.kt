@@ -1,5 +1,6 @@
 package com.skymusic.player.parser
 
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.media.MediaScannerConnection
@@ -24,6 +25,13 @@ import java.util.Locale
 object JianpuGenerator {
 
     private const val TAG = "JianpuGenerator"
+
+    data class LocalScoreInfo(
+        val title: String,
+        val jsonContent: String,
+        val jsonFile: File? = null,
+        val jianpuFile: File? = null
+    )
 
     // 15 键简谱唱名映射：0~6 -> 1~7; 7~13 -> 1'~7'; 14 -> 1''
     private val DEGREE_NAMES = arrayOf("1", "2", "3", "4", "5", "6", "7")
@@ -116,13 +124,220 @@ object JianpuGenerator {
         return sb.toString()
     }
 
+    fun sanitizeFileName(title: String): String =
+        title.replace(Regex("""[\\/:*?"<>|]"""), "_").trim().ifBlank { "乐谱_${System.currentTimeMillis()}" }
+
+    fun getCandidateDirectories(context: Context): List<File> {
+        val candidateDirs = mutableListOf<File>()
+
+        // 候选 1: /storage/emulated/0/Download/filesss
+        try {
+            val pub = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            if (pub != null) candidateDirs.add(File(pub, "filesss"))
+        } catch (_: Exception) {}
+
+        // 候选 2: /sdcard/Download/filesss
+        try {
+            val sd = Environment.getExternalStorageDirectory()
+            if (sd != null) candidateDirs.add(File(sd, "Download/filesss"))
+        } catch (_: Exception) {}
+
+        // 候选 3: 应用外部存储文件目录
+        try {
+            val ext = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+            if (ext != null) candidateDirs.add(File(ext, "filesss"))
+        } catch (_: Exception) {}
+
+        // 候选 4: 应用内部文件目录兜底
+        candidateDirs.add(File(context.filesDir, "filesss"))
+        return candidateDirs
+    }
+
+    fun getCandidateJsonFileNames(context: Context, scoreId: Long, title: String): List<String> {
+        val names = LinkedHashSet<String>()
+        val sanitized = sanitizeFileName(title)
+
+        // 1. SharedPreferences 历史映射 (按 scoreId 精准对应已下载文件名)
+        if (scoreId > 0) {
+            try {
+                val sp = context.getSharedPreferences("mgm_local_scores", Context.MODE_PRIVATE)
+                val mappedName = sp.getString("id_${scoreId}_filename", null)
+                if (!mappedName.isNullOrBlank()) {
+                    names.add(mappedName)
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 2. 基于标题的标准命名
+        if (sanitized.isNotBlank()) {
+            names.add("${sanitized}.json")
+        }
+        val cleanTitle = title.trim()
+        if (cleanTitle.isNotBlank() && cleanTitle != sanitized) {
+            names.add("${cleanTitle}.json")
+        }
+
+        // 3. 基于 ID 和标题组合命名
+        if (scoreId > 0) {
+            if (sanitized.isNotBlank()) {
+                names.add("${sanitized}_${scoreId}.json")
+                names.add("${scoreId}_${sanitized}.json")
+            }
+            names.add("${scoreId}.json")
+        }
+
+        return names.toList()
+    }
+
+    /**
+     * 智能检测并读取本地已保存的乐谱 (优先在系统的 Download/filesss/ 查找)
+     * 支持通过 ID 历史映射或歌名模糊匹配，命中了直接返回 JSON 原文，无需重复调用网络下载
+     */
+    fun findLocalScore(context: Context, scoreId: Long, title: String): LocalScoreInfo? {
+        val candidateNames = getCandidateJsonFileNames(context, scoreId, title)
+        val sanitized = sanitizeFileName(title)
+        val jianpuName = "${sanitized}_简谱.txt"
+
+        // 1. 优先扫描多级物理候选目录
+        for (dir in getCandidateDirectories(context)) {
+            if (!dir.exists() || !dir.isDirectory) continue
+
+            for (jsonName in candidateNames) {
+                val jf = File(dir, jsonName)
+                if (jf.exists() && jf.isFile && jf.length() > 0) {
+                    try {
+                        val content = jf.readText(Charsets.UTF_8)
+                        if (content.isNotBlank() && content.length > 10) {
+                            val tf = File(dir, jianpuName)
+                            val finalTf = if (tf.exists() && tf.isFile && tf.length() > 0) tf else null
+                            Log.i(TAG, "Found local score in File system: ${jf.absolutePath} (${content.length} chars)")
+                            return LocalScoreInfo(
+                                title = title,
+                                jsonContent = content,
+                                jsonFile = jf,
+                                jianpuFile = finalTf
+                            )
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error reading local file: ${jf.absolutePath}", e)
+                    }
+                }
+            }
+        }
+
+        // 2. Android 10+ (Q+) 查询 MediaStore.Downloads (兼容 Scoped Storage 沙盒)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                val resolver = context.contentResolver
+                val projection = arrayOf(
+                    MediaStore.Downloads._ID,
+                    MediaStore.Downloads.DISPLAY_NAME,
+                    MediaStore.Downloads.RELATIVE_PATH
+                )
+                val selection = "${MediaStore.Downloads.RELATIVE_PATH} LIKE ?"
+                val selectionArgs = arrayOf("Download/filesss%")
+                resolver.query(
+                    MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    projection,
+                    selection,
+                    selectionArgs,
+                    null
+                )?.use { cursor ->
+                    val idCol = cursor.getColumnIndexOrThrow(MediaStore.Downloads._ID)
+                    val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Downloads.DISPLAY_NAME)
+
+                    var matchedUri: android.net.Uri? = null
+                    var matchedName: String? = null
+
+                    while (cursor.moveToNext()) {
+                        val displayName = cursor.getString(nameCol) ?: continue
+                        val isMatch = candidateNames.any { it.equals(displayName, ignoreCase = true) }
+                        if (isMatch) {
+                            val docId = cursor.getLong(idCol)
+                            matchedUri = ContentUris.withAppendedId(
+                                MediaStore.Downloads.EXTERNAL_CONTENT_URI, docId
+                            )
+                            matchedName = displayName
+                            break
+                        }
+                    }
+
+                    if (matchedUri != null) {
+                        val content = resolver.openInputStream(matchedUri)?.bufferedReader(Charsets.UTF_8)?.use {
+                            it.readText()
+                        }
+                        if (!content.isNullOrBlank() && content.length > 10) {
+                            Log.i(TAG, "Found local score in MediaStore: $matchedName ($matchedUri)")
+                            return LocalScoreInfo(
+                                title = title,
+                                jsonContent = content,
+                                jsonFile = null,
+                                jianpuFile = null
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Error querying MediaStore for local score", e)
+            }
+        }
+
+        return null
+    }
+
+    /**
+     * 极速判断本地是否已存在该曲谱的缓存文件 (用于列表渲染与状态徽章)
+     */
+    fun isScoreCachedLocally(context: Context, scoreId: Long, title: String): Boolean {
+        val candidateNames = getCandidateJsonFileNames(context, scoreId, title)
+        for (dir in getCandidateDirectories(context)) {
+            if (!dir.exists() || !dir.isDirectory) continue
+            for (name in candidateNames) {
+                val f = File(dir, name)
+                if (f.exists() && f.length() > 0) return true
+            }
+        }
+        if (scoreId > 0) {
+            try {
+                val sp = context.getSharedPreferences("mgm_local_scores", Context.MODE_PRIVATE)
+                val mapped = sp.getString("id_${scoreId}_filename", null)
+                if (!mapped.isNullOrBlank()) {
+                    for (dir in getCandidateDirectories(context)) {
+                        val f = File(dir, mapped)
+                        if (f.exists() && f.length() > 0) return true
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+        return false
+    }
+
     /**
      * 将乐谱自动转换简谱并持久化写入系统的 Download/filesss 目录
      * 具备跨 Android 版本目录智能适配与 MediaScanner 广播通知，确保手机文件管理器秒级可见
      */
-    suspend fun convertAndSaveToFilesss(context: Context, song: Song, rawJson: String? = null): Result<File> = withContext(Dispatchers.IO) {
-        val sanitizedTitle = song.title.replace(Regex("""[\\/:*?"<>|]"""), "_").trim().ifBlank { "乐谱_${System.currentTimeMillis()}" }
+    suspend fun convertAndSaveToFilesss(
+        context: Context,
+        song: Song,
+        rawJson: String? = null,
+        scoreId: Long = -1L
+    ): Result<File> = withContext(Dispatchers.IO) {
+        val sanitizedTitle = sanitizeFileName(song.title)
         val jianpuText = generateJianpuText(song)
+
+        // 记录 ID 到文件名的持久化映射
+        if (scoreId > 0) {
+            try {
+                val sp = context.getSharedPreferences("mgm_local_scores", Context.MODE_PRIVATE)
+                sp.edit()
+                    .putString("id_${scoreId}_title", song.title)
+                    .putString("id_${scoreId}_filename", "${sanitizedTitle}.json")
+                    .putLong("id_${scoreId}_time", System.currentTimeMillis())
+                    .apply()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to save local score id mapping", e)
+            }
+        }
 
         var primaryFile: File? = null
 
@@ -176,28 +391,7 @@ object JianpuGenerator {
         }
 
         // 2. 多级候选物理文件系统目录 (兼顾 Android 9 及以下、直接文件访问及应用专属目录)
-        val candidateDirs = mutableListOf<File>()
-
-        // 候选 1: /storage/emulated/0/Download/filesss
-        try {
-            val pub = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            if (pub != null) candidateDirs.add(File(pub, "filesss"))
-        } catch (_: Exception) {}
-
-        // 候选 2: /sdcard/Download/filesss
-        try {
-            val sd = Environment.getExternalStorageDirectory()
-            if (sd != null) candidateDirs.add(File(sd, "Download/filesss"))
-        } catch (_: Exception) {}
-
-        // 候选 3: 应用外部存储文件目录
-        try {
-            val ext = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-            if (ext != null) candidateDirs.add(File(ext, "filesss"))
-        } catch (_: Exception) {}
-
-        // 候选 4: 应用内部文件目录兜底
-        candidateDirs.add(File(context.filesDir, "filesss"))
+        val candidateDirs = getCandidateDirectories(context)
 
         var lastError: Exception? = null
         for (targetDir in candidateDirs) {

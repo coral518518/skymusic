@@ -897,47 +897,90 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         val view = onlineView
         val tvTip = view?.findViewById<TextView>(R.id.tvOnlineBottomTip)
 
-        tvTip?.text = "⏳ 正在连接音游伴侣下载《${songItem.title}》..."
-        Toast.makeText(this, "正在下载《${songItem.title}》全量乐谱...", Toast.LENGTH_SHORT).show()
-
         serviceScope.launch(Dispatchers.IO) {
             try {
-                // 确保 Session Cookie 处于可用状态 (若未登录则先用已配置账密静默登录)
-                if (!mgmClient.isLoggedIn()) {
-                    withContext(Dispatchers.Main) {
-                        tvTip?.text = "⏳ 正在进行音游伴侣账号身份校验..."
-                    }
-                    val loginRes = mgmClient.login()
-                    Log.d(TAG, "Auto-login result: ${loginRes.isSuccess}")
-                }
-
-                // 1. 调用 GET /scores/{id}/file?variant=full 下载全量 JSON
+                // 1. 优先检查本地是否已经存在已保存的乐谱 (Download/filesss/ 目录或媒体库)
                 withContext(Dispatchers.Main) {
-                    tvTip?.text = "⏳ 正在从服务器拉取《${songItem.title}》全量音符数据..."
+                    tvTip?.text = "🔍 正在检查本地是否有《${songItem.title}》已存文件..."
                 }
-                val downloadRes = mgmClient.downloadScoreFile(songItem.id)
-                if (downloadRes.isFailure) {
-                    val errMsg = downloadRes.exceptionOrNull()?.message ?: "网络请求失败"
-                    Log.e(TAG, "Download score file failed: $errMsg", downloadRes.exceptionOrNull())
+
+                val localScore = com.skymusic.player.parser.JianpuGenerator.findLocalScore(
+                    this@FloatingOverlayService,
+                    songItem.id,
+                    songItem.title
+                )
+
+                var rawJson = ""
+                var isLocalHit = false
+
+                if (localScore != null && localScore.jsonContent.isNotBlank()) {
+                    Log.i(TAG, "Local cache hit for 《${songItem.title}》 (id=${songItem.id})! Skipping network download.")
                     withContext(Dispatchers.Main) {
-                        tvTip?.text = "❌ 下载失败: $errMsg"
-                        Toast.makeText(this@FloatingOverlayService, "下载乐谱失败: $errMsg", Toast.LENGTH_LONG).show()
+                        tvTip?.text = "⚡ 发现本地已有保存文件，免下载直接解析载入..."
+                        Toast.makeText(this@FloatingOverlayService, "⚡ 读取本地文件: 《${songItem.title}》", Toast.LENGTH_SHORT).show()
                     }
-                    return@launch
+                    rawJson = localScore.jsonContent
+                    isLocalHit = true
+                } else {
+                    // 本地未找到，通过网络拉取
+                    withContext(Dispatchers.Main) {
+                        tvTip?.text = "⏳ 正在连接音游伴侣下载《${songItem.title}》..."
+                        Toast.makeText(this@FloatingOverlayService, "正在下载《${songItem.title}》全量乐谱...", Toast.LENGTH_SHORT).show()
+                    }
+
+                    // 确保 Session Cookie 处于可用状态 (若未登录则先用已配置账密静默登录)
+                    if (!mgmClient.isLoggedIn()) {
+                        withContext(Dispatchers.Main) {
+                            tvTip?.text = "⏳ 正在进行音游伴侣账号身份校验..."
+                        }
+                        val loginRes = mgmClient.login()
+                        Log.d(TAG, "Auto-login result: ${loginRes.isSuccess}")
+                    }
+
+                    // 调用 GET /scores/{id}/file?variant=full 下载全量 JSON
+                    withContext(Dispatchers.Main) {
+                        tvTip?.text = "⏳ 正在从服务器拉取《${songItem.title}》全量音符数据..."
+                    }
+                    val downloadRes = mgmClient.downloadScoreFile(songItem.id)
+                    if (downloadRes.isFailure) {
+                        val errMsg = downloadRes.exceptionOrNull()?.message ?: "网络请求失败"
+                        Log.e(TAG, "Download score file failed: $errMsg", downloadRes.exceptionOrNull())
+                        withContext(Dispatchers.Main) {
+                            tvTip?.text = "❌ 下载失败: $errMsg"
+                            Toast.makeText(this@FloatingOverlayService, "下载乐谱失败: $errMsg", Toast.LENGTH_LONG).show()
+                        }
+                        return@launch
+                    }
+
+                    rawJson = downloadRes.getOrNull() ?: ""
+                    Log.d(TAG, "Downloaded score rawJson length: ${rawJson.length}")
+                    Log.i("MGM_DEBUG", "Downloaded score for 《${songItem.title}》 (${rawJson.length} bytes):\n$rawJson")
+
+                    // 落地调试报文
+                    com.skymusic.player.parser.JianpuGenerator.saveDebugFile(this@FloatingOverlayService, "last_download_debug.json", rawJson)
                 }
-
-                val rawJson = downloadRes.getOrNull() ?: ""
-                Log.d(TAG, "Downloaded score rawJson length: ${rawJson.length}")
-                Log.i("MGM_DEBUG", "Downloaded score for 《${songItem.title}》 (${rawJson.length} bytes):\n$rawJson")
-
-                // 立即将下载到的原始响应持久化为调试文件，手机文件管理器 Download/filesss/last_download_debug.json 即可直接打开
-                com.skymusic.player.parser.JianpuGenerator.saveDebugFile(this@FloatingOverlayService, "last_download_debug.json", rawJson)
 
                 // 2. 智能解析为 App 原生 Song 模型 (15 键 NoteEvent 时间轴)
                 withContext(Dispatchers.Main) {
                     tvTip?.text = "⚙️ 正在解析 15 键按键时间轴..."
                 }
-                val song = com.skymusic.player.parser.OnlineScoreParser.parse(rawJson, songItem.title, songItem.bpm)
+                var song = com.skymusic.player.parser.OnlineScoreParser.parse(rawJson, songItem.title, songItem.bpm)
+
+                // 若本地缓存解析出 0 音符 (可能被意外截断)，自动 fallback 到网络重新下载
+                if (song.notes.isEmpty() && isLocalHit) {
+                    Log.w(TAG, "Local file for 《${songItem.title}》 had 0 notes, falling back to network download...")
+                    withContext(Dispatchers.Main) {
+                        tvTip?.text = "⚠️ 本地文件异常，正在从服务器重新拉取..."
+                    }
+                    if (!mgmClient.isLoggedIn()) mgmClient.login()
+                    val downloadRes = mgmClient.downloadScoreFile(songItem.id)
+                    if (downloadRes.isSuccess) {
+                        rawJson = downloadRes.getOrNull() ?: ""
+                        isLocalHit = false
+                        song = com.skymusic.player.parser.OnlineScoreParser.parse(rawJson, songItem.title, songItem.bpm)
+                    }
+                }
+
                 if (song.notes.isEmpty()) {
                     Log.e(TAG, "Parsed song has 0 notes! Raw JSON preview: ${rawJson.take(500)}")
                     withContext(Dispatchers.Main) {
@@ -952,16 +995,24 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
                 }
 
                 // 3. 核心需求：后台按音游伴侣 16 槽位量化算法自动转成标准简谱，并保存至 Download/filesss/ 目录
-                withContext(Dispatchers.Main) {
-                    tvTip?.text = "💾 正在自动生成标准简谱并保存至 Download/filesss..."
+                var saveMsg = "读取自本地: Download/filesss/"
+                if (!isLocalHit || localScore?.jianpuFile == null) {
+                    withContext(Dispatchers.Main) {
+                        tvTip?.text = "💾 正在自动生成标准简谱并保存至 Download/filesss..."
+                    }
+                    val saveResult = com.skymusic.player.parser.JianpuGenerator.convertAndSaveToFilesss(
+                        this@FloatingOverlayService,
+                        song,
+                        rawJson,
+                        songItem.id
+                    )
+                    saveMsg = if (saveResult.isSuccess) {
+                        "简谱已自动生成至:\nDownload/filesss/${song.title}_简谱.txt"
+                    } else {
+                        "简谱保存提示: ${saveResult.exceptionOrNull()?.message}"
+                    }
+                    Log.i(TAG, "Save result: $saveMsg")
                 }
-                val saveResult = com.skymusic.player.parser.JianpuGenerator.convertAndSaveToFilesss(this@FloatingOverlayService, song, rawJson)
-                val saveMsg = if (saveResult.isSuccess) {
-                    "简谱已自动生成至:\nDownload/filesss/${song.title}_简谱.txt"
-                } else {
-                    "简谱保存提示: ${saveResult.exceptionOrNull()?.message}"
-                }
-                Log.i(TAG, "Save result: $saveMsg")
 
                 withContext(Dispatchers.Main) {
                     tvTip?.text = "🎹 正在载入弹奏引擎并开始演奏..."
@@ -982,6 +1033,9 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
                     hideOnlineOverlay()
                     showControlPanel()
 
+                    // 刷新在线列表已缓存状态
+                    onlineSongAdapter?.notifyDataSetChanged()
+
                     // 检查无障碍或 Root 授权状态，若未开启给予明确提示
                     val isRoot = RootTouchController.isRootModeEnabled(this@FloatingOverlayService)
                     val isAccessibility = SkyAccessibilityService.instance != null
@@ -989,9 +1043,10 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
                         "\n⚠️ 提示：未开启「无障碍服务」或「Root模式」，屏幕钢琴无法自动点击！"
                     } else ""
 
+                    val sourceTag = if (isLocalHit) "【⚡ 本地直读·免下载】" else "【在线下载成功】"
                     Toast.makeText(
                         this@FloatingOverlayService,
-                        "已开始演奏《${song.title}》 (${song.noteCount}音符)\n$saveMsg$modeWarning",
+                        "$sourceTag\n已开始演奏《${song.title}》 (${song.noteCount}音符)\n$saveMsg$modeWarning",
                         Toast.LENGTH_LONG
                     ).show()
                 }

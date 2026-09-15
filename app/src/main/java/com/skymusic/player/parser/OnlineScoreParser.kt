@@ -54,14 +54,10 @@ object OnlineScoreParser {
             unwrapping = false
 
             // 读取元数据 (如果外层有)
-            if (obj.has("name") && !obj.get("name").isJsonNull) title = obj.get("name").asString
-            if (obj.has("title") && !obj.get("title").isJsonNull) title = obj.get("title").asString
-            if (obj.has("author") && !obj.get("author").isJsonNull) artist = obj.get("author").asString
-            if (obj.has("creator") && !obj.get("creator").isJsonNull) artist = obj.get("creator").asString
-            if (obj.has("bpm") && !obj.get("bpm").isJsonNull) {
-                val b = obj.get("bpm").asInt
-                if (b > 0) bpm = b
-            }
+            val meta = extractMetadata(obj, title, artist, bpm)
+            title = meta.first
+            artist = meta.second
+            bpm = meta.third
 
             // 如果当前 obj 已经直接包含音符核心集合，坚决停止下潜拆箱！
             val hasDirectNotes = arrayOf("tracks", "notes", "songNotes", "events", "noteList", "note_list").any {
@@ -99,15 +95,10 @@ object OnlineScoreParser {
 
         // 再次从解包后的 target 读取元数据
         if (target.isJsonObject) {
-            val obj = target.asJsonObject
-            if (obj.has("name") && !obj.get("name").isJsonNull) title = obj.get("name").asString
-            if (obj.has("title") && !obj.get("title").isJsonNull) title = obj.get("title").asString
-            if (obj.has("author") && !obj.get("author").isJsonNull) artist = obj.get("author").asString
-            if (obj.has("creator") && !obj.get("creator").isJsonNull) artist = obj.get("creator").asString
-            if (obj.has("bpm") && !obj.get("bpm").isJsonNull) {
-                val b = obj.get("bpm").asInt
-                if (b > 0) bpm = b
-            }
+            val meta = extractMetadata(target.asJsonObject, title, artist, bpm)
+            title = meta.first
+            artist = meta.second
+            bpm = meta.third
         }
 
         // 2. 核心提取：支持多种主流乐谱数据布局
@@ -245,19 +236,64 @@ object OnlineScoreParser {
 
             val keySet = timeMap.getOrPut(timeMs) { mutableSetOf() }
 
-            // 形式 1: keys 数组 (如 "keys": [0, 4] 或 "key_list": [...])
+            // 1. 优先提取明确的原始按键标示 (rawKey / raw_key 如 "1Key3", 0-based: 1Key0~1Key14)
+            var keyFound = false
+            for (rawProp in arrayOf("rawKey", "raw_key", "raw", "skyKey", "sky_key")) {
+                if (obj.has(rawProp) && !obj.get(rawProp).isJsonNull) {
+                    val k = parseSingleKey(obj.get(rawProp))
+                    if (k in 0..14) {
+                        keySet.add(k)
+                        keyFound = true
+                        break
+                    }
+                }
+            }
+            if (keyFound) continue
+
+            // 2. 检查 targetKey / target_key (形如 "sky.key.4" -> 4 - 1 = 3)
+            for (targetProp in arrayOf("targetKey", "target_key", "target")) {
+                if (obj.has(targetProp) && !obj.get(targetProp).isJsonNull) {
+                    val k = parseSingleKey(obj.get(targetProp))
+                    if (k in 0..14) {
+                        keySet.add(k)
+                        keyFound = true
+                        break
+                    }
+                }
+            }
+            if (keyFound) continue
+
+            // 3. 检查 keyIndex (在 compose_lab 中为 1-based, 1..15 -> 0..14)
+            for (idxProp in arrayOf("keyIndex", "key_index")) {
+                if (obj.has(idxProp) && !obj.get(idxProp).isJsonNull) {
+                    val p = obj.get(idxProp).asJsonPrimitive
+                    val idx = if (p.isNumber) p.asInt else p.asString.toIntOrNull() ?: -1
+                    if (idx in 1..15) {
+                        keySet.add(idx - 1)
+                        keyFound = true
+                        break
+                    }
+                }
+            }
+            if (keyFound) continue
+
+            // 4. keys 数组 (如 "keys": [0, 4] 或 "key_list": [...])
             for (keysProp in arrayOf("keys", "key_list", "notes", "pitches")) {
                 if (obj.has(keysProp) && obj.get(keysProp).isJsonArray) {
                     val arr = obj.getAsJsonArray(keysProp)
                     for (k in arr) {
                         val keyIdx = parseSingleKey(k)
-                        if (keyIdx in 0..14) keySet.add(keyIdx)
+                        if (keyIdx in 0..14) {
+                            keySet.add(keyIdx)
+                            keyFound = true
+                        }
                     }
                 }
             }
+            if (keyFound) continue
 
-            // 形式 2: 单个 key/pitch 字段 (如 "key": 4, "key": "1Key4", "pitch": 60)
-            for (keyProp in arrayOf("key", "pitch", "note", "k", "index", "keyIndex", "noteIndex", "code")) {
+            // 5. 单个 key/pitch 字段 (如 "key": 4, "key": "1Key4", "pitch": 60)
+            for (keyProp in arrayOf("key", "pitch", "note", "k", "index", "noteIndex", "code")) {
                 if (obj.has(keyProp) && !obj.get(keyProp).isJsonNull) {
                     val keyIdx = parseSingleKey(obj.get(keyProp))
                     if (keyIdx in 0..14) keySet.add(keyIdx)
@@ -267,7 +303,10 @@ object OnlineScoreParser {
     }
 
     private fun extractTime(obj: JsonObject): Long {
-        for (timeProp in arrayOf("time", "timeMs", "time_ms", "t", "timestamp", "offset", "startTime", "start_time", "startTick", "tick")) {
+        for (timeProp in arrayOf(
+            "startMs", "start_ms", "start", "time", "timeMs", "time_ms",
+            "t", "timestamp", "offset", "startTime", "start_time", "startTick", "tick"
+        )) {
             if (obj.has(timeProp) && !obj.get(timeProp).isJsonNull) {
                 try {
                     val prim = obj.get(timeProp).asJsonPrimitive
@@ -324,11 +363,19 @@ object OnlineScoreParser {
             } else if (prim.isString) {
                 val str = prim.asString.trim()
                 // "1Key0" ~ "1Key14"
-                val match = Regex(""".*Key(\d+)""").find(str)
+                val match = Regex(""".*Key(\d+)""", RegexOption.IGNORE_CASE).find(str)
                 if (match != null) {
                     val n = match.groupValues[1].toIntOrNull()
                     if (n != null && n in 0..14) return n
                 }
+
+                // "sky.key.1" ~ "sky.key.15" (1-based -> 0-based)
+                val skyMatch = Regex(""".*key\.(\d+)""", RegexOption.IGNORE_CASE).find(str)
+                if (skyMatch != null) {
+                    val n = skyMatch.groupValues[1].toIntOrNull()
+                    if (n != null && n in 1..15) return n - 1
+                }
+
                 // 纯数字字符串
                 val direct = str.toIntOrNull()
                 if (direct != null) {
@@ -372,5 +419,42 @@ object OnlineScoreParser {
         } else {
             -1
         }
+    }
+
+    private fun extractMetadata(
+        obj: JsonObject,
+        currentTitle: String,
+        currentArtist: String,
+        currentBpm: Int
+    ): Triple<String, String, Int> {
+        var title = currentTitle
+        var artist = currentArtist
+        var bpm = currentBpm
+
+        fun check(o: JsonObject) {
+            if (o.has("name") && !o.get("name").isJsonNull) title = o.get("name").asString
+            if (o.has("title") && !o.get("title").isJsonNull) title = o.get("title").asString
+            if (o.has("songName") && !o.get("songName").isJsonNull) title = o.get("songName").asString
+            if (o.has("author") && !o.get("author").isJsonNull) artist = o.get("author").asString
+            if (o.has("creator") && !o.get("creator").isJsonNull) artist = o.get("creator").asString
+            if (o.has("artist") && !o.get("artist").isJsonNull) artist = o.get("artist").asString
+            if (o.has("bpm") && !o.get("bpm").isJsonNull) {
+                val b = o.get("bpm").asInt
+                if (b > 0) bpm = b
+            }
+        }
+
+        check(obj)
+        if (obj.has("metadata") && obj.get("metadata").isJsonObject) {
+            check(obj.getAsJsonObject("metadata"))
+        }
+        if (obj.has("score") && obj.get("score").isJsonObject) {
+            val scoreObj = obj.getAsJsonObject("score")
+            check(scoreObj)
+            if (scoreObj.has("metadata") && scoreObj.get("metadata").isJsonObject) {
+                check(scoreObj.getAsJsonObject("metadata"))
+            }
+        }
+        return Triple(title, artist, bpm)
     }
 }
