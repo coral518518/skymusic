@@ -13,9 +13,28 @@ import json
 import re
 import argparse
 import urllib.parse
+import builtins
 from datetime import datetime
 from typing import Set, Dict, Any, List, Optional
 from playwright.sync_api import sync_playwright, BrowserContext, Page
+
+# 强制开启标准输出/错误无缓冲流式刷新，确保 GitHub Actions 控制台毫秒级实时打印日志
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(line_buffering=True, write_through=True)
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(line_buffering=True, write_through=True)
+except Exception:
+    pass
+
+_orig_print = builtins.print
+
+def print(*args, **kwargs):
+    # 强制每次打印自动 flush=True
+    kwargs.setdefault("flush", True)
+    _orig_print(*args, **kwargs)
+
+builtins.print = print
 
 # 路径基准：以当前仓库根目录为准
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
