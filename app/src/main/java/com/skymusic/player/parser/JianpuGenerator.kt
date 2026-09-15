@@ -1,6 +1,11 @@
 package com.skymusic.player.parser
 
+import android.content.ContentValues
+import android.content.Context
+import android.media.MediaScannerConnection
+import android.os.Build
 import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import com.skymusic.player.model.Song
 import kotlinx.coroutines.Dispatchers
@@ -22,11 +27,6 @@ object JianpuGenerator {
 
     // 15 键简谱唱名映射：0~6 -> 1~7; 7~13 -> 1'~7'; 14 -> 1''
     private val DEGREE_NAMES = arrayOf("1", "2", "3", "4", "5", "6", "7")
-    private val KEY_TAGS = arrayOf(
-        "A1", "A2", "A3", "A4", "A5",
-        "B1", "B2", "B3", "B4", "B5",
-        "C1", "C2", "C3", "C4", "C5"
-    )
 
     /**
      * 将键位索引 (0~14) 转换为标准简谱符号
@@ -38,8 +38,8 @@ object JianpuGenerator {
         val degree = DEGREE_NAMES[key % 7]
         val octave = key / 7
         return when (octave) {
-            0 -> degree       // 中音区: 1 2 3 4 5 6 7
-            1 -> "$degree'"   // 高音区: 1' 2' 3' 4' 5' 6' 7'
+            0 -> degree         // 中音区: 1 2 3 4 5 6 7
+            1 -> "$degree'"     // 高音区: 1' 2' 3' 4' 5' 6' 7'
             else -> "$degree''" // 倍高音区: 1''
         }
     }
@@ -69,7 +69,7 @@ object JianpuGenerator {
         sb.append("============================================================\n")
         sb.append("曲目名称: 《${song.title}》\n")
         sb.append("编曲作者: ${song.artist}\n")
-        sb.append("演奏速度: $bpm BPM | 节拍: 4/4 拍 | 网格细分: 16分音符 (120ms/槽)\n")
+        sb.append("演奏速度: $bpm BPM | 节拍: 4/4 拍 | 网格细分: 16分音符 (${String.format(Locale.getDefault(), "%.1f", slotDurationMs)}ms/槽)\n")
         sb.append("音符总数: ${song.noteCount} 个 | 乐曲时长: ${song.getFormattedDuration()}\n")
         sb.append("生成时间: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())}\n")
         sb.append("\n")
@@ -118,44 +118,138 @@ object JianpuGenerator {
 
     /**
      * 将乐谱自动转换简谱并持久化写入系统的 Download/filesss 目录
-     * 同时保存一份格式化简谱 .txt 以及原始 .json
+     * 具备跨 Android 版本目录智能适配与 MediaScanner 广播通知，确保手机文件管理器秒级可见
      */
-    suspend fun convertAndSaveToFilesss(song: Song, rawJson: String? = null): Result<File> = withContext(Dispatchers.IO) {
+    suspend fun convertAndSaveToFilesss(context: Context, song: Song, rawJson: String? = null): Result<File> = withContext(Dispatchers.IO) {
+        val sanitizedTitle = song.title.replace(Regex("""[\\/:*?"<>|]"""), "_").trim().ifBlank { "乐谱_${System.currentTimeMillis()}" }
+        val jianpuText = generateJianpuText(song)
+
+        var primaryFile: File? = null
+
+        // 1. Android 10+ (Q+) 使用系统标准 MediaStore.Downloads API 写入公共 Download/filesss
+        // 免运行时权限、不受 Scoped Storage 限制，手机文件管理器 100% 秒见
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                val resolver = context.contentResolver
+
+                // 写入简谱文本
+                val txtValues = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, "${sanitizedTitle}_简谱.txt")
+                    put(MediaStore.Downloads.MIME_TYPE, "text/plain")
+                    put(MediaStore.Downloads.RELATIVE_PATH, "Download/filesss")
+                    put(MediaStore.Downloads.IS_PENDING, 1)
+                }
+                val txtUri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, txtValues)
+                if (txtUri != null) {
+                    resolver.openOutputStream(txtUri)?.use { os ->
+                        os.write(jianpuText.toByteArray(Charsets.UTF_8))
+                        os.flush()
+                    }
+                    txtValues.clear()
+                    txtValues.put(MediaStore.Downloads.IS_PENDING, 0)
+                    resolver.update(txtUri, txtValues, null, null)
+                    Log.i(TAG, "Successfully created jianpu via MediaStore: $txtUri")
+                }
+
+                // 同步写入原始 JSON
+                if (!rawJson.isNullOrBlank()) {
+                    val jsonValues = ContentValues().apply {
+                        put(MediaStore.Downloads.DISPLAY_NAME, "${sanitizedTitle}.json")
+                        put(MediaStore.Downloads.MIME_TYPE, "application/json")
+                        put(MediaStore.Downloads.RELATIVE_PATH, "Download/filesss")
+                        put(MediaStore.Downloads.IS_PENDING, 1)
+                    }
+                    val jsonUri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, jsonValues)
+                    if (jsonUri != null) {
+                        resolver.openOutputStream(jsonUri)?.use { os ->
+                            os.write(rawJson.toByteArray(Charsets.UTF_8))
+                            os.flush()
+                        }
+                        jsonValues.clear()
+                        jsonValues.put(MediaStore.Downloads.IS_PENDING, 0)
+                        resolver.update(jsonUri, jsonValues, null, null)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "MediaStore write failed, continuing with direct File API fallback", e)
+            }
+        }
+
+        // 2. 多级候选物理文件系统目录 (兼顾 Android 9 及以下、直接文件访问及应用专属目录)
+        val candidateDirs = mutableListOf<File>()
+
+        // 候选 1: /storage/emulated/0/Download/filesss
         try {
-            // 获取手机公有 Download 目录
-            val publicDownload = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val filesssDir = File(publicDownload, "filesss")
-            if (!filesssDir.exists()) {
-                val created = filesssDir.mkdirs()
-                if (!created) {
-                    Log.w(TAG, "Failed to create public filesss dir, falling back")
+            val pub = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            if (pub != null) candidateDirs.add(File(pub, "filesss"))
+        } catch (_: Exception) {}
+
+        // 候选 2: /sdcard/Download/filesss
+        try {
+            val sd = Environment.getExternalStorageDirectory()
+            if (sd != null) candidateDirs.add(File(sd, "Download/filesss"))
+        } catch (_: Exception) {}
+
+        // 候选 3: 应用外部存储文件目录
+        try {
+            val ext = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+            if (ext != null) candidateDirs.add(File(ext, "filesss"))
+        } catch (_: Exception) {}
+
+        // 候选 4: 应用内部文件目录兜底
+        candidateDirs.add(File(context.filesDir, "filesss"))
+
+        var lastError: Exception? = null
+        for (targetDir in candidateDirs) {
+            try {
+                if (!targetDir.exists()) {
+                    targetDir.mkdirs()
                 }
-            }
 
-            val sanitizedTitle = song.title.replace(Regex("""[\\/:*?"<>|]"""), "_").trim()
-            val textFile = File(filesssDir, "${sanitizedTitle}_简谱.txt")
+                if (targetDir.exists() && targetDir.canWrite()) {
+                    val textFile = File(targetDir, "${sanitizedTitle}_简谱.txt")
+                    OutputStreamWriter(FileOutputStream(textFile), "UTF-8").use {
+                        it.write(jianpuText)
+                        it.flush()
+                    }
 
-            // 1. 写入文本简谱
-            val jianpuText = generateJianpuText(song)
-            OutputStreamWriter(FileOutputStream(textFile), "UTF-8").use {
-                it.write(jianpuText)
-                it.flush()
-            }
+                    var jsonFile: File? = null
+                    if (!rawJson.isNullOrBlank()) {
+                        val jf = File(targetDir, "${sanitizedTitle}.json")
+                        OutputStreamWriter(FileOutputStream(jf), "UTF-8").use {
+                            it.write(rawJson)
+                            it.flush()
+                        }
+                        jsonFile = jf
+                    }
 
-            // 2. 若有原版 JSON，也一同同步保存在 filesss 目录，方便备用
-            if (!rawJson.isNullOrBlank()) {
-                val jsonFile = File(filesssDir, "${sanitizedTitle}.json")
-                OutputStreamWriter(FileOutputStream(jsonFile), "UTF-8").use {
-                    it.write(rawJson)
-                    it.flush()
+                    // 广播通知 Android 系统媒体扫描器刷新，使手机文件管理器与电脑 MTP 连接立即显示新文件
+                    try {
+                        val scanPaths = listOfNotNull(textFile.absolutePath, jsonFile?.absolutePath).toTypedArray()
+                        MediaScannerConnection.scanFile(context, scanPaths, null, null)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "MediaScanner error", e)
+                    }
+
+                    if (primaryFile == null) {
+                        primaryFile = textFile
+                    }
+                    Log.i(TAG, "Successfully wrote jianpu to File: ${textFile.absolutePath}")
                 }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed writing to ${targetDir.absolutePath}, trying next candidate", e)
+                lastError = e
             }
+        }
 
-            Log.i(TAG, "Successfully saved jianpu and json to ${textFile.absolutePath}")
-            Result.success(textFile)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error saving jianpu to filesss directory", e)
-            Result.failure(e)
+        if (primaryFile != null) {
+            Result.success(primaryFile)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // MediaStore 写入成功但物理 File 无法获取句柄时的保底
+            val pub = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            Result.success(File(pub, "filesss/${sanitizedTitle}_简谱.txt"))
+        } else {
+            Result.failure(lastError ?: Exception("无法在任何存储候选目录中创建文件"))
         }
     }
 }

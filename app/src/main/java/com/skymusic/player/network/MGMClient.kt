@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,6 +12,7 @@ import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
+import java.io.PushbackInputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -27,6 +29,7 @@ class MGMClient private constructor(private val context: Context) {
         const val BASE_URL = "https://mgm.jie-you.cn"
         private const val PREFS_NAME = "mgm_network_prefs"
         private const val KEY_COOKIES = "saved_cookies"
+        private const val KEY_TOKEN = "saved_token"
         private const val KEY_USERNAME = "saved_username"
         private const val KEY_PASSWORD = "saved_password"
 
@@ -46,10 +49,12 @@ class MGMClient private constructor(private val context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val cookies = mutableMapOf<String, String>()
+    private var savedToken: String? = null
     private val gson = Gson()
 
     init {
         loadCookies()
+        savedToken = prefs.getString(KEY_TOKEN, null)
     }
 
     /**
@@ -69,6 +74,17 @@ class MGMClient private constructor(private val context: Context) {
     fun getSavedPassword(): String {
         return prefs.getString(KEY_PASSWORD, DEFAULT_PASSWORD) ?: DEFAULT_PASSWORD
     }
+
+    fun saveToken(token: String?) {
+        savedToken = token
+        if (token.isNullOrBlank()) {
+            prefs.edit().remove(KEY_TOKEN).apply()
+        } else {
+            prefs.edit().putString(KEY_TOKEN, token).apply()
+        }
+    }
+
+    fun getSavedToken(): String? = savedToken
 
     private fun loadCookies() {
         val saved = prefs.getString(KEY_COOKIES, null) ?: return
@@ -91,11 +107,12 @@ class MGMClient private constructor(private val context: Context) {
 
     fun clearCookies() {
         cookies.clear()
-        prefs.edit().remove(KEY_COOKIES).apply()
+        savedToken = null
+        prefs.edit().remove(KEY_COOKIES).remove(KEY_TOKEN).apply()
     }
 
     fun isLoggedIn(): Boolean {
-        return cookies.isNotEmpty()
+        return cookies.isNotEmpty() || !savedToken.isNullOrBlank()
     }
 
     /**
@@ -133,38 +150,51 @@ class MGMClient private constructor(private val context: Context) {
             val cookieHeader = cookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
             conn.setRequestProperty("Cookie", cookieHeader)
         }
+
+        // 若存在登录 Token，附带 Authorization 及 x-token 兼容支持
+        val token = savedToken
+        if (!token.isNullOrBlank()) {
+            conn.setRequestProperty("Authorization", "Bearer $token")
+            conn.setRequestProperty("x-token", token)
+        }
     }
 
     private fun extractCookies(conn: HttpURLConnection) {
-        val headerFields = conn.headerFields
-        val setCookies = headerFields["Set-Cookie"] ?: headerFields["set-cookie"] ?: return
-        for (header in setCookies) {
-            val parts = header.split(";")
-            if (parts.isNotEmpty()) {
-                val pair = parts[0].trim().split("=", limit = 2)
-                if (pair.size == 2) {
-                    cookies[pair[0].trim()] = pair[1].trim()
+        val headerFields = conn.headerFields ?: return
+        for ((key, values) in headerFields) {
+            if (key != null && key.equals("Set-Cookie", ignoreCase = true)) {
+                for (header in values) {
+                    val parts = header.split(";")
+                    if (parts.isNotEmpty()) {
+                        val pair = parts[0].trim().split("=", limit = 2)
+                        if (pair.size == 2) {
+                            cookies[pair[0].trim()] = pair[1].trim()
+                        }
+                    }
                 }
             }
         }
         persistCookies()
     }
 
+    /**
+     * 高稳健性 ResponseBody 读取器
+     * 使用 0x1f 0x8b 头部魔数检测 GZIP，杜绝解压缩误判或乱码
+     */
     private fun readResponseBody(conn: HttpURLConnection): String {
-        val stream: InputStream = if (conn.responseCode in 200..299) {
+        val rawStream: InputStream = if (conn.responseCode in 200..299) {
             conn.inputStream
         } else {
             conn.errorStream ?: conn.inputStream
         }
 
-        val encoding = conn.contentEncoding
-        val effectiveStream = if (encoding != null && encoding.contains("gzip", ignoreCase = true)) {
-            GZIPInputStream(stream)
+        val rawBytes = rawStream.use { it.readBytes() }
+        val isGzip = rawBytes.size >= 2 && rawBytes[0] == 0x1f.toByte() && rawBytes[1] == 0x8b.toByte()
+        return if (isGzip) {
+            GZIPInputStream(java.io.ByteArrayInputStream(rawBytes)).bufferedReader(Charsets.UTF_8).use { it.readText() }
         } else {
-            stream
+            String(rawBytes, Charsets.UTF_8)
         }
-
-        return BufferedReader(InputStreamReader(effectiveStream, "UTF-8")).use { it.readText() }
     }
 
     // =========================================================================
@@ -198,9 +228,38 @@ class MGMClient private constructor(private val context: Context) {
             val code = conn.responseCode
             extractCookies(conn)
             val responseBody = readResponseBody(conn)
+            Log.d(TAG, "Login response ($code): $responseBody")
 
             if (code in 200..299) {
                 saveCredentials(targetUser, targetPass)
+                // 尝试从返回体中解析可能存在的 Token
+                try {
+                    val root = JsonParser.parseString(responseBody)
+                    if (root.isJsonObject) {
+                        val obj = root.asJsonObject
+                        var extractedToken: String? = null
+                        if (obj.has("token") && !obj.get("token").isJsonNull) {
+                            extractedToken = obj.get("token").asString
+                        } else if (obj.has("data")) {
+                            val dataElem = obj.get("data")
+                            if (dataElem.isJsonObject) {
+                                val d = dataElem.asJsonObject
+                                if (d.has("token") && !d.get("token").isJsonNull) {
+                                    extractedToken = d.get("token").asString
+                                } else if (d.has("accessToken") && !d.get("accessToken").isJsonNull) {
+                                    extractedToken = d.get("accessToken").asString
+                                }
+                            } else if (dataElem.isJsonPrimitive && dataElem.asJsonPrimitive.isString) {
+                                extractedToken = dataElem.asString
+                            }
+                        }
+                        if (!extractedToken.isNullOrBlank()) {
+                            saveToken(extractedToken)
+                            Log.i(TAG, "Extracted and saved auth token")
+                        }
+                    }
+                } catch (_: Exception) {}
+
                 Result.success(true)
             } else {
                 Result.failure(Exception("登录失败 (HTTP $code): $responseBody"))
@@ -283,7 +342,7 @@ class MGMClient private constructor(private val context: Context) {
                     Result.failure(Exception(msg))
                 }
             } else {
-                Result.failure(Exception("搜索接口异常 (HTTP $code)"))
+                Result.failure(Exception("搜索接口异常 (HTTP $code): $responseBody"))
             }
         } catch (e: Exception) {
             Log.e(TAG, "Search scores error", e)
@@ -308,13 +367,14 @@ class MGMClient private constructor(private val context: Context) {
             val code = conn.responseCode
             extractCookies(conn)
             val responseBody = readResponseBody(conn)
+            Log.d(TAG, "Download file response code: $code, length: ${responseBody.length}, snippet: ${responseBody.take(200)}")
 
             if (code in 200..299) {
                 // 异步发送一次下载计数审计 (与浏览器行为一致)
                 recordDownloadQuietly(scoreId)
                 Result.success(responseBody)
             } else {
-                Result.failure(Exception("下载乐谱失败 (HTTP $code)"))
+                Result.failure(Exception("下载乐谱失败 (HTTP $code): $responseBody"))
             }
         } catch (e: Exception) {
             Log.e(TAG, "Download score file error", e)

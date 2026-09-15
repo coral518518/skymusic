@@ -894,63 +894,105 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
     }
 
     private fun downloadAndPlayOnlineSong(songItem: com.skymusic.player.network.MGMSongItem) {
+        val view = onlineView
+        val tvTip = view?.findViewById<TextView>(R.id.tvOnlineBottomTip)
+
+        tvTip?.text = "⏳ 正在连接音游伴侣下载《${songItem.title}》..."
         Toast.makeText(this, "正在下载《${songItem.title}》全量乐谱...", Toast.LENGTH_SHORT).show()
 
         serviceScope.launch(Dispatchers.IO) {
-            // 确保 Session Cookie 处于可用状态 (若未登录则先用已配置账密静默登录)
-            if (!mgmClient.isLoggedIn()) {
-                mgmClient.login()
-            }
-
-            // 1. 调用 GET /scores/{id}/file?variant=full 下载全量 JSON
-            val downloadRes = mgmClient.downloadScoreFile(songItem.id)
-            if (downloadRes.isFailure) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@FloatingOverlayService, "下载乐谱失败: ${downloadRes.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+            try {
+                // 确保 Session Cookie 处于可用状态 (若未登录则先用已配置账密静默登录)
+                if (!mgmClient.isLoggedIn()) {
+                    withContext(Dispatchers.Main) {
+                        tvTip?.text = "⏳ 正在进行音游伴侣账号身份校验..."
+                    }
+                    val loginRes = mgmClient.login()
+                    Log.d(TAG, "Auto-login result: ${loginRes.isSuccess}")
                 }
-                return@launch
-            }
 
-            val rawJson = downloadRes.getOrNull() ?: ""
-            // 2. 智能解析为 App 原生 Song 模型 (15 键 NoteEvent 时间轴)
-            val song = com.skymusic.player.parser.OnlineScoreParser.parse(rawJson, songItem.title, songItem.bpm)
-            if (song.notes.isEmpty()) {
+                // 1. 调用 GET /scores/{id}/file?variant=full 下载全量 JSON
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@FloatingOverlayService, "乐谱未包含有效按键音符数据", Toast.LENGTH_LONG).show()
+                    tvTip?.text = "⏳ 正在从服务器拉取《${songItem.title}》全量音符数据..."
                 }
-                return@launch
-            }
+                val downloadRes = mgmClient.downloadScoreFile(songItem.id)
+                if (downloadRes.isFailure) {
+                    val errMsg = downloadRes.exceptionOrNull()?.message ?: "网络请求失败"
+                    Log.e(TAG, "Download score file failed: $errMsg", downloadRes.exceptionOrNull())
+                    withContext(Dispatchers.Main) {
+                        tvTip?.text = "❌ 下载失败: $errMsg"
+                        Toast.makeText(this@FloatingOverlayService, "下载乐谱失败: $errMsg", Toast.LENGTH_LONG).show()
+                    }
+                    return@launch
+                }
 
-            // 3. 核心需求：后台按音游伴侣 16 槽位量化算法自动转成标准简谱，并保存至 Download/filesss/ 目录
-            val saveResult = com.skymusic.player.parser.JianpuGenerator.convertAndSaveToFilesss(song, rawJson)
-            val saveMsg = if (saveResult.isSuccess) {
-                "简谱已自动生成至:\nDownload/filesss/${song.title}_简谱.txt"
-            } else {
-                "简谱保存异常: ${saveResult.exceptionOrNull()?.message}"
-            }
+                val rawJson = downloadRes.getOrNull() ?: ""
+                Log.d(TAG, "Downloaded score rawJson length: ${rawJson.length}")
 
-            withContext(Dispatchers.Main) {
-                // 4. 接入现有弹奏逻辑：载入 PlayEngine 并无缝触发钢琴演奏
-                val existingIndex = currentSongList.indexOfFirst { it.id == song.id || it.title == song.title }
-                if (existingIndex >= 0) {
-                    currentSongList[existingIndex] = song
+                // 2. 智能解析为 App 原生 Song 模型 (15 键 NoteEvent 时间轴)
+                withContext(Dispatchers.Main) {
+                    tvTip?.text = "⚙️ 正在解析 15 键按键时间轴..."
+                }
+                val song = com.skymusic.player.parser.OnlineScoreParser.parse(rawJson, songItem.title, songItem.bpm)
+                if (song.notes.isEmpty()) {
+                    Log.e(TAG, "Parsed song has 0 notes! Raw JSON preview: ${rawJson.take(300)}")
+                    withContext(Dispatchers.Main) {
+                        tvTip?.text = "❌ 乐谱解析失败: 未识别到有效按键音符"
+                        Toast.makeText(this@FloatingOverlayService, "乐谱未包含有效按键音符数据", Toast.LENGTH_LONG).show()
+                    }
+                    return@launch
+                }
+
+                // 3. 核心需求：后台按音游伴侣 16 槽位量化算法自动转成标准简谱，并保存至 Download/filesss/ 目录
+                withContext(Dispatchers.Main) {
+                    tvTip?.text = "💾 正在自动生成标准简谱并保存至 Download/filesss..."
+                }
+                val saveResult = com.skymusic.player.parser.JianpuGenerator.convertAndSaveToFilesss(this@FloatingOverlayService, song, rawJson)
+                val saveMsg = if (saveResult.isSuccess) {
+                    "简谱已自动生成至:\nDownload/filesss/${song.title}_简谱.txt"
                 } else {
-                    currentSongList.add(0, song)
+                    "简谱保存提示: ${saveResult.exceptionOrNull()?.message}"
                 }
+                Log.i(TAG, "Save result: $saveMsg")
 
-                playEngine.loadSong(song)
-                updatePanelSongInfo(song)
-                playEngine.play()
+                withContext(Dispatchers.Main) {
+                    tvTip?.text = "🎹 正在载入弹奏引擎并开始演奏..."
 
-                // 关闭在线浮层，唤出控制面板
-                hideOnlineOverlay()
-                showControlPanel()
+                    // 4. 接入现有弹奏逻辑：载入 PlayEngine 并无缝触发钢琴演奏
+                    val existingIndex = currentSongList.indexOfFirst { it.id == song.id || it.title == song.title }
+                    if (existingIndex >= 0) {
+                        currentSongList[existingIndex] = song
+                    } else {
+                        currentSongList.add(0, song)
+                    }
 
-                Toast.makeText(
-                    this@FloatingOverlayService,
-                    "已开始演奏《${song.title}》 (${song.noteCount}音符)\n$saveMsg",
-                    Toast.LENGTH_LONG
-                ).show()
+                    playEngine.loadSong(song)
+                    updatePanelSongInfo(song)
+                    playEngine.play()
+
+                    // 关闭在线浮层，唤出控制面板
+                    hideOnlineOverlay()
+                    showControlPanel()
+
+                    // 检查无障碍或 Root 授权状态，若未开启给予明确提示
+                    val isRoot = RootTouchController.isRootModeEnabled(this@FloatingOverlayService)
+                    val isAccessibility = SkyAccessibilityService.instance != null
+                    val modeWarning = if (!isRoot && !isAccessibility) {
+                        "\n⚠️ 提示：未开启「无障碍服务」或「Root模式」，屏幕钢琴无法自动点击！"
+                    } else ""
+
+                    Toast.makeText(
+                        this@FloatingOverlayService,
+                        "已开始演奏《${song.title}》 (${song.noteCount}音符)\n$saveMsg$modeWarning",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } catch (e: Throwable) {
+                Log.e(TAG, "Unexpected error in downloadAndPlayOnlineSong", e)
+                withContext(Dispatchers.Main) {
+                    tvTip?.text = "❌ 运行异常: ${e.message}"
+                    Toast.makeText(this@FloatingOverlayService, "弹奏处理异常: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
