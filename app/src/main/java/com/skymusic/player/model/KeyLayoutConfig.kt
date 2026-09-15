@@ -13,7 +13,7 @@ data class KeyLayoutConfig(
     var centerYPercent: Float = 0.440f,   // 键盘中心 Y 比例 (往上微调20下：0.54f -> 0.440f)
     var spacingXPercent: Float = 0.082f, // 列间距比例 (约 8.2% 屏幕宽)
     var spacingYPercent: Float = 0.150f, // 行间距比例 (约 15% 屏幕高)
-    var scale: Float = 1.09f,            // 整体缩放系数 (放大3下：1.00f -> 1.09f)
+    var scale: Float = 1.1f,            // 整体缩放系数 (放大3下：1.00f -> 1.1f)
     var keyRadiusDp: Float = 26f         // 光圈视觉半径 dp
 ) {
     /**

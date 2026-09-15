@@ -448,42 +448,67 @@ object JianpuGenerator {
     }
 
     /**
-     * 将调试报文直接落地写入手机 Download/filesss 目录，便于排查接口返回格式
+     * 将调试报文直接落地写入手机 Download/filesss 目录（直接原地覆盖，不执行删除操作）
      */
     fun saveDebugFile(context: Context, filename: String, content: String): File? {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val resolver = context.contentResolver
-                val values = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, filename)
-                    put(MediaStore.Downloads.MIME_TYPE, "application/json")
-                    put(MediaStore.Downloads.RELATIVE_PATH, "Download/filesss")
-                    put(MediaStore.Downloads.IS_PENDING, 1)
+                val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+
+                // 1. 查询 MediaStore 中是否已经存在该文件
+                val projection = arrayOf(MediaStore.Downloads._ID)
+                val selection = "${MediaStore.Downloads.DISPLAY_NAME} = ? AND ${MediaStore.Downloads.RELATIVE_PATH} LIKE ?"
+                val selectionArgs = arrayOf(filename, "Download/filesss%")
+                
+                var targetUri: Uri? = null
+                resolver.query(collection, projection, selection, selectionArgs, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Downloads._ID)
+                        val id = cursor.getLong(idColumn)
+                        targetUri = ContentUris.withAppendedId(collection, id)
+                    }
                 }
-                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                if (uri != null) {
-                    resolver.openOutputStream(uri)?.use { os ->
+
+                // 2. 如果不存在才新建（insert）；如果已存在则直接复用 targetUri
+                if (targetUri == null) {
+                    val values = ContentValues().apply {
+                        put(MediaStore.Downloads.DISPLAY_NAME, filename)
+                        put(MediaStore.Downloads.MIME_TYPE, "application/json")
+                        put(MediaStore.Downloads.RELATIVE_PATH, "Download/filesss")
+                    }
+                    targetUri = resolver.insert(collection, values)
+                }
+
+                // 3. 原地覆盖写入内容（"rwt" 模式：清空现有内容重新写入，不破坏原有文件结构）
+                if (targetUri != null) {
+                    resolver.openOutputStream(targetUri!!, "rwt")?.use { os ->
                         os.write(content.toByteArray(Charsets.UTF_8))
                         os.flush()
                     }
-                    values.clear()
-                    values.put(MediaStore.Downloads.IS_PENDING, 0)
-                    resolver.update(uri, values, null, null)
                 }
-            }
 
-            val pub = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val dir = File(pub, "filesss")
-            if (!dir.exists()) dir.mkdirs()
-            val file = File(dir, filename)
-            OutputStreamWriter(FileOutputStream(file), "UTF-8").use {
-                it.write(content)
-                it.flush()
+                // 4. 返回对应的 File 句柄，注意这里直接 return，避免往下走造成二次写入
+                val pub = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                return File(File(pub, "filesss"), filename)
+            } else {
+                // Android 9 及以下走传统 File 覆盖写入
+                val pub = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val dir = File(pub, "filesss")
+                if (!dir.exists()) dir.mkdirs()
+                val file = File(dir, filename)
+
+                FileOutputStream(file, false).use { fos ->
+                    fos.write(content.toByteArray(Charsets.UTF_8))
+                    fos.flush()
+                }
+
+                try {
+                    MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null, null)
+                } catch (_: Exception) {}
+
+                return file
             }
-            try {
-                MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null, null)
-            } catch (_: Exception) {}
-            return file
         } catch (e: Exception) {
             Log.w(TAG, "Failed to save debug file $filename", e)
             return null
