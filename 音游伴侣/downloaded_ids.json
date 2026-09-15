@@ -1,11 +1,21 @@
 {
-  "last_updated": "2026-09-15 15:34:06",
-  "total_downloaded": 4,
+  "last_updated": "2026-09-15 07:54:05",
+  "total_downloaded": 14,
   "ids": [
+    20,
+    2411,
+    4262,
     5040,
+    9382,
+    29218,
     32170,
     32208,
-    38863
+    33729,
+    38863,
+    39110,
+    39155,
+    39200,
+    39214
   ],
   "records": {
     "32208": {
@@ -31,6 +41,66 @@
       "json_file": "32170_偏爱.json",
       "txt_file": "32170_偏爱_简谱.txt",
       "download_time": "2026-09-15 15:34:06"
+    },
+    "39214": {
+      "title": "鸟之诗-部分仿A叔",
+      "json_file": "39214_鸟之诗-部分仿A叔.json",
+      "txt_file": "39214_鸟之诗-部分仿A叔_简谱.txt",
+      "download_time": "2026-09-15 07:50:50"
+    },
+    "4262": {
+      "title": "坏女孩3",
+      "json_file": "4262_坏女孩3.json",
+      "txt_file": "4262_坏女孩3_简谱.txt",
+      "download_time": "2026-09-15 07:51:11"
+    },
+    "9382": {
+      "title": "溯reverse1",
+      "json_file": "9382_溯reverse1.json",
+      "txt_file": "9382_溯reverse1_简谱.txt",
+      "download_time": "2026-09-15 07:51:33"
+    },
+    "39200": {
+      "title": "Flower-Dance-花之舞",
+      "json_file": "39200_Flower-Dance-花之舞.json",
+      "txt_file": "39200_Flower-Dance-花之舞_简谱.txt",
+      "download_time": "2026-09-15 07:51:56"
+    },
+    "20": {
+      "title": "你的名字-约会",
+      "json_file": "20_你的名字-约会.json",
+      "txt_file": "20_你的名字-约会_简谱.txt",
+      "download_time": "2026-09-15 07:52:18"
+    },
+    "2411": {
+      "title": "第57次取消发送1",
+      "json_file": "2411_第57次取消发送1.json",
+      "txt_file": "2411_第57次取消发送1_简谱.txt",
+      "download_time": "2026-09-15 07:52:40"
+    },
+    "29218": {
+      "title": "Time-machine3",
+      "json_file": "29218_Time-machine3.json",
+      "txt_file": "29218_Time-machine3_简谱.txt",
+      "download_time": "2026-09-15 07:53:01"
+    },
+    "39110": {
+      "title": "Sacred-Play-Secret-Place",
+      "json_file": "39110_Sacred-Play-Secret-Place.json",
+      "txt_file": "39110_Sacred-Play-Secret-Place_简谱.txt",
+      "download_time": "2026-09-15 07:53:22"
+    },
+    "39155": {
+      "title": "反乌托邦",
+      "json_file": "39155_反乌托邦.json",
+      "txt_file": "39155_反乌托邦_简谱.txt",
+      "download_time": "2026-09-15 07:53:43"
+    },
+    "33729": {
+      "title": "时间煮雨-四人合奏谱",
+      "json_file": "33729_时间煮雨-四人合奏谱.json",
+      "txt_file": "33729_时间煮雨-四人合奏谱_简谱.txt",
+      "download_time": "2026-09-15 07:54:05"
     }
   }
 }
