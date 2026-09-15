@@ -63,8 +63,21 @@ object OnlineScoreParser {
                 if (b > 0) bpm = b
             }
 
-            for (k in arrayOf("data", "score", "file", "result", "content", "payload", "item", "response")) {
+            // 如果当前 obj 已经直接包含音符核心集合，坚决停止下潜拆箱！
+            val hasDirectNotes = arrayOf("tracks", "notes", "songNotes", "events", "noteList", "note_list").any {
+                obj.has(it) && !obj.get(it).isJsonNull
+            }
+            if (hasDirectNotes) {
+                break
+            }
+
+            // 优先解包可能承载音符数据的载荷 key，避开纯元数据节点 "score"
+            for (k in arrayOf("data", "file", "result", "content", "payload", "item", "sheet", "response", "score")) {
                 if (obj.has(k) && !obj.get(k).isJsonNull) {
+                    // 若 k 为 "score"，但兄弟节点里有 "file" 或 "tracks" 等实际数据，切勿下潜到仅包含元数据的 score
+                    if (k == "score" && (obj.has("file") || obj.has("data") || obj.has("tracks") || obj.has("content"))) {
+                        continue
+                    }
                     val child = obj.get(k)
                     if (child.isJsonObject || child.isJsonArray) {
                         target = child

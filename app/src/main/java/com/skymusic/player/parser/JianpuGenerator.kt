@@ -252,4 +252,47 @@ object JianpuGenerator {
             Result.failure(lastError ?: Exception("无法在任何存储候选目录中创建文件"))
         }
     }
+
+    /**
+     * 将调试报文直接落地写入手机 Download/filesss 目录，便于排查接口返回格式
+     */
+    fun saveDebugFile(context: Context, filename: String, content: String): File? {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val resolver = context.contentResolver
+                val values = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, filename)
+                    put(MediaStore.Downloads.MIME_TYPE, "application/json")
+                    put(MediaStore.Downloads.RELATIVE_PATH, "Download/filesss")
+                    put(MediaStore.Downloads.IS_PENDING, 1)
+                }
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                if (uri != null) {
+                    resolver.openOutputStream(uri)?.use { os ->
+                        os.write(content.toByteArray(Charsets.UTF_8))
+                        os.flush()
+                    }
+                    values.clear()
+                    values.put(MediaStore.Downloads.IS_PENDING, 0)
+                    resolver.update(uri, values, null, null)
+                }
+            }
+
+            val pub = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val dir = File(pub, "filesss")
+            if (!dir.exists()) dir.mkdirs()
+            val file = File(dir, filename)
+            OutputStreamWriter(FileOutputStream(file), "UTF-8").use {
+                it.write(content)
+                it.flush()
+            }
+            try {
+                MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null, null)
+            } catch (_: Exception) {}
+            return file
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to save debug file $filename", e)
+            return null
+        }
+    }
 }

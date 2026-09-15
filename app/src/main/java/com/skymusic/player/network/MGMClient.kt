@@ -370,6 +370,59 @@ class MGMClient private constructor(private val context: Context) {
             Log.d(TAG, "Download file response code: $code, length: ${responseBody.length}, snippet: ${responseBody.take(200)}")
 
             if (code in 200..299) {
+                // 检查是否为带有业务错误码的 JSON，例如 { "success": false, "message": "..." }
+                try {
+                    val root = JsonParser.parseString(responseBody)
+                    if (root.isJsonObject) {
+                        val rootObj = root.asJsonObject
+                        if (rootObj.has("success") && !rootObj.get("success").asBoolean) {
+                            val msg = if (rootObj.has("message")) rootObj.get("message").asString else "接口返回失败"
+                            return@withContext Result.failure(Exception(msg))
+                        }
+
+                        // 检查是否包含云存储重定向下载 URL (如 cos 或 cdn 链接)
+                        var directUrl: String? = null
+                        for (k in arrayOf("url", "download_url", "file_url", "fileUrl", "downloadUrl")) {
+                            if (rootObj.has(k) && !rootObj.get(k).isJsonNull) {
+                                val u = rootObj.get(k).asString.trim()
+                                if (u.startsWith("http://") || u.startsWith("https://")) {
+                                    directUrl = u
+                                    break
+                                }
+                            }
+                        }
+                        if (directUrl == null && rootObj.has("data")) {
+                            val d = rootObj.get("data")
+                            if (d.isJsonPrimitive && d.asJsonPrimitive.isString) {
+                                val u = d.asString.trim()
+                                if (u.startsWith("http://") || u.startsWith("https://")) {
+                                    directUrl = u
+                                }
+                            } else if (d.isJsonObject) {
+                                val dObj = d.asJsonObject
+                                for (k in arrayOf("url", "download_url", "file_url", "fileUrl", "downloadUrl", "file")) {
+                                    if (dObj.has(k) && !dObj.get(k).isJsonNull) {
+                                        val u = dObj.get(k).asString.trim()
+                                        if (u.startsWith("http://") || u.startsWith("https://")) {
+                                            directUrl = u
+                                            break
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!directUrl.isNullOrBlank()) {
+                            Log.i(TAG, "Score data points to external URL: $directUrl, downloading...")
+                            val extRes = fetchUrlContent(directUrl)
+                            if (extRes.isSuccess) {
+                                recordDownloadQuietly(scoreId)
+                                return@withContext extRes
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
+
                 // 异步发送一次下载计数审计 (与浏览器行为一致)
                 recordDownloadQuietly(scoreId)
                 Result.success(responseBody)
@@ -378,6 +431,27 @@ class MGMClient private constructor(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Download score file error", e)
+            Result.failure(e)
+        } finally {
+            conn?.disconnect()
+        }
+    }
+
+    private fun fetchUrlContent(targetUrl: String): Result<String> {
+        var conn: HttpURLConnection? = null
+        return try {
+            val url = URL(targetUrl)
+            conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "GET"
+            applyHeaders(conn, referer = BASE_URL)
+            val code = conn.responseCode
+            val body = readResponseBody(conn)
+            if (code in 200..299) {
+                Result.success(body)
+            } else {
+                Result.failure(Exception("拉取外链乐谱失败 (HTTP $code)"))
+            }
+        } catch (e: Exception) {
             Result.failure(e)
         } finally {
             conn?.disconnect()

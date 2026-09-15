@@ -928,6 +928,10 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
 
                 val rawJson = downloadRes.getOrNull() ?: ""
                 Log.d(TAG, "Downloaded score rawJson length: ${rawJson.length}")
+                Log.i("MGM_DEBUG", "Downloaded score for 《${songItem.title}》 (${rawJson.length} bytes):\n$rawJson")
+
+                // 立即将下载到的原始响应持久化为调试文件，手机文件管理器 Download/filesss/last_download_debug.json 即可直接打开
+                com.skymusic.player.parser.JianpuGenerator.saveDebugFile(this@FloatingOverlayService, "last_download_debug.json", rawJson)
 
                 // 2. 智能解析为 App 原生 Song 模型 (15 键 NoteEvent 时间轴)
                 withContext(Dispatchers.Main) {
@@ -935,10 +939,14 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
                 }
                 val song = com.skymusic.player.parser.OnlineScoreParser.parse(rawJson, songItem.title, songItem.bpm)
                 if (song.notes.isEmpty()) {
-                    Log.e(TAG, "Parsed song has 0 notes! Raw JSON preview: ${rawJson.take(300)}")
+                    Log.e(TAG, "Parsed song has 0 notes! Raw JSON preview: ${rawJson.take(500)}")
                     withContext(Dispatchers.Main) {
-                        tvTip?.text = "❌ 乐谱解析失败: 未识别到有效按键音符"
-                        Toast.makeText(this@FloatingOverlayService, "乐谱未包含有效按键音符数据", Toast.LENGTH_LONG).show()
+                        tvTip?.text = "❌ 乐谱未包含有效音符 (已写入 filesss 调试文件)"
+                        Toast.makeText(
+                            this@FloatingOverlayService,
+                            "未识别到有效按键音符\n原始报文已保存至:\nDownload/filesss/last_download_debug.json",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                     return@launch
                 }
