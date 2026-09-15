@@ -1,0 +1,36 @@
+{
+  "last_updated": "2026-09-15 15:34:06",
+  "total_downloaded": 4,
+  "ids": [
+    5040,
+    32170,
+    32208,
+    38863
+  ],
+  "records": {
+    "32208": {
+      "title": "唯一-邓紫棋",
+      "json_file": "32208_唯一-邓紫棋.json",
+      "txt_file": "32208_唯一-邓紫棋_简谱.txt",
+      "download_time": "2026-09-15 15:33:29"
+    },
+    "38863": {
+      "title": "Luvsic",
+      "json_file": "38863_Luvsic.json",
+      "txt_file": "38863_Luvsic_简谱.txt",
+      "download_time": "2026-09-15 15:33:41"
+    },
+    "5040": {
+      "title": "诀别书纯间奏版",
+      "json_file": "5040_诀别书纯间奏版.json",
+      "txt_file": "5040_诀别书纯间奏版_简谱.txt",
+      "download_time": "2026-09-15 15:33:54"
+    },
+    "32170": {
+      "title": "偏爱",
+      "json_file": "32170_偏爱.json",
+      "txt_file": "32170_偏爱_简谱.txt",
+      "download_time": "2026-09-15 15:34:06"
+    }
+  }
+}
