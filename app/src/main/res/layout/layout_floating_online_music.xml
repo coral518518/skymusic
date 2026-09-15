@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/llFloatingOnlineRoot"
+    android:layout_width="350dp"
+    android:layout_height="420dp"
+    android:orientation="vertical"
+    android:background="@drawable/bg_floating_panel"
+    android:padding="10dp"
+    android:elevation="16dp">
+
+    <!-- 1. 顶部标题栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="6dp">
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_floating_note"
+            app:tint="@color/sky_accent" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="音游伴侣 · 在线曲库"
+            android:textColor="@color/sky_text_primary"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:layout_marginStart="6dp" />
+
+        <Button
+            android:id="@+id/btnOnlineAccountToggle"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="24dp"
+            android:minWidth="0dp"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="0dp"
+            android:paddingBottom="0dp"
+            android:text="🔑 账号"
+            android:textSize="9sp"
+            android:textColor="@color/sky_text_secondary"
+            app:strokeColor="@color/sky_card_dark_stroke"
+            app:cornerRadius="12dp"
+            android:layout_marginEnd="6dp" />
+
+        <ImageButton
+            android:id="@+id/btnOnlineClose"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:src="@drawable/ic_close"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/sky_text_secondary"
+            android:padding="4dp"
+            android:contentDescription="关闭" />
+    </LinearLayout>
+
+    <!-- 2. 账号配置折叠栏 (账密可自定义修改，自动保存) -->
+    <LinearLayout
+        android:id="@+id/llOnlineAccountDrawer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/bg_card_rounded"
+        android:padding="8dp"
+        android:visibility="gone"
+        android:layout_marginBottom="6dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <EditText
+                android:id="@+id/etOnlineUsername"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:hint="用户名"
+                android:textColorHint="@color/sky_text_hint"
+                android:textColor="@color/sky_text_primary"
+                android:textSize="11sp"
+                android:background="@drawable/bg_card_rounded"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:singleLine="true"
+                android:layout_marginEnd="4dp" />
+
+            <EditText
+                android:id="@+id/etOnlinePassword"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:hint="密码"
+                android:inputType="textPassword"
+                android:textColorHint="@color/sky_text_hint"
+                android:textColor="@color/sky_text_primary"
+                android:textSize="11sp"
+                android:background="@drawable/bg_card_rounded"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:singleLine="true"
+                android:layout_marginEnd="6dp" />
+
+            <Button
+                android:id="@+id/btnOnlineSaveLogin"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:text="登录"
+                android:textSize="10sp"
+                android:textColor="@color/sky_primary"
+                app:strokeColor="@color/sky_primary"
+                app:cornerRadius="6dp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvOnlineAccountStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="账号状态: 就绪"
+            android:textColor="@color/sky_text_hint"
+            android:textSize="9sp"
+            android:layout_marginTop="3dp" />
+    </LinearLayout>
+
+    <!-- 3. 搜索与排序栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="6dp">
+
+        <EditText
+            android:id="@+id/etOnlineKeyword"
+            android:layout_width="0dp"
+            android:layout_height="32dp"
+            android:layout_weight="1"
+            android:hint="输入歌名/作者 (空则查全库)"
+            android:textColorHint="@color/sky_text_hint"
+            android:textColor="@color/sky_text_primary"
+            android:textSize="11sp"
+            android:background="@drawable/bg_card_rounded"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:singleLine="true"
+            android:imeOptions="actionSearch" />
+
+        <Button
+            android:id="@+id/btnOnlineSearch"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:minWidth="50dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:text="搜索"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="@color/sky_primary"
+            app:strokeColor="@color/sky_primary"
+            app:cornerRadius="6dp"
+            android:layout_marginStart="4dp" />
+
+        <Button
+            android:id="@+id/btnOnlineSortToggle"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:minWidth="54dp"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:text="🔥最热"
+            android:textSize="10sp"
+            android:textColor="@color/sky_text_secondary"
+            app:strokeColor="@color/sky_card_dark_stroke"
+            app:cornerRadius="6dp"
+            android:layout_marginStart="4dp" />
+    </LinearLayout>
+
+    <!-- 4. 歌曲列表与加载态 -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvOnlineSongList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scrollbars="vertical" />
+
+        <ProgressBar
+            android:id="@+id/pbOnlineLoading"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_gravity="center"
+            android:visibility="gone"
+            android:indeterminateTint="@color/sky_primary" />
+
+        <TextView
+            android:id="@+id/tvOnlineEmpty"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="输入关键字开始搜索乐谱"
+            android:textColor="@color/sky_text_hint"
+            android:textSize="12sp" />
+    </FrameLayout>
+
+    <!-- 5. 底部提示栏 -->
+    <TextView
+        android:id="@+id/tvOnlineBottomTip"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="💡 点击【▶ 弹奏】自动下载全谱、转成简谱存至 filesss 目录并直接演奏"
+        android:textColor="@color/sky_text_hint"
+        android:textSize="9sp"
+        android:gravity="center"
+        android:layout_marginTop="6dp" />
+
+</LinearLayout>

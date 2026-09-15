@@ -269,7 +269,7 @@
             app:cornerRadius="13dp" />
     </LinearLayout>
 
-    <!-- 6. 底部功能栏：本地导入、曲库、退出 (横向紧凑，下置展示) -->
+    <!-- 6. 底部功能栏：本地导入、曲库、在线、退出 (横向紧凑，下置展示) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -307,7 +307,24 @@
             android:textColor="@color/sky_text_primary"
             app:strokeColor="@color/sky_card_dark_stroke"
             app:cornerRadius="13dp"
-            android:layout_marginStart="4dp" />
+            android:layout_marginStart="3dp" />
+
+        <Button
+            android:id="@+id/btnFloatOnline"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="26dp"
+            android:layout_weight="1"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp"
+            android:paddingTop="0dp"
+            android:paddingBottom="0dp"
+            android:text="🌐 在线"
+            android:textSize="10sp"
+            android:textColor="@color/sky_accent"
+            app:strokeColor="@color/sky_accent"
+            app:cornerRadius="13dp"
+            android:layout_marginStart="3dp" />
 
         <Button
             android:id="@+id/btnFloatHideAll"
@@ -324,7 +341,7 @@
             android:textColor="@color/sky_text_secondary"
             app:strokeColor="@color/sky_card_dark_stroke"
             app:cornerRadius="13dp"
-            android:layout_marginStart="4dp" />
+            android:layout_marginStart="3dp" />
     </LinearLayout>
 
 </LinearLayout>

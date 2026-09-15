@@ -25,8 +25,13 @@ import com.skymusic.player.engine.PlayEngine
 import com.skymusic.player.engine.PlayState
 import com.skymusic.player.engine.RootTouchController
 import com.skymusic.player.model.Song
+import com.skymusic.player.network.MGMClient
+import com.skymusic.player.network.MGMSongItem
+import com.skymusic.player.parser.JianpuGenerator
+import com.skymusic.player.parser.OnlineScoreParser
 import com.skymusic.player.parser.SheetImporter
 import com.skymusic.player.ui.KeyVisualizerView
+import com.skymusic.player.ui.OnlineSongAdapter
 import com.skymusic.player.util.PresetSongs
 import kotlinx.coroutines.*
 import java.io.File
@@ -77,6 +82,14 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
     private var isPickerAdded = false
     private var currentBrowseDir: File = getInitialDownloadDir()
 
+    // 音游伴侣在线曲库浮层视图与参数
+    private var onlineView: View? = null
+    private var onlineParams: WindowManager.LayoutParams? = null
+    private var isOnlineAdded = false
+    private lateinit var mgmClient: com.skymusic.player.network.MGMClient
+    private var onlineSongAdapter: com.skymusic.player.ui.OnlineSongAdapter? = null
+    private var currentOnlineSort = "hot"
+
     // 悬浮窗控件引用
     private var tvSongTitle: TextView? = null
     private var sbProgress: SeekBar? = null
@@ -100,6 +113,7 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         instance = this
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         layoutManager = KeyLayoutManager.getInstance(this)
+        mgmClient = com.skymusic.player.network.MGMClient.getInstance(this)
         playEngine.listener = this
 
         // 读取防检测延迟设置
@@ -339,6 +353,12 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         // 选歌对话菜单 (曲库预设与已导入)
         panelView?.findViewById<View>(R.id.btnFloatSelectSong)?.setOnClickListener {
             showSongPickerMenu()
+        }
+
+        // 打开音游伴侣在线曲库浮层
+        panelView?.findViewById<View>(R.id.btnFloatOnline)?.setOnClickListener {
+            hideControlPanel()
+            showOnlineOverlay()
         }
 
         // 直接打开本地文件选择浮层 (默认 Download 目录即选即播)
@@ -697,6 +717,245 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
     }
 
     // ----------------------------------------------------------------
+    // 2.6 音游伴侣在线曲库浮层 (支持在线搜索、登录配置、下载、自动转简谱并秒切播放)
+    // ----------------------------------------------------------------
+    private fun initOnlineOverlay() {
+        val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+
+        val dm = resources.displayMetrics
+        val width = (350f * dm.density).toInt().coerceAtMost((dm.widthPixels * 0.94f).toInt())
+        val height = (420f * dm.density).toInt().coerceAtMost((dm.heightPixels * 0.90f).toInt())
+
+        onlineParams = WindowManager.LayoutParams(
+            width,
+            height,
+            layoutType,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.CENTER
+        }
+
+        onlineView = themedInflater.inflate(R.layout.layout_floating_online_music, null)
+
+        val v = onlineView ?: return
+        val btnClose = v.findViewById<ImageButton>(R.id.btnOnlineClose)
+        val btnAccountToggle = v.findViewById<Button>(R.id.btnOnlineAccountToggle)
+        val drawer = v.findViewById<LinearLayout>(R.id.llOnlineAccountDrawer)
+        val etUser = v.findViewById<EditText>(R.id.etOnlineUsername)
+        val etPass = v.findViewById<EditText>(R.id.etOnlinePassword)
+        val btnSaveLogin = v.findViewById<Button>(R.id.btnOnlineSaveLogin)
+        val tvStatus = v.findViewById<TextView>(R.id.tvOnlineAccountStatus)
+
+        val etKeyword = v.findViewById<EditText>(R.id.etOnlineKeyword)
+        val btnSearch = v.findViewById<Button>(R.id.btnOnlineSearch)
+        val btnSort = v.findViewById<Button>(R.id.btnOnlineSortToggle)
+        val rvList = v.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rvOnlineSongList)
+
+        // 初始化账号与密码回显
+        etUser.setText(mgmClient.getSavedUsername())
+        etPass.setText(mgmClient.getSavedPassword())
+        tvStatus.text = if (mgmClient.isLoggedIn()) "账号状态: 已保存登录凭据" else "账号状态: 未登录 (默认内置 lollol)"
+
+        // 展开/折叠账号配置抽屉
+        btnAccountToggle.setOnClickListener {
+            drawer.visibility = if (drawer.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        }
+
+        // 保存账密并执行登录验证
+        btnSaveLogin.setOnClickListener {
+            val u = etUser.text.toString().trim()
+            val p = etPass.text.toString().trim()
+            if (u.isEmpty() || p.isEmpty()) {
+                Toast.makeText(this, "请输入用户名与密码", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            tvStatus.text = "正在登录验证中..."
+            btnSaveLogin.isEnabled = false
+            serviceScope.launch {
+                val res = mgmClient.login(u, p)
+                btnSaveLogin.isEnabled = true
+                if (res.isSuccess) {
+                    tvStatus.text = "账号状态: 登录成功并已持久化保存"
+                    Toast.makeText(this@FloatingOverlayService, "音游伴侣账号登录成功！", Toast.LENGTH_SHORT).show()
+                    drawer.visibility = View.GONE
+                    performOnlineSearch(etKeyword.text.toString().trim())
+                } else {
+                    val err = res.exceptionOrNull()?.message ?: "未知异常"
+                    tvStatus.text = "登录失败: $err"
+                    Toast.makeText(this@FloatingOverlayService, "登录失败: $err", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
+        // 关闭浮层并恢复主控制面板
+        btnClose.setOnClickListener {
+            hideOnlineOverlay()
+            showControlPanel()
+        }
+
+        // 排序切换 (最热 / 最新)
+        btnSort.setOnClickListener {
+            if (currentOnlineSort == "hot") {
+                currentOnlineSort = "latest"
+                btnSort.text = "🕒最新"
+            } else {
+                currentOnlineSort = "hot"
+                btnSort.text = "🔥最热"
+            }
+            performOnlineSearch(etKeyword.text.toString().trim())
+        }
+
+        // 搜索触发
+        btnSearch.setOnClickListener {
+            performOnlineSearch(etKeyword.text.toString().trim())
+        }
+
+        etKeyword.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                performOnlineSearch(etKeyword.text.toString().trim())
+                true
+            } else {
+                false
+            }
+        }
+
+        // 列表与适配器配置
+        rvList.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        onlineSongAdapter = com.skymusic.player.ui.OnlineSongAdapter(emptyList()) { songItem ->
+            downloadAndPlayOnlineSong(songItem)
+        }
+        rvList.adapter = onlineSongAdapter
+    }
+
+    private fun showOnlineOverlay() {
+        if (onlineView == null) {
+            initOnlineOverlay()
+        }
+        if (!isOnlineAdded && onlineView != null && onlineParams != null) {
+            try {
+                windowManager.addView(onlineView, onlineParams)
+                isOnlineAdded = true
+                val etKeyword = onlineView?.findViewById<EditText>(R.id.etOnlineKeyword)
+                performOnlineSearch(etKeyword?.text?.toString()?.trim() ?: "")
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to show online overlay", e)
+            }
+        }
+    }
+
+    private fun hideOnlineOverlay() {
+        if (isOnlineAdded && onlineView != null) {
+            try {
+                windowManager.removeView(onlineView)
+                isOnlineAdded = false
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to hide online overlay", e)
+            }
+        }
+    }
+
+    private fun performOnlineSearch(keyword: String) {
+        val view = onlineView ?: return
+        val pbLoading = view.findViewById<ProgressBar>(R.id.pbOnlineLoading)
+        val tvEmpty = view.findViewById<TextView>(R.id.tvOnlineEmpty)
+        val rvList = view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rvOnlineSongList)
+
+        pbLoading.visibility = View.VISIBLE
+        tvEmpty.visibility = View.GONE
+
+        serviceScope.launch {
+            val result = mgmClient.searchScores(keyword = keyword, page = 1, pageSize = 30, sort = currentOnlineSort)
+            pbLoading.visibility = View.GONE
+            if (result.isSuccess) {
+                val searchData = result.getOrNull()
+                val items = searchData?.items ?: emptyList()
+                if (items.isEmpty()) {
+                    tvEmpty.text = if (keyword.isBlank()) "暂无乐谱推荐" else "未找到与「$keyword」相关的乐谱"
+                    tvEmpty.visibility = View.VISIBLE
+                    rvList.visibility = View.GONE
+                } else {
+                    tvEmpty.visibility = View.GONE
+                    rvList.visibility = View.VISIBLE
+                    onlineSongAdapter?.submitList(items)
+                }
+            } else {
+                val err = result.exceptionOrNull()?.message ?: "网络请求异常"
+                tvEmpty.text = "获取失败: $err\n请检查网络或点击【🔑 账号】登录验证"
+                tvEmpty.visibility = View.VISIBLE
+                rvList.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun downloadAndPlayOnlineSong(songItem: com.skymusic.player.network.MGMSongItem) {
+        Toast.makeText(this, "正在下载《${songItem.title}》全量乐谱...", Toast.LENGTH_SHORT).show()
+
+        serviceScope.launch(Dispatchers.IO) {
+            // 确保 Session Cookie 处于可用状态 (若未登录则先用已配置账密静默登录)
+            if (!mgmClient.isLoggedIn()) {
+                mgmClient.login()
+            }
+
+            // 1. 调用 GET /scores/{id}/file?variant=full 下载全量 JSON
+            val downloadRes = mgmClient.downloadScoreFile(songItem.id)
+            if (downloadRes.isFailure) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@FloatingOverlayService, "下载乐谱失败: ${downloadRes.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                }
+                return@launch
+            }
+
+            val rawJson = downloadRes.getOrNull() ?: ""
+            // 2. 智能解析为 App 原生 Song 模型 (15 键 NoteEvent 时间轴)
+            val song = com.skymusic.player.parser.OnlineScoreParser.parse(rawJson, songItem.title, songItem.bpm)
+            if (song.notes.isEmpty()) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@FloatingOverlayService, "乐谱未包含有效按键音符数据", Toast.LENGTH_LONG).show()
+                }
+                return@launch
+            }
+
+            // 3. 核心需求：后台按音游伴侣 16 槽位量化算法自动转成标准简谱，并保存至 Download/filesss/ 目录
+            val saveResult = com.skymusic.player.parser.JianpuGenerator.convertAndSaveToFilesss(song, rawJson)
+            val saveMsg = if (saveResult.isSuccess) {
+                "简谱已自动生成至:\nDownload/filesss/${song.title}_简谱.txt"
+            } else {
+                "简谱保存异常: ${saveResult.exceptionOrNull()?.message}"
+            }
+
+            withContext(Dispatchers.Main) {
+                // 4. 接入现有弹奏逻辑：载入 PlayEngine 并无缝触发钢琴演奏
+                val existingIndex = currentSongList.indexOfFirst { it.id == song.id || it.title == song.title }
+                if (existingIndex >= 0) {
+                    currentSongList[existingIndex] = song
+                } else {
+                    currentSongList.add(0, song)
+                }
+
+                playEngine.loadSong(song)
+                updatePanelSongInfo(song)
+                playEngine.play()
+
+                // 关闭在线浮层，唤出控制面板
+                hideOnlineOverlay()
+                showControlPanel()
+
+                Toast.makeText(
+                    this@FloatingOverlayService,
+                    "已开始演奏《${song.title}》 (${song.noteCount}音符)\n$saveMsg",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------
     // 3. 屏幕按键对齐校准全屏浮层 (按需挂载，保存后即移除)
     // ----------------------------------------------------------------
     private fun initCalibrateOverlay() {
@@ -923,6 +1182,10 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         if (isPickerAdded && filePickerView != null) {
             try { windowManager.removeView(filePickerView) } catch (_: Throwable) {}
             isPickerAdded = false
+        }
+        if (isOnlineAdded && onlineView != null) {
+            try { windowManager.removeView(onlineView) } catch (_: Throwable) {}
+            isOnlineAdded = false
         }
     }
 }
