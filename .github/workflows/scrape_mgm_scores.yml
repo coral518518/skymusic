@@ -211,5 +211,6 @@ jobs:
           path: |
             音游伴侣/scores/
             音游伴侣/downloaded_ids.json
+            音游伴侣/auth_state.json
           if-no-files-found: ignore
           retention-days: 30

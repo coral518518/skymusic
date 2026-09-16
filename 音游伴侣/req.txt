@@ -911,3 +911,25 @@ x-robots-tag: noindex, nofollow
         ]
     }
 }
+
+
+ 
+点赞
+POST https://mgm.jie-you.cn/web-api/business/scores/13239/like
+【Headers】
+同10下载接口
+请求body空
+响应{
+     "success": true,
+    "data": {}//无需处理
+}
+
+收藏
+POST https://mgm.jie-you.cn/web-api/business/scores/13239/favorite
+【Headers】
+同10下载接口
+请求body空
+响应{
+     "success": true,
+    "data": {}//无需处理
+}

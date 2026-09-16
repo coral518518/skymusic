@@ -14,6 +14,7 @@ import re
 import argparse
 import urllib.parse
 import builtins
+import random
 from datetime import datetime
 from typing import Set, Dict, Any, List, Optional
 from playwright.sync_api import sync_playwright, BrowserContext, Page
@@ -42,6 +43,7 @@ REPO_ROOT = os.path.dirname(SCRIPT_DIR) if os.path.basename(SCRIPT_DIR) == "音�
 
 DEFAULT_SAVE_DIR = os.path.join(REPO_ROOT, "音游伴侣", "scores")
 DEFAULT_INDEX_FILE = os.path.join(REPO_ROOT, "音游伴侣", "downloaded_ids.json")
+DEFAULT_AUTH_FILE = os.path.join(REPO_ROOT, "音游伴侣", "auth_state.json")
 
 DEGREE_NAMES = ["1", "2", "3", "4", "5", "6", "7"]
 
@@ -256,6 +258,142 @@ def save_downloaded_index(index_file: str, index_data: dict, downloaded_ids: Set
         json.dump(index_data, f, ensure_ascii=False, indent=2)
 
 
+def interact_score(context: BrowserContext, sid: int, title: str, common_headers: dict):
+    """
+    下载成功后 30% 概率触发点赞或收藏，模拟真实用户交互行为。
+    下载成功 3 秒后执行，全链路异常保护，绝不抛出异常或阻塞主流程，日志实时输出到控制台。
+    """
+    try:
+        if random.random() >= 0.30:
+            return
+
+        action_type = random.choice(["like", "favorite"])
+        action_name = "点赞" if action_type == "like" else "收藏"
+
+        print(f"  [🎲 互动触发] 命中 30% 交互概率，将在 3 秒后对 ID {sid} 执行【{action_name}】...")
+        time.sleep(3)
+
+        interact_url = f"https://mgm.jie-you.cn/web-api/business/scores/{sid}/{action_type}"
+        resp = context.request.post(
+            interact_url,
+            headers={
+                **common_headers,
+                "origin": "https://mgm.jie-you.cn",
+                "referer": f"https://mgm.jie-you.cn/scores/{sid}",
+                "content-length": "0",
+            },
+            data="",
+            timeout=10000,
+        )
+
+        if resp.status == 200:
+            print(f"  [❤️ {action_name}成功] ID {sid} 《{title}》已成功【{action_name}】(HTTP 200)")
+        elif resp.status == 429:
+            print(f"  [⚠️ {action_name}限流] ID {sid} 执行【{action_name}】收到 HTTP 429，已跳过互动")
+        else:
+            print(f"  [⚠️ {action_name}返回] ID {sid} HTTP 状态码 {resp.status}，响应内容: {resp.text()[:100]}")
+    except Exception as e:
+        # 处理不抛出任何异常，确保主抓取流程绝对稳定
+        print(f"  [⚠️ 互动异常] ID {sid} 执行点赞/收藏异常（已安全捕获忽略）: {e}")
+
+
+def save_auth_state(context: BrowserContext, auth_file: str):
+    """持久化保存当前登录会话票据 (Cookies 与 LocalStorage)"""
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(auth_file)), exist_ok=True)
+        context.storage_state(path=auth_file)
+        cookies = context.cookies()
+        print(f"[+] 登录票据已成功保存至: {auth_file} (已持久化 {len(cookies)} 个 Cookie)")
+    except Exception as e:
+        print(f"[⚠️ 票据保存失败] {e}")
+
+
+def is_auth_valid(context: BrowserContext, common_headers: dict) -> bool:
+    """
+    检查当前会话中的登录票据是否仍然有效。
+    调用需鉴权的用户接口 (interaction-center/summary)，判断票据是否有效。
+    """
+    try:
+        res = context.request.get(
+            "https://mgm.jie-you.cn/web-api/user/interaction-center/summary",
+            headers={
+                **common_headers,
+                "referer": "https://mgm.jie-you.cn/",
+            },
+            timeout=10000,
+        )
+        if res.status == 200:
+            try:
+                data = res.json()
+                if isinstance(data, dict) and data.get("success") is True:
+                    return True
+            except Exception:
+                return True
+        elif res.status in (401, 403):
+            return False
+    except Exception as e:
+        print(f"  [*] 校验登录票据网络异常: {e}")
+    return False
+
+
+def perform_login(context: BrowserContext, page: Optional[Page], username: str, password: str, common_headers: dict, auth_file: str) -> bool:
+    """执行账号认证登录流程 (优先 API 极速登录，失败则使用浏览器前端表单兜底)，成功后保存票据"""
+    print(f"[*] 正在执行音游伴侣账号认证 (账号: {username})...")
+    login_success = False
+    login_payload = {
+        "username": username,
+        "password": password,
+        "device_name": "Web 浏览器",
+        "platform": "web",
+    }
+    try:
+        api_res = context.request.post(
+            "https://mgm.jie-you.cn/web-api/user/auth/login",
+            headers={
+                **common_headers,
+                "content-type": "application/json",
+                "origin": "https://mgm.jie-you.cn",
+                "referer": "https://mgm.jie-you.cn/login",
+            },
+            data=json.dumps(login_payload),
+            timeout=15000,
+        )
+        print(f"[+] 登录接口响应状态码: {api_res.status}")
+        if api_res.status == 200:
+            print("[✓] 音游伴侣 API 认证成功！")
+            login_success = True
+    except Exception as e:
+        print(f"[*] API 直连登录跳过: {e}")
+
+    # 若 API 登录失败，尝试浏览器前端表单兜底登录
+    if not login_success and page:
+        print("[*] 尝试通过浏览器表单进行兜底登录: https://mgm.jie-you.cn/login ...")
+        try:
+            page.goto("https://mgm.jie-you.cn/login", wait_until="domcontentloaded", timeout=30000)
+            user_input = page.wait_for_selector('input[type="text"], input[name="username"], input[placeholder*="账号"], input[placeholder*="用户名"]', timeout=6000)
+            pass_input = page.wait_for_selector('input[type="password"], input[name="password"], input[placeholder*="密码"]', timeout=6000)
+            if user_input and pass_input:
+                user_input.fill(username)
+                pass_input.fill(password)
+                page.wait_for_timeout(500)
+                login_btn = page.query_selector('button[type="submit"], button:has-text("登录")')
+                if login_btn:
+                    login_btn.click()
+                    page.wait_for_timeout(3000)
+                    print("[+] 已提交前端登录表单")
+                    if is_auth_valid(context, common_headers):
+                        login_success = True
+        except Exception as e:
+            print(f"[!] 兜底登录异常: {e}")
+
+    if login_success:
+        save_auth_state(context, auth_file)
+    else:
+        print("[⚠️ 登录警告] 账号认证未确认成功，将尝试以现有会话继续...")
+
+    return login_success
+
+
 def main():
     parser = argparse.ArgumentParser(description="音游伴侣全量乐谱自动抓取与简谱生成归档器")
     parser.add_argument("--max-count", type=int, default=int(os.environ.get("MAX_COUNT", 100)), help="本次抓取最大数量 (默认 100)")
@@ -273,6 +411,7 @@ def main():
     parser.add_argument("--password", type=str, default=os.environ.get("MGM_PASSWORD", "123456"), help="音游伴侣登录密码")
     parser.add_argument("--start-page", type=int, default=int(os.environ.get("START_PAGE", 1)), help="起始页码 (默认 1)")
     parser.add_argument("--save-dir", type=str, default=os.environ.get("SAVE_DIR", DEFAULT_SAVE_DIR), help="乐谱与简谱保存目录")
+    parser.add_argument("--auth-file", type=str, default=os.environ.get("AUTH_FILE", DEFAULT_AUTH_FILE), help="登录票据存储路径 (默认 音游伴侣/auth_state.json)")
     parser.add_argument("--headless", type=str, default=os.environ.get("HEADLESS", "false"), help="是否以无头模式运行 (使用 Xvfb 时应为 false)")
     args = parser.parse_args()
 
@@ -286,6 +425,7 @@ def main():
     password = args.password.strip()
     start_page = max(1, args.start_page)
     save_dir = os.path.abspath(args.save_dir)
+    auth_file = os.path.abspath(args.auth_file)
     is_headless = args.headless.lower() == "true"
 
     os.makedirs(save_dir, exist_ok=True)
@@ -298,6 +438,7 @@ def main():
     print(f"⏱️ 速率限制: {rate_per_hour} 个/小时 (单次间隔约 {delay_between_scores:.1f} 秒)")
     print(f"📄 起始页码: 第 {start_page} 页 (按播放量最多排序 sort=plays)")
     print(f"👤 登录账号: {username}")
+    print(f"🔑 票据文件: {auth_file}")
     print(f"📁 保存目录: {save_dir}")
     print("=" * 60)
 
@@ -331,19 +472,33 @@ def main():
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
         }
 
-        context: BrowserContext = browser.new_context(
-            viewport={"width": 1920, "height": 1080},
-            user_agent=common_headers["user-agent"],
-            locale="zh-CN",
-            timezone_id="Asia/Shanghai",
-            extra_http_headers={
+        # 准备 BrowserContext 启动配置 (若本地存在历史票据则自动装载会话)
+        context_kwargs = {
+            "viewport": {"width": 1920, "height": 1080},
+            "user_agent": common_headers["user-agent"],
+            "locale": "zh-CN",
+            "timezone_id": "Asia/Shanghai",
+            "extra_http_headers": {
                 "accept-language": common_headers["accept-language"],
                 "sec-ch-ua": common_headers["sec-ch-ua"],
                 "sec-ch-ua-mobile": common_headers["sec-ch-ua-mobile"],
                 "sec-ch-ua-platform": common_headers["sec-ch-ua-platform"],
             },
-        )
+        }
 
+        has_local_auth = False
+        if os.path.exists(auth_file) and os.path.getsize(auth_file) > 10:
+            try:
+                with open(auth_file, "r", encoding="utf-8") as f:
+                    auth_data = json.load(f)
+                    if isinstance(auth_data, dict) and (auth_data.get("cookies") or auth_data.get("origins")):
+                        context_kwargs["storage_state"] = auth_file
+                        has_local_auth = True
+                        print(f"[*] 发现本地已保存登录票据: {auth_file}，已预先装入浏览器会话")
+            except Exception as e:
+                print(f"[*] 读取本地票据异常 ({e})，将重新登录")
+
+        context: BrowserContext = browser.new_context(**context_kwargs)
         page: Page = context.new_page()
 
         # 拦截无用的媒体、图片与字体请求，节省网络带宽与请求量
@@ -355,52 +510,18 @@ def main():
         except Exception:
             pass
 
-        # 1. 登录流程 (优先 API 极速认证，无需渲染登录页面)
-        print("[*] 正在执行音游伴侣账号认证...")
-        login_success = False
-        login_payload = {
-            "username": username,
-            "password": password,
-            "device_name": "Web 浏览器",
-            "platform": "web",
-        }
-        try:
-            api_res = context.request.post(
-                "https://mgm.jie-you.cn/web-api/user/auth/login",
-                headers={
-                    **common_headers,
-                    "content-type": "application/json",
-                    "origin": "https://mgm.jie-you.cn",
-                    "referer": "https://mgm.jie-you.cn/login",
-                },
-                data=json.dumps(login_payload),
-                timeout=15000,
-            )
-            print(f"[+] 登录接口响应状态码: {api_res.status}")
-            if api_res.status == 200:
-                print("[✓] 音游伴侣账号认证成功！")
-                login_success = True
-        except Exception as e:
-            print(f"[*] API 直连登录跳过: {e}")
+        # 1. 登录会话校验与执行 (若本地票据有效则直接跳过登录；若失效或无票据才执行登录)
+        need_login = True
+        if has_local_auth:
+            print("[*] 正在校验本地登录票据有效性...")
+            if is_auth_valid(context, common_headers):
+                print("[✓] 本地登录票据依然有效，无需重复登录（模拟真实长期在线用户）！")
+                need_login = False
+            else:
+                print("[*] 本地登录票据已失效或过期，准备重新登录获取新票据...")
 
-        # 若 API 登录失败，尝试浏览器前端表单兜底登录
-        if not login_success:
-            print("[*] 尝试通过浏览器表单进行兜底登录: https://mgm.jie-you.cn/login ...")
-            try:
-                page.goto("https://mgm.jie-you.cn/login", wait_until="domcontentloaded", timeout=30000)
-                user_input = page.wait_for_selector('input[type="text"], input[name="username"], input[placeholder*="账号"], input[placeholder*="用户名"]', timeout=6000)
-                pass_input = page.wait_for_selector('input[type="password"], input[name="password"], input[placeholder*="密码"]', timeout=6000)
-                if user_input and pass_input:
-                    user_input.fill(username)
-                    pass_input.fill(password)
-                    page.wait_for_timeout(500)
-                    login_btn = page.query_selector('button[type="submit"], button:has-text("登录")')
-                    if login_btn:
-                        login_btn.click()
-                        page.wait_for_timeout(3000)
-                        print("[+] 已提交前端登录表单")
-            except Exception as e:
-                print(f"[!] 兜底登录异常: {e}，尝试继续进入曲库...")
+        if need_login:
+            perform_login(context, page, username, password, common_headers, auth_file)
 
         # 2. 遍历播放最多列表页面 (sort=plays)
         current_page = start_page
@@ -537,6 +658,19 @@ def main():
                         timeout=20000,
                     )
 
+                    # 如果遇到 401 票据过期，重新登录并重试一次下载
+                    if file_resp.status == 401:
+                        print(f"  [⚠️ 票据失效 401] 下载 ID {sid} 遇到 401 未授权，正在重新登录刷新票据...")
+                        if perform_login(context, page, username, password, common_headers, auth_file):
+                            file_resp = context.request.get(
+                                download_url,
+                                headers={
+                                    **common_headers,
+                                    "referer": f"https://mgm.jie-you.cn/scores/{sid}",
+                                },
+                                timeout=20000,
+                            )
+
                     if file_resp.status == 429:
                         print(f"  [🚫 触发限流 429] 下载 ID {sid} 时收到 HTTP 429 (Too Many Requests)！平台频率受限，立即终止抓取退出。")
                         is_rate_limited = True
@@ -575,6 +709,9 @@ def main():
 
                     scraped_this_run += 1
                     print(f"  [✅ 成功] ({scraped_this_run}/{max_count}) 已归档: {json_filename} 及简谱")
+
+                    # 下载成功后 30% 概率触发点赞或收藏互动 (延迟3秒执行，全异常捕获)
+                    interact_score(context, sid, title, common_headers)
 
                     # 速率控制 (防封/防风控)
                     if scraped_this_run < max_count:
