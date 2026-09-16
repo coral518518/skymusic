@@ -129,29 +129,45 @@ object JianpuGenerator {
         title.replace(Regex("""[\\/:*?"<>|]"""), "_").trim().ifBlank { "乐谱_${System.currentTimeMillis()}" }
 
     fun getCandidateDirectories(context: Context): List<File> {
-        val candidateDirs = mutableListOf<File>()
+        val candidateDirs = LinkedHashSet<File>()
 
-        // 候选 1: /storage/emulated/0/Download/filesss
+        // 1. 公共 Download 及其子目录 (filesss 与 scores)
         try {
             val pub = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            if (pub != null) candidateDirs.add(File(pub, "filesss"))
+            if (pub != null) {
+                candidateDirs.add(File(pub, "filesss"))
+                candidateDirs.add(File(pub, "scores"))
+                candidateDirs.add(pub)
+            }
         } catch (_: Exception) {}
 
-        // 候选 2: /sdcard/Download/filesss
+        // 2. /sdcard/Download 及其子目录
         try {
             val sd = Environment.getExternalStorageDirectory()
-            if (sd != null) candidateDirs.add(File(sd, "Download/filesss"))
+            if (sd != null) {
+                val download = File(sd, "Download")
+                candidateDirs.add(File(download, "filesss"))
+                candidateDirs.add(File(download, "scores"))
+                candidateDirs.add(download)
+            }
         } catch (_: Exception) {}
 
-        // 候选 3: 应用外部存储文件目录
+        // 3. 应用外部存储文件目录
         try {
             val ext = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-            if (ext != null) candidateDirs.add(File(ext, "filesss"))
+            if (ext != null) {
+                candidateDirs.add(File(ext, "filesss"))
+                candidateDirs.add(File(ext, "scores"))
+                candidateDirs.add(ext)
+            }
         } catch (_: Exception) {}
 
-        // 候选 4: 应用内部文件目录兜底
+        // 4. 应用内部文件目录兜底
         candidateDirs.add(File(context.filesDir, "filesss"))
-        return candidateDirs
+        candidateDirs.add(File(context.filesDir, "scores"))
+        candidateDirs.add(context.filesDir)
+
+        return candidateDirs.toList()
     }
 
     fun getCandidateJsonFileNames(context: Context, scoreId: Long, title: String): List<String> {
@@ -169,7 +185,16 @@ object JianpuGenerator {
             } catch (_: Exception) {}
         }
 
-        // 2. 基于标题的标准命名
+        // 2. 基于 ID 和标题组合命名
+        if (scoreId > 0) {
+            if (sanitized.isNotBlank()) {
+                names.add("${scoreId}_${sanitized}.json")
+                names.add("${sanitized}_${scoreId}.json")
+            }
+            names.add("${scoreId}.json")
+        }
+
+        // 3. 基于标题的标准命名
         if (sanitized.isNotBlank()) {
             names.add("${sanitized}.json")
         }
@@ -178,31 +203,50 @@ object JianpuGenerator {
             names.add("${cleanTitle}.json")
         }
 
-        // 3. 基于 ID 和标题组合命名
-        if (scoreId > 0) {
-            if (sanitized.isNotBlank()) {
-                names.add("${sanitized}_${scoreId}.json")
-                names.add("${scoreId}_${sanitized}.json")
-            }
-            names.add("${scoreId}.json")
-        }
-
         return names.toList()
     }
 
     /**
-     * 智能检测并读取本地已保存的乐谱 (优先在系统的 Download/filesss/ 查找)
-     * 支持通过 ID 历史映射或歌名模糊匹配，命中了直接返回 JSON 原文，无需重复调用网络下载
+     * 智能检测并读取本地已保存的乐谱 (优先在内置 assets、Download/filesss/、Download/ 等查找)
+     * 支持通过 ID 历史映射、前缀匹配或歌名模糊匹配，命中了直接返回 JSON 原文，无需重复调用网络下载
      */
     fun findLocalScore(context: Context, scoreId: Long, title: String): LocalScoreInfo? {
-        val candidateNames = getCandidateJsonFileNames(context, scoreId, title)
         val sanitized = sanitizeFileName(title)
         val jianpuName = "${sanitized}_简谱.txt"
 
-        // 1. 优先扫描多级物理候选目录
+        // 0. 优先检查内置 assets/preset_scores/ 目录 (打包进 App 的默认乐谱，秒级命中零耗时)
+        try {
+            val assetFiles = context.assets.list("preset_scores") ?: emptyArray()
+            for (af in assetFiles) {
+                if (!af.endsWith(".json", ignoreCase = true)) continue
+                val lower = af.lowercase()
+                val isIdMatch = scoreId > 0 && (lower.startsWith("${scoreId}_") || lower.startsWith("${scoreId}.") || lower.contains("_${scoreId}_") || lower.contains("_${scoreId}."))
+                val isTitleMatch = sanitized.length >= 2 && lower.contains(sanitized.lowercase())
+
+                if (isIdMatch || isTitleMatch) {
+                    val content = context.assets.open("preset_scores/$af").bufferedReader(Charsets.UTF_8).use { it.readText() }
+                    if (content.isNotBlank() && content.length > 10) {
+                        Log.i(TAG, "Found local score in assets preset_scores: $af")
+                        return LocalScoreInfo(
+                            title = title,
+                            jsonContent = content,
+                            jsonFile = null,
+                            jianpuFile = null
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error checking assets for local score", e)
+        }
+
+        val candidateNames = getCandidateJsonFileNames(context, scoreId, title)
+
+        // 1. 扫描多级物理候选目录 (支持精准文件名查找与以 ID / 歌名开头的扫描命中)
         for (dir in getCandidateDirectories(context)) {
             if (!dir.exists() || !dir.isDirectory) continue
 
+            // 1.1 精准文件名探测
             for (jsonName in candidateNames) {
                 val jf = File(dir, jsonName)
                 if (jf.exists() && jf.isFile && jf.length() > 0) {
@@ -211,7 +255,7 @@ object JianpuGenerator {
                         if (content.isNotBlank() && content.length > 10) {
                             val tf = File(dir, jianpuName)
                             val finalTf = if (tf.exists() && tf.isFile && tf.length() > 0) tf else null
-                            Log.i(TAG, "Found local score in File system: ${jf.absolutePath} (${content.length} chars)")
+                            Log.i(TAG, "Found local score in File system (exact): ${jf.absolutePath} (${content.length} chars)")
                             return LocalScoreInfo(
                                 title = title,
                                 jsonContent = content,
@@ -224,6 +268,34 @@ object JianpuGenerator {
                     }
                 }
             }
+
+            // 1.2 目录模糊前缀扫描 (防止文件名带版本号如 13150_雨爱6.json 等情况)
+            try {
+                val files = dir.listFiles()
+                if (files != null) {
+                    for (file in files) {
+                        if (!file.isFile || file.length() == 0L || !file.name.endsWith(".json", ignoreCase = true)) continue
+                        val lower = file.name.lowercase()
+                        val isIdMatch = scoreId > 0 && (lower.startsWith("${scoreId}_") || lower.startsWith("${scoreId}.") || lower.contains("_${scoreId}_") || lower.contains("_${scoreId}."))
+                        val isTitleMatch = sanitized.length >= 2 && lower.contains(sanitized.lowercase())
+
+                        if (isIdMatch || isTitleMatch) {
+                            val content = file.readText(Charsets.UTF_8)
+                            if (content.isNotBlank() && content.length > 10) {
+                                val tf = File(dir, jianpuName)
+                                val finalTf = if (tf.exists() && tf.isFile && tf.length() > 0) tf else null
+                                Log.i(TAG, "Found local score in File system (scan): ${file.absolutePath} (${content.length} chars)")
+                                return LocalScoreInfo(
+                                    title = title,
+                                    jsonContent = content,
+                                    jsonFile = file,
+                                    jianpuFile = finalTf
+                                )
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
         }
 
         // 2. Android 10+ (Q+) 查询 MediaStore.Downloads (兼容 Scoped Storage 沙盒)
@@ -235,13 +307,13 @@ object JianpuGenerator {
                     MediaStore.Downloads.DISPLAY_NAME,
                     MediaStore.Downloads.RELATIVE_PATH
                 )
-                val selection = "${MediaStore.Downloads.RELATIVE_PATH} LIKE ?"
-                val selectionArgs = arrayOf("Download/filesss%")
+                // 拓宽匹配条件，不限制唯一的子路径
+                val selection = "${MediaStore.Downloads.DISPLAY_NAME} LIKE '%.json'"
                 resolver.query(
                     MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                     projection,
                     selection,
-                    selectionArgs,
+                    null,
                     null
                 )?.use { cursor ->
                     val idCol = cursor.getColumnIndexOrThrow(MediaStore.Downloads._ID)
@@ -252,8 +324,12 @@ object JianpuGenerator {
 
                     while (cursor.moveToNext()) {
                         val displayName = cursor.getString(nameCol) ?: continue
-                        val isMatch = candidateNames.any { it.equals(displayName, ignoreCase = true) }
-                        if (isMatch) {
+                        val lower = displayName.lowercase()
+                        val isIdMatch = scoreId > 0 && (lower.startsWith("${scoreId}_") || lower.startsWith("${scoreId}.") || lower.contains("_${scoreId}_") || lower.contains("_${scoreId}."))
+                        val isTitleMatch = sanitized.length >= 2 && lower.contains(sanitized.lowercase())
+                        val isCandidateMatch = candidateNames.any { it.equals(displayName, ignoreCase = true) }
+
+                        if (isCandidateMatch || isIdMatch || isTitleMatch) {
                             val docId = cursor.getLong(idCol)
                             matchedUri = ContentUris.withAppendedId(
                                 MediaStore.Downloads.EXTERNAL_CONTENT_URI, docId
@@ -290,6 +366,20 @@ object JianpuGenerator {
      * 极速判断本地是否已存在该曲谱的缓存文件 (用于列表渲染与状态徽章)
      */
     fun isScoreCachedLocally(context: Context, scoreId: Long, title: String): Boolean {
+        val sanitized = sanitizeFileName(title)
+
+        // 0. 检查 assets/preset_scores/
+        try {
+            val assetFiles = context.assets.list("preset_scores") ?: emptyArray()
+            for (af in assetFiles) {
+                if (!af.endsWith(".json", ignoreCase = true)) continue
+                val lower = af.lowercase()
+                val isIdMatch = scoreId > 0 && (lower.startsWith("${scoreId}_") || lower.startsWith("${scoreId}.") || lower.contains("_${scoreId}_") || lower.contains("_${scoreId}."))
+                val isTitleMatch = sanitized.length >= 2 && lower.contains(sanitized.lowercase())
+                if (isIdMatch || isTitleMatch) return true
+            }
+        } catch (_: Exception) {}
+
         val candidateNames = getCandidateJsonFileNames(context, scoreId, title)
         for (dir in getCandidateDirectories(context)) {
             if (!dir.exists() || !dir.isDirectory) continue
@@ -297,6 +387,18 @@ object JianpuGenerator {
                 val f = File(dir, name)
                 if (f.exists() && f.length() > 0) return true
             }
+            try {
+                val files = dir.listFiles()
+                if (files != null) {
+                    for (file in files) {
+                        if (!file.isFile || file.length() == 0L || !file.name.endsWith(".json", ignoreCase = true)) continue
+                        val lower = file.name.lowercase()
+                        val isIdMatch = scoreId > 0 && (lower.startsWith("${scoreId}_") || lower.startsWith("${scoreId}.") || lower.contains("_${scoreId}_") || lower.contains("_${scoreId}."))
+                        val isTitleMatch = sanitized.length >= 2 && lower.contains(sanitized.lowercase())
+                        if (isIdMatch || isTitleMatch) return true
+                    }
+                }
+            } catch (_: Exception) {}
         }
         if (scoreId > 0) {
             try {

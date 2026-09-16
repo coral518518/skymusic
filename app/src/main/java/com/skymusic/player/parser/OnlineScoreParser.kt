@@ -105,13 +105,49 @@ object OnlineScoreParser {
         // 模式 A: 带有 tracks 声轨数组 (compose_lab 经典多轨合奏格式)
         if (target.isJsonObject && target.asJsonObject.has("tracks") && target.asJsonObject.get("tracks").isJsonArray) {
             val tracks = target.asJsonObject.getAsJsonArray("tracks")
+            
+            // 2.1 检查是否有 solo 声轨
+            val hasSolo = tracks.any { it.isJsonObject && it.asJsonObject.has("solo") && it.asJsonObject.get("solo").asBoolean }
+            
+            // 2.2 过滤静音声轨与打击乐声轨 (避免架子鼓/手鼓等噪音冲入单人钢琴 15 键)
+            val candidateTracks = mutableListOf<JsonObject>()
+            var nonPercussionCount = 0
+
             for (t in tracks) {
-                if (t.isJsonObject) {
-                    val trackObj = t.asJsonObject
-                    for (notesKey in arrayOf("notes", "songNotes", "events", "noteList")) {
-                        if (trackObj.has(notesKey) && trackObj.get(notesKey).isJsonArray) {
-                            parseNotesArray(trackObj.getAsJsonArray(notesKey), timeMap)
-                        }
+                if (!t.isJsonObject) continue
+                val trackObj = t.asJsonObject
+                val isMuted = trackObj.has("muted") && trackObj.get("muted").asBoolean
+                if (isMuted) continue
+                if (hasSolo && (!trackObj.has("solo") || !trackObj.get("solo").asBoolean)) continue
+
+                val trackName = if (trackObj.has("name") && !trackObj.get("name").isJsonNull) trackObj.get("name").asString.lowercase() else ""
+                val instrument = if (trackObj.has("instrument") && !trackObj.get("instrument").isJsonNull) trackObj.get("instrument").asString.lowercase() else ""
+                val isPercussion = listOf("drum", "tr_909", "tr-909", "sfx", "dun_dun", "percussion", "cymbal", "鼓", "打击乐", "音效", "排鼓", "手鼓").any {
+                    trackName.contains(it) || instrument.contains(it)
+                }
+
+                if (!isPercussion) {
+                    nonPercussionCount++
+                }
+                candidateTracks.add(trackObj)
+            }
+
+            for (trackObj in candidateTracks) {
+                val trackName = if (trackObj.has("name") && !trackObj.get("name").isJsonNull) trackObj.get("name").asString.lowercase() else ""
+                val instrument = if (trackObj.has("instrument") && !trackObj.get("instrument").isJsonNull) trackObj.get("instrument").asString.lowercase() else ""
+                val isPercussion = listOf("drum", "tr_909", "tr-909", "sfx", "dun_dun", "percussion", "cymbal", "鼓", "打击乐", "音效", "排鼓", "手鼓").any {
+                    trackName.contains(it) || instrument.contains(it)
+                }
+
+                // 只要存在旋律/钢琴类音轨，就坚决滤除纯打击乐轨
+                if (isPercussion && nonPercussionCount > 0) {
+                    Log.d(TAG, "Skipping percussion track: $trackName ($instrument)")
+                    continue
+                }
+
+                for (notesKey in arrayOf("notes", "songNotes", "events", "noteList")) {
+                    if (trackObj.has(notesKey) && trackObj.get(notesKey).isJsonArray) {
+                        parseNotesArray(trackObj.getAsJsonArray(notesKey), timeMap)
                     }
                 }
             }
@@ -236,24 +272,43 @@ object OnlineScoreParser {
 
             val keySet = timeMap.getOrPut(timeMs) { mutableSetOf() }
 
-            // 1. 优先提取明确的原始按键标示 (rawKey / raw_key 如 "1Key3", 0-based: 1Key0~1Key14)
+            // 1. 优先解析具备专属前缀的原始键标 (0-based: "1Key0"~"1Key14", 以及 "5:1" 键位:声轨格式)
             var keyFound = false
             for (rawProp in arrayOf("rawKey", "raw_key", "raw", "skyKey", "sky_key")) {
                 if (obj.has(rawProp) && !obj.get(rawProp).isJsonNull) {
-                    val k = parseSingleKey(obj.get(rawProp))
-                    if (k in 0..14) {
-                        keySet.add(k)
-                        keyFound = true
-                        break
+                    val rawElem = obj.get(rawProp)
+                    if (rawElem.isJsonPrimitive && rawElem.asJsonPrimitive.isString) {
+                        val rawStr = rawElem.asString.trim()
+                        // 1Key0 ~ 1Key14 (0-based)
+                        val matchKey = Regex(""".*Key(\d+)""", RegexOption.IGNORE_CASE).find(rawStr)
+                        if (matchKey != null) {
+                            val k = matchKey.groupValues[1].toIntOrNull()
+                            if (k != null && k in 0..14) {
+                                keySet.add(k)
+                                keyFound = true
+                                break
+                            }
+                        }
+                        // "5:1" (0-based col : track)
+                        val matchColTrack = Regex("""^(\d+):(\d+)$""").find(rawStr)
+                        if (matchColTrack != null) {
+                            val k = matchColTrack.groupValues[1].toIntOrNull()
+                            if (k != null && k in 0..14) {
+                                keySet.add(k)
+                                keyFound = true
+                                break
+                            }
+                        }
                     }
                 }
             }
             if (keyFound) continue
 
-            // 2. 检查 targetKey / target_key (形如 "sky.key.4" -> 4 - 1 = 3)
+            // 2. 检查 targetKey (音游伴侣中 1-based: "sky.key.1"~"sky.key.15" 或 "1"~"15" -> 0..14)
             for (targetProp in arrayOf("targetKey", "target_key", "target")) {
                 if (obj.has(targetProp) && !obj.get(targetProp).isJsonNull) {
-                    val k = parseSingleKey(obj.get(targetProp))
+                    val elem = obj.get(targetProp)
+                    val k = parseOneBasedKey(elem)
                     if (k in 0..14) {
                         keySet.add(k)
                         keyFound = true
@@ -263,13 +318,13 @@ object OnlineScoreParser {
             }
             if (keyFound) continue
 
-            // 3. 检查 keyIndex (在 compose_lab 中为 1-based, 1..15 -> 0..14)
+            // 3. 检查 keyIndex (音游伴侣规范中 1-based: 1..15 -> 0..14)
             for (idxProp in arrayOf("keyIndex", "key_index")) {
                 if (obj.has(idxProp) && !obj.get(idxProp).isJsonNull) {
-                    val p = obj.get(idxProp).asJsonPrimitive
-                    val idx = if (p.isNumber) p.asInt else p.asString.toIntOrNull() ?: -1
-                    if (idx in 1..15) {
-                        keySet.add(idx - 1)
+                    val elem = obj.get(idxProp)
+                    val k = parseOneBasedKey(elem)
+                    if (k in 0..14) {
+                        keySet.add(k)
                         keyFound = true
                         break
                     }
@@ -277,12 +332,12 @@ object OnlineScoreParser {
             }
             if (keyFound) continue
 
-            // 4. keys 数组 (如 "keys": [0, 4] 或 "key_list": [...])
+            // 4. keys 数组 (如 "keys": [1, 4] 或 "key_list": [...])
             for (keysProp in arrayOf("keys", "key_list", "notes", "pitches")) {
                 if (obj.has(keysProp) && obj.get(keysProp).isJsonArray) {
                     val arr = obj.getAsJsonArray(keysProp)
-                    for (k in arr) {
-                        val keyIdx = parseSingleKey(k)
+                    for (kElem in arr) {
+                        val keyIdx = parseSingleKey(kElem)
                         if (keyIdx in 0..14) {
                             keySet.add(keyIdx)
                             keyFound = true
@@ -292,11 +347,14 @@ object OnlineScoreParser {
             }
             if (keyFound) continue
 
-            // 5. 单个 key/pitch 字段 (如 "key": 4, "key": "1Key4", "pitch": 60)
-            for (keyProp in arrayOf("key", "pitch", "note", "k", "index", "noteIndex", "code")) {
+            // 5. 单个 key / pitch / note 字段
+            for (keyProp in arrayOf("rawKey", "key", "pitch", "note", "k", "index", "noteIndex", "code")) {
                 if (obj.has(keyProp) && !obj.get(keyProp).isJsonNull) {
                     val keyIdx = parseSingleKey(obj.get(keyProp))
-                    if (keyIdx in 0..14) keySet.add(keyIdx)
+                    if (keyIdx in 0..14) {
+                        keySet.add(keyIdx)
+                        break
+                    }
                 }
             }
         }
@@ -349,20 +407,48 @@ object OnlineScoreParser {
         }
     }
 
+    /**
+     * 解析音游伴侣 / compose_lab 1-based 按键标示 (1..15 -> 0..14)
+     */
+    private fun parseOneBasedKey(elem: JsonElement): Int {
+        if (!elem.isJsonPrimitive) return -1
+        val prim = elem.asJsonPrimitive
+        if (prim.isNumber) {
+            val n = prim.asInt
+            if (n in 1..15) return n - 1
+            if (n in 0..14) return n
+        } else if (prim.isString) {
+            val str = prim.asString.trim()
+            val match = Regex(""".*key\.(\d+)""", RegexOption.IGNORE_CASE).find(str)
+            if (match != null) {
+                val n = match.groupValues[1].toIntOrNull()
+                if (n != null && n in 1..15) return n - 1
+            }
+            val direct = str.toIntOrNull()
+            if (direct != null) {
+                if (direct in 1..15) return direct - 1
+                if (direct in 0..14) return direct
+            }
+        }
+        return -1
+    }
+
+    /**
+     * 全面兼容的单个按键通用提取
+     */
     private fun parseSingleKey(elem: JsonElement): Int {
         if (elem.isJsonPrimitive) {
             val prim = elem.asJsonPrimitive
             if (prim.isNumber) {
                 val n = prim.asInt
-                // 优先考虑 0..14
-                if (n in 0..14) return n
-                // 兼容 1..15 (1-based)
+                // 优先 1..15 (音游伴侣规范中 pitch 与 key 绝大多数为 1-based)
                 if (n in 1..15) return n - 1
-                // 如果是 MIDI 音高 (48..72)
+                if (n in 0..14) return n
+                // 如果是 MIDI 音高 (48..84)
                 return pitchToSkyKey(n)
             } else if (prim.isString) {
                 val str = prim.asString.trim()
-                // "1Key0" ~ "1Key14"
+                // "1Key0" ~ "1Key14" (0-based)
                 val match = Regex(""".*Key(\d+)""", RegexOption.IGNORE_CASE).find(str)
                 if (match != null) {
                     val n = match.groupValues[1].toIntOrNull()
@@ -376,11 +462,18 @@ object OnlineScoreParser {
                     if (n != null && n in 1..15) return n - 1
                 }
 
-                // 纯数字字符串
+                // "5:1" 格式 (0-based col : track)
+                val colMatch = Regex("""^(\d+):(\d+)$""").find(str)
+                if (colMatch != null) {
+                    val n = colMatch.groupValues[1].toIntOrNull()
+                    if (n != null && n in 0..14) return n
+                }
+
+                // 纯数字字符串：在音游伴侣中均为 1..15
                 val direct = str.toIntOrNull()
                 if (direct != null) {
-                    if (direct in 0..14) return direct
                     if (direct in 1..15) return direct - 1
+                    if (direct in 0..14) return direct
                     return pitchToSkyKey(direct)
                 }
 
@@ -405,16 +498,22 @@ object OnlineScoreParser {
     }
 
     private fun pitchToSkyKey(pitch: Int): Int {
-        // 标准 C 大调 15 键对应 MIDI 音高 (48 ~ 72)
-        val skyMidi = intArrayOf(48, 50, 52, 53, 55, 57, 59, 60, 62, 64, 65, 67, 69, 71, 72)
-        val idx = skyMidi.indexOf(pitch)
-        if (idx != -1) return idx
-        // 若八度过高或过低，模 12 对齐自然音阶
+        // 标准 C4 黄金音域 15 键 (60 ~ 84)
+        val skyMidiC4 = intArrayOf(60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 83, 84)
+        val idxC4 = skyMidiC4.indexOf(pitch)
+        if (idxC4 != -1) return idxC4
+
+        // 标准 C3 低音区 15 键 (48 ~ 72)
+        val skyMidiC3 = intArrayOf(48, 50, 52, 53, 55, 57, 59, 60, 62, 64, 65, 67, 69, 71, 72)
+        val idxC3 = skyMidiC3.indexOf(pitch)
+        if (idxC3 != -1) return idxC3
+
+        // 若八度过高或过低，模 12 对齐自然大调音阶
         val relative = ((pitch % 12) + 12) % 12
         val majorSteps = intArrayOf(0, 2, 4, 5, 7, 9, 11)
         val step = majorSteps.indexOf(relative)
         return if (step in 0..6) {
-            val oct = ((pitch - 48) / 12).coerceIn(0, 1)
+            val oct = ((pitch - 60) / 12).coerceIn(0, 1)
             (oct * 7 + step).coerceIn(0, 14)
         } else {
             -1

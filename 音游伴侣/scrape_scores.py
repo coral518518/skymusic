@@ -85,11 +85,23 @@ def generate_jianpu_content(song_json: dict, score_id: int, fallback_title: str)
     if bpm <= 0:
         bpm = 120
 
-    # 提取音符序列
+    # 提取音符序列 (智能过滤打击乐与静音声轨)
     tracks = score.get("tracks", [])
     raw_notes = []
     if tracks:
+        has_solo = any(t.get("solo") for t in tracks)
+        non_percussion_count = sum(1 for t in tracks if not any(p in str(t.get("name", "")).lower() or p in str(t.get("instrument", "")).lower() for p in ["drum", "tr_909", "tr-909", "sfx", "dun_dun", "percussion", "鼓", "打击乐", "音效", "排鼓", "手鼓"]))
+
         for t in tracks:
+            if t.get("muted"):
+                continue
+            if has_solo and not t.get("solo"):
+                continue
+            tname = str(t.get("name", "")).lower()
+            tinst = str(t.get("instrument", "")).lower()
+            is_percussion = any(p in tname or p in tinst for p in ["drum", "tr_909", "tr-909", "sfx", "dun_dun", "percussion", "鼓", "打击乐", "音效", "排鼓", "手鼓"])
+            if is_percussion and non_percussion_count > 0:
+                continue
             raw_notes.extend(t.get("notes", []))
     else:
         raw_notes = score.get("notes", [])
@@ -106,19 +118,55 @@ def generate_jianpu_content(song_json: dict, score_id: int, fallback_title: str)
         if t is None or t < 0:
             continue
 
-        # 按键映射：优先取 0-based rawKey ("1Key3" -> 3)
+        # 按键映射
         key_idx = -1
-        raw_key = n.get("rawKey") or n.get("raw_key")
-        if raw_key and "Key" in str(raw_key):
-            m = re.search(r"Key(\d+)", str(raw_key), re.IGNORECASE)
+        raw_key = n.get("rawKey") or n.get("raw_key") or n.get("raw")
+        if raw_key and isinstance(raw_key, str):
+            # 1Key0 ~ 1Key14 (0-based)
+            m = re.search(r"Key(\d+)", raw_key, re.IGNORECASE)
             if m:
-                key_idx = int(m.group(1))
-        elif "targetKey" in n and n["targetKey"]:
-            m = re.search(r"key\.(\d+)", str(n["targetKey"]), re.IGNORECASE)
+                k = int(m.group(1))
+                if 0 <= k <= 14:
+                    key_idx = k
+            # col:track 如 "5:1" (0-based col)
+            m_col = re.search(r"^(\d+):(\d+)$", raw_key.strip())
+            if m_col and key_idx == -1:
+                k = int(m_col.group(1))
+                if 0 <= k <= 14:
+                    key_idx = k
+
+        if key_idx == -1 and "targetKey" in n and n["targetKey"]:
+            tk = str(n["targetKey"]).strip()
+            m = re.search(r"key\.(\d+)", tk, re.IGNORECASE)
             if m:
-                key_idx = int(m.group(1)) - 1
-        elif "keyIndex" in n and n["keyIndex"] is not None:
-            key_idx = int(n["keyIndex"]) - 1
+                k = int(m.group(1)) - 1
+                if 0 <= k <= 14:
+                    key_idx = k
+            elif tk.isdigit():
+                k = int(tk) - 1
+                if 0 <= k <= 14:
+                    key_idx = k
+
+        if key_idx == -1 and "keyIndex" in n and n["keyIndex"] is not None:
+            try:
+                k = int(n["keyIndex"]) - 1
+                if 0 <= k <= 14:
+                    key_idx = k
+            except:
+                pass
+
+        if key_idx == -1 and raw_key and str(raw_key).strip().isdigit():
+            k = int(str(raw_key).strip()) - 1
+            if 0 <= k <= 14:
+                key_idx = k
+
+        if key_idx == -1 and "pitch" in n and n["pitch"] is not None:
+            try:
+                p = int(n["pitch"])
+                if 1 <= p <= 15:
+                    key_idx = p - 1
+            except:
+                pass
 
         if 0 <= key_idx <= 14:
             slot = round(t / slot_duration_ms)

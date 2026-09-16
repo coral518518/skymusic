@@ -20,13 +20,13 @@ object SheetImporter {
             }
             lowerName.endsWith(".json") -> {
                 val content = inputStream.bufferedReader().use { it.readText() }
-                SkyJsonParser.parse(content, cleanTitle)
+                OnlineScoreParser.parse(content, cleanTitle)
             }
             else -> {
                 val content = inputStream.bufferedReader().use { it.readText() }
                 val trimmed = content.trim()
                 if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-                    SkyJsonParser.parse(trimmed, cleanTitle)
+                    OnlineScoreParser.parse(trimmed, cleanTitle)
                 } else {
                     JianpuParser.parse(trimmed, cleanTitle)
                 }
