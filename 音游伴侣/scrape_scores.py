@@ -315,21 +315,79 @@ def main():
             ],
         )
 
+        # 根据 req.txt 完全复刻 Chrome 152 真实浏览器请求标头
+        common_headers = {
+            "accept": "*/*",
+            "accept-language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+            "cache-control": "no-cache",
+            "pragma": "no-cache",
+            "priority": "u=1, i",
+            "sec-ch-ua": '"Chromium";v="152", "Not?A_Brand";v="24", "Google Chrome";v="152"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-origin",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+        }
+
         context: BrowserContext = browser.new_context(
             viewport={"width": 1920, "height": 1080},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+            user_agent=common_headers["user-agent"],
+            locale="zh-CN",
+            timezone_id="Asia/Shanghai",
+            extra_http_headers={
+                "accept-language": common_headers["accept-language"],
+                "sec-ch-ua": common_headers["sec-ch-ua"],
+                "sec-ch-ua-mobile": common_headers["sec-ch-ua-mobile"],
+                "sec-ch-ua-platform": common_headers["sec-ch-ua-platform"],
+            },
         )
 
         page: Page = context.new_page()
 
-        # 1. 登录流程
-        print("[*] 正在进入登录页面: https://mgm.jie-you.cn/login ...")
+        # 拦截无用的媒体、图片与字体请求，节省网络带宽与请求量
         try:
-            page.goto("https://mgm.jie-you.cn/login", wait_until="networkidle", timeout=30000)
-            page.wait_for_timeout(2000)
+            page.route(
+                "**/*",
+                lambda route: route.abort() if route.request.resource_type in ["image", "media", "font"] else route.continue_(),
+            )
+        except Exception:
+            pass
 
-            # 优先通过前端页面表单进行交互式登录
+        # 1. 登录流程 (优先 API 极速认证，无需渲染登录页面)
+        print("[*] 正在执行音游伴侣账号认证...")
+        login_success = False
+        login_payload = {
+            "username": username,
+            "password": password,
+            "device_name": "Web 浏览器",
+            "platform": "web",
+        }
+        try:
+            api_res = context.request.post(
+                "https://mgm.jie-you.cn/web-api/user/auth/login",
+                headers={
+                    **common_headers,
+                    "content-type": "application/json",
+                    "origin": "https://mgm.jie-you.cn",
+                    "referer": "https://mgm.jie-you.cn/login",
+                },
+                data=json.dumps(login_payload),
+                timeout=15000,
+            )
+            print(f"[+] 登录接口响应状态码: {api_res.status}")
+            if api_res.status == 200:
+                print("[✓] 音游伴侣账号认证成功！")
+                login_success = True
+        except Exception as e:
+            print(f"[*] API 直连登录跳过: {e}")
+
+        # 若 API 登录失败，尝试浏览器前端表单兜底登录
+        if not login_success:
+            print("[*] 尝试通过浏览器表单进行兜底登录: https://mgm.jie-you.cn/login ...")
             try:
+                page.goto("https://mgm.jie-you.cn/login", wait_until="domcontentloaded", timeout=30000)
                 user_input = page.wait_for_selector('input[type="text"], input[name="username"], input[placeholder*="账号"], input[placeholder*="用户名"]', timeout=6000)
                 pass_input = page.wait_for_selector('input[type="password"], input[name="password"], input[placeholder*="密码"]', timeout=6000)
                 if user_input and pass_input:
@@ -342,38 +400,14 @@ def main():
                         page.wait_for_timeout(3000)
                         print("[+] 已提交前端登录表单")
             except Exception as e:
-                print(f"[*] 前端表单填报跳过: {e}，将采用 API 直连登录...")
-
-            # 兜底：直接向登录 API 发送 POST 请求绑定 Session Cookie
-            login_payload = {
-                "username": username,
-                "password": password,
-                "device_name": "Web 浏览器",
-                "platform": "web",
-            }
-            api_res = context.request.post(
-                "https://mgm.jie-you.cn/web-api/user/auth/login",
-                headers={
-                    "Content-Type": "application/json",
-                    "Referer": "https://mgm.jie-you.cn/login",
-                    "Origin": "https://mgm.jie-you.cn",
-                },
-                data=json.dumps(login_payload),
-            )
-            print(f"[+] 登录接口响应状态码: {api_res.status}")
-            if api_res.status == 200:
-                print("[✓] 音游伴侣账号认证成功！")
-            else:
-                print(f"[!] 登录接口警告: 返回码 {api_res.status}，继续尝试进入曲库...")
-
-        except Exception as e:
-            print(f"[!] 登录过程出现异常: {e}，尝试继续进入播放最多大厅...")
+                print(f"[!] 兜底登录异常: {e}，尝试继续进入曲库...")
 
         # 2. 遍历播放最多列表页面 (sort=plays)
         current_page = start_page
         scraped_this_run = 0
+        is_rate_limited = False
 
-        # 用于存储页面捕获到的接口卡片数据
+        # 用于浏览器兜底时的网络响应拦截
         captured_scores: List[dict] = []
 
         def on_response(resp):
@@ -388,49 +422,82 @@ def main():
 
         page.on("response", on_response)
 
-        while scraped_this_run < max_count:
-            target_url = f"https://mgm.jie-you.cn/scores?sort=plays&page={current_page}"
-            print(f"\n[{current_page}] 正在访问: {target_url} ...")
-            captured_scores.clear()
+        while scraped_this_run < max_count and not is_rate_limited:
+            page_url = f"https://mgm.jie-you.cn/scores?sort=plays&page={current_page}"
+            api_url = f"https://mgm.jie-you.cn/web-api/business/scores?sort=plays&page={current_page}"
+            print(f"\n[{current_page}] 正在获取乐谱列表 (对应页面: {page_url}) ...")
 
-            try:
-                page.goto(target_url, wait_until="networkidle", timeout=35000)
-                page.wait_for_timeout(3000)
-            except Exception as e:
-                print(f"[!] 页面加载超时或错误: {e}")
-
-            # 聚合卡片信息：优先从网络响应拦截，兜底从 DOM 提取
             page_cards: List[dict] = []
 
-            # 方式 A: 来自 API 拦截到的结构化数据
-            if captured_scores:
-                for item in captured_scores:
-                    sid = item.get("id")
-                    title = item.get("title") or f"Score_{sid}"
-                    if sid:
-                        page_cards.append({
-                            "id": int(sid),
-                            "title": title,
-                            "bpm": item.get("bpm", 120),
-                            "artist": item.get("creator") or item.get("artist") or "佚名",
-                        })
+            # 方案 B: 直接请求列表 API (每页仅 1 次轻量 JSON 请求，零图片/CSS/JS开销)
+            try:
+                api_res = context.request.get(
+                    api_url,
+                    headers={
+                        **common_headers,
+                        "referer": page_url,
+                    },
+                    timeout=20000,
+                )
+                if api_res.status == 200:
+                    res_json = api_res.json()
+                    items = res_json.get("data", {}).get("items", [])
+                    for item in items:
+                        sid = item.get("id")
+                        title = item.get("title") or f"Score_{sid}"
+                        if sid:
+                            page_cards.append({
+                                "id": int(sid),
+                                "title": title,
+                                "bpm": item.get("bpm", 120),
+                                "artist": item.get("creator") or item.get("artist") or "佚名",
+                            })
+                elif api_res.status == 429:
+                    print(f"[🚫 触发限流 429] 列表接口返回 HTTP 429 (Too Many Requests)！平台频率受限，立即终止抓取。")
+                    is_rate_limited = True
+                    break
+                else:
+                    print(f"[!] 列表接口返回状态码 {api_res.status}，尝试浏览器兜底加载...")
+            except Exception as e:
+                print(f"[!] 列表接口请求异常: {e}，尝试浏览器兜底加载...")
 
-            # 方式 B: DOM 解析兜底
-            dom_links = page.query_selector_all('a[href*="/scores/"]')
-            for a in dom_links:
-                href = a.get_attribute("href") or ""
-                m = re.search(r"/scores/(\d+)(?:-([^\s\"'>?]+))?", href)
-                if m:
-                    sid = int(m.group(1))
-                    if not any(c["id"] == sid for c in page_cards):
-                        raw_title = m.group(2)
-                        title_text = urllib.parse.unquote(raw_title) if raw_title else (a.inner_text().strip() or f"Score_{sid}")
-                        page_cards.append({
-                            "id": sid,
-                            "title": title_text,
-                            "bpm": 120,
-                            "artist": "佚名",
-                        })
+            # 浏览器兜底：仅当 API 直连未解析到卡片且未触发限流时才启动浏览器渲染
+            if not page_cards and not is_rate_limited:
+                print(f"[*] 正在通过浏览器访问页面: {page_url} ...")
+                captured_scores.clear()
+                try:
+                    page.goto(page_url, wait_until="domcontentloaded", timeout=25000)
+                    page.wait_for_timeout(2000)
+                except Exception as e:
+                    print(f"[!] 页面加载超时或错误: {e}")
+
+                if captured_scores:
+                    for item in captured_scores:
+                        sid = item.get("id")
+                        title = item.get("title") or f"Score_{sid}"
+                        if sid and not any(c["id"] == int(sid) for c in page_cards):
+                            page_cards.append({
+                                "id": int(sid),
+                                "title": title,
+                                "bpm": item.get("bpm", 120),
+                                "artist": item.get("creator") or item.get("artist") or "佚名",
+                            })
+
+                dom_links = page.query_selector_all('a[href*="/scores/"]')
+                for a in dom_links:
+                    href = a.get_attribute("href") or ""
+                    m = re.search(r"/scores/(\d+)(?:-([^\s\"'>?]+))?", href)
+                    if m:
+                        sid = int(m.group(1))
+                        if not any(c["id"] == sid for c in page_cards):
+                            raw_title = m.group(2)
+                            title_text = urllib.parse.unquote(raw_title) if raw_title else (a.inner_text().strip() or f"Score_{sid}")
+                            page_cards.append({
+                                "id": sid,
+                                "title": title_text,
+                                "bpm": 120,
+                                "artist": "佚名",
+                            })
 
             if not page_cards:
                 print(f"[!] 第 {current_page} 页未检测到任何乐谱卡片，已到底或被限流，结束抓取。")
@@ -464,11 +531,16 @@ def main():
                     file_resp = context.request.get(
                         download_url,
                         headers={
-                            "Referer": f"https://mgm.jie-you.cn/scores/{sid}",
-                            "Accept": "*/*",
+                            **common_headers,
+                            "referer": f"https://mgm.jie-you.cn/scores/{sid}",
                         },
                         timeout=20000,
                     )
+
+                    if file_resp.status == 429:
+                        print(f"  [🚫 触发限流 429] 下载 ID {sid} 时收到 HTTP 429 (Too Many Requests)！平台频率受限，立即终止抓取退出。")
+                        is_rate_limited = True
+                        break
 
                     if file_resp.status != 200:
                         print(f"  [⚠️ 跳过] 下载失败: ID {sid} HTTP 状态码 {file_resp.status}")
@@ -514,10 +586,17 @@ def main():
                     time.sleep(delay_between_scores)
                     continue
 
+            if is_rate_limited:
+                break
+
             current_page += 1
 
         print("\n" + "=" * 60)
-        print(f"🎉 本次任务执行完毕！成功新抓取归档: {scraped_this_run} 首")
+        if is_rate_limited:
+            print("🛑 任务因触发服务端 HTTP 429 限流保护而提前终止，防封禁策略已生效。")
+        else:
+            print("🎉 本次任务执行完毕！")
+        print(f"✅ 成功新抓取归档: {scraped_this_run} 首")
         print(f"📚 本地乐谱库总计: {len(downloaded_ids)} 首")
         print("=" * 60)
 
