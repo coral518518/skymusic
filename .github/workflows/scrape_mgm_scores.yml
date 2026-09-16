@@ -8,10 +8,10 @@ on:
         required: false
         default: '100'
         type: string
-      rate_per_minute:
-        description: '抓取速率 (个/分钟，防封禁限流)'
+      rate_per_hour:
+        description: '抓取速率 (个/小时，防封禁限流)'
         required: false
-        default: '5'
+        default: '10'
         type: string
       start_page:
         description: '起始页码 (Start Page)'
@@ -172,8 +172,8 @@ jobs:
       - name: 4. 在虚拟显示器中执行自动化抓取与简谱转换
         env:
           PYTHONUNBUFFERED: '1' # 强制 Python 禁用输出缓冲区，保证 GitHub Actions 实时刷新日志
-          MAX_COUNT: ${{ github.event.inputs.max_count || '100' }}
-          RATE_PER_MINUTE: ${{ github.event.inputs.rate_per_minute || '1' }}
+          MAX_COUNT: ${{ github.event.inputs.max_count || '10' }}
+          RATE_PER_HOUR: ${{ github.event.inputs.rate_per_hour || '10' }}
           START_PAGE: ${{ github.event.inputs.start_page || '1' }}
           MGM_USERNAME: ${{ github.event.inputs.username || secrets.MGM_USERNAME || 'lollol' }}
           MGM_PASSWORD: ${{ github.event.inputs.password || secrets.MGM_PASSWORD || '123456' }}

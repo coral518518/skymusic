@@ -259,7 +259,16 @@ def save_downloaded_index(index_file: str, index_data: dict, downloaded_ids: Set
 def main():
     parser = argparse.ArgumentParser(description="音游伴侣全量乐谱自动抓取与简谱生成归档器")
     parser.add_argument("--max-count", type=int, default=int(os.environ.get("MAX_COUNT", 100)), help="本次抓取最大数量 (默认 100)")
-    parser.add_argument("--rate-per-minute", type=int, default=int(os.environ.get("RATE_PER_MINUTE", 5)), help="每分钟抓取速率 (默认 5 个/分)")
+    rate_hour_env = os.environ.get("RATE_PER_HOUR")
+    if rate_hour_env is not None:
+        default_rate_hour = int(rate_hour_env)
+    elif "RATE_PER_MINUTE" in os.environ:
+        default_rate_hour = max(1, int(os.environ["RATE_PER_MINUTE"]) * 60)
+    else:
+        default_rate_hour = 10
+
+    parser.add_argument("--rate-per-hour", type=int, default=default_rate_hour, help="每小时抓取速率 (默认 10 个/小时)")
+    parser.add_argument("--rate-per-minute", type=int, default=None, help="每分钟抓取速率 (兼容旧参数)")
     parser.add_argument("--username", type=str, default=os.environ.get("MGM_USERNAME", "lollol"), help="音游伴侣登录账号")
     parser.add_argument("--password", type=str, default=os.environ.get("MGM_PASSWORD", "123456"), help="音游伴侣登录密码")
     parser.add_argument("--start-page", type=int, default=int(os.environ.get("START_PAGE", 1)), help="起始页码 (默认 1)")
@@ -268,8 +277,11 @@ def main():
     args = parser.parse_args()
 
     max_count = args.max_count
-    rate_per_minute = max(1, args.rate_per_minute)
-    delay_between_scores = 60.0 / rate_per_minute
+    if args.rate_per_minute is not None:
+        rate_per_hour = max(1, args.rate_per_minute * 60)
+    else:
+        rate_per_hour = max(1, args.rate_per_hour)
+    delay_between_scores = 3600.0 / rate_per_hour
     username = args.username.strip()
     password = args.password.strip()
     start_page = max(1, args.start_page)
@@ -283,7 +295,7 @@ def main():
     print("      音游伴侣 (mgm.jie-you.cn) 乐谱自动化采集系统")
     print("=" * 60)
     print(f"🎯 抓取目标上限: {max_count} 首")
-    print(f"⏱️ 速率限制: {rate_per_minute} 个/分钟 (单次间隔约 {delay_between_scores:.1f} 秒)")
+    print(f"⏱️ 速率限制: {rate_per_hour} 个/小时 (单次间隔约 {delay_between_scores:.1f} 秒)")
     print(f"📄 起始页码: 第 {start_page} 页 (按播放量最多排序 sort=plays)")
     print(f"👤 登录账号: {username}")
     print(f"📁 保存目录: {save_dir}")
@@ -494,11 +506,12 @@ def main():
 
                     # 速率控制 (防封/防风控)
                     if scraped_this_run < max_count:
-                        print(f"  [⏳ 休眠] 速率控制 ({rate_per_minute}个/分)，等待 {delay_between_scores:.1f} 秒...")
+                        print(f"  [⏳ 休眠] 速率控制 ({rate_per_hour}个/小时)，等待 {delay_between_scores:.1f} 秒...")
                         time.sleep(delay_between_scores)
 
                 except Exception as e:
                     print(f"  [⚠️ 异常跳过] 处理 ID {sid} 出错: {e}")
+                    time.sleep(delay_between_scores)
                     continue
 
             current_page += 1
