@@ -52,24 +52,36 @@ object OnlineScoreParser {
             } catch (_: Exception) {}
         }
 
-        // 提取元数据与定位核心 score/data 节点
-        var targetObj: JsonObject? = if (current.isJsonObject) current.asJsonObject else null
-
-        if (targetObj != null) {
-            if (targetObj.has("data") && targetObj.get("data").isJsonObject) {
-                targetObj = targetObj.getAsJsonObject("data")
+        // 递归拆箱到真正的 score/data 对象
+        var unpackTarget: JsonObject? = if (current.isJsonObject) current.asJsonObject else null
+        while (unpackTarget != null) {
+            if (unpackTarget.has("tracks") || unpackTarget.has("notes") || unpackTarget.has("songNotes")) {
+                break
             }
-            if (targetObj.has("score") && targetObj.get("score").isJsonObject) {
-                targetObj = targetObj.getAsJsonObject("score")
+            val dataChild = unpackTarget.get("data")
+            if (dataChild != null && dataChild.isJsonObject) {
+                unpackTarget = dataChild.asJsonObject
+                continue
             }
+            val scoreChild = unpackTarget.get("score")
+            if (scoreChild != null && scoreChild.isJsonObject) {
+                unpackTarget = scoreChild.asJsonObject
+                continue
+            }
+            break
+        }
 
+        // 使用不可变局部引用支持 Kotlin 智能类型转换 (Smart Cast)
+        val scoreObj = unpackTarget
+
+        if (scoreObj != null) {
             // 读取标题与 BPM
-            if (targetObj.has("bpm") && !targetObj.get("bpm").isJsonNull) {
-                val b = targetObj.get("bpm").asInt
+            if (scoreObj.has("bpm") && !scoreObj.get("bpm").isJsonNull) {
+                val b = scoreObj.get("bpm").asInt
                 if (b > 0) bpm = b
             }
-            if (targetObj.has("metadata") && targetObj.get("metadata").isJsonObject) {
-                val meta = targetObj.getAsJsonObject("metadata")
+            if (scoreObj.has("metadata") && scoreObj.get("metadata").isJsonObject) {
+                val meta = scoreObj.getAsJsonObject("metadata")
                 if (meta.has("title") && !meta.get("title").isJsonNull) title = meta.get("title").asString
                 if (meta.has("artist") && !meta.get("artist").isJsonNull) artist = meta.get("artist").asString
                 if (meta.has("bpm") && !meta.get("bpm").isJsonNull) {
@@ -81,8 +93,8 @@ object OnlineScoreParser {
 
         // 2. 核心提取：提取 tracks 声轨中的 notes 列表
         var notesFound = false
-        if (targetObj != null && targetObj.has("tracks") && targetObj.get("tracks").isJsonArray) {
-            val tracks = targetObj.getAsJsonArray("tracks")
+        if (scoreObj != null && scoreObj.has("tracks") && scoreObj.get("tracks").isJsonArray) {
+            val tracks = scoreObj.getAsJsonArray("tracks")
             for (t in tracks) {
                 if (!t.isJsonObject) continue
                 val trackObj = t.asJsonObject
@@ -100,12 +112,12 @@ object OnlineScoreParser {
         }
 
         // 若不是 tracks 结构，检查顶层 notes 或 songNotes
-        if (!notesFound && targetObj != null) {
-            if (targetObj.has("notes") && targetObj.get("notes").isJsonArray) {
-                parseNotesArray(targetObj.getAsJsonArray("notes"), timeMap)
+        if (!notesFound && scoreObj != null) {
+            if (scoreObj.has("notes") && scoreObj.get("notes").isJsonArray) {
+                parseNotesArray(scoreObj.getAsJsonArray("notes"), timeMap)
                 notesFound = true
-            } else if (targetObj.has("songNotes") && targetObj.get("songNotes").isJsonArray) {
-                parseNotesArray(targetObj.getAsJsonArray("songNotes"), timeMap)
+            } else if (scoreObj.has("songNotes") && scoreObj.get("songNotes").isJsonArray) {
+                parseNotesArray(scoreObj.getAsJsonArray("songNotes"), timeMap)
                 notesFound = true
             }
         }
