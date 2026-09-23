@@ -34,7 +34,7 @@ class MGMClient private constructor(private val context: Context) {
         private const val KEY_PASSWORD = "saved_password"
 
         // 默认内置抓包账密 (可随时在悬浮窗界面自定义修改)
-        const val DEFAULT_USERNAME = "lollol"
+        const val DEFAULT_USERNAME = "lolloll"
         const val DEFAULT_PASSWORD = "123456"
 
         @Volatile

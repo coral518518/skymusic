@@ -117,6 +117,7 @@ class SkyAccessibilityService : AccessibilityService() {
 
                     val path = Path().apply {
                         moveTo(targetX, targetY)
+                        lineTo(targetX + 1f, targetY + 1f)
                     }
 
                     // 触控持续时长微调为极短打击 (16ms~20ms)，确保密集音符与快速琶音绝不发生手势冲突或被系统丢弃

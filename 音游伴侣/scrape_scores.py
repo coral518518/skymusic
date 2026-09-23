@@ -407,7 +407,7 @@ def main():
 
     parser.add_argument("--rate-per-hour", type=int, default=default_rate_hour, help="每小时抓取速率 (默认 10 个/小时)")
     parser.add_argument("--rate-per-minute", type=int, default=None, help="每分钟抓取速率 (兼容旧参数)")
-    parser.add_argument("--username", type=str, default=os.environ.get("MGM_USERNAME", "lollol"), help="音游伴侣登录账号")
+    parser.add_argument("--username", type=str, default=os.environ.get("MGM_USERNAME", "lolloll"), help="音游伴侣登录账号")
     parser.add_argument("--password", type=str, default=os.environ.get("MGM_PASSWORD", "123456"), help="音游伴侣登录密码")
     parser.add_argument("--start-page", type=int, default=int(os.environ.get("START_PAGE", 1)), help="起始页码 (默认 1)")
     parser.add_argument("--save-dir", type=str, default=os.environ.get("SAVE_DIR", DEFAULT_SAVE_DIR), help="乐谱与简谱保存目录")

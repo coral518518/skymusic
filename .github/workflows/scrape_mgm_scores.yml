@@ -19,9 +19,9 @@ on:
         default: '1'
         type: string
       username:
-        description: '音游伴侣账号 (默认 lollol，留空可使用 Secrets.MGM_USERNAME)'
+        description: '音游伴侣账号 (默认 lolloll，留空可使用 Secrets.MGM_USERNAME)'
         required: false
-        default: 'lollol'
+        default: 'lolloll'
         type: string
       password:
         description: '音游伴侣密码 (默认 123456，留空可使用 Secrets.MGM_PASSWORD)'
@@ -175,7 +175,7 @@ jobs:
           MAX_COUNT: ${{ github.event.inputs.max_count || '10' }}
           RATE_PER_HOUR: ${{ github.event.inputs.rate_per_hour || '10' }}
           START_PAGE: ${{ github.event.inputs.start_page || '1' }}
-          MGM_USERNAME: ${{ github.event.inputs.username || secrets.MGM_USERNAME || 'lollol' }}
+          MGM_USERNAME: ${{ github.event.inputs.username || secrets.MGM_USERNAME || 'lolloll' }}
           MGM_PASSWORD: ${{ github.event.inputs.password || secrets.MGM_PASSWORD || '123456' }}
           SAVE_DIR: ${{ github.event.inputs.save_dir || '音游伴侣/scores' }}
           HEADLESS: 'false'

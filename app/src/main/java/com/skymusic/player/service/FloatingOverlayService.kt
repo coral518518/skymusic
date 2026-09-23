@@ -760,7 +760,7 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         // 初始化账号与密码回显
         etUser.setText(mgmClient.getSavedUsername())
         etPass.setText(mgmClient.getSavedPassword())
-        tvStatus.text = if (mgmClient.isLoggedIn()) "账号状态: 已保存登录凭据" else "账号状态: 未登录 (默认内置 lollol)"
+        tvStatus.text = if (mgmClient.isLoggedIn()) "账号状态: 已保存登录凭据" else "账号状态: 未登录 (默认内置 lolloll)"
 
         // 展开/折叠账号配置抽屉
         btnAccountToggle.setOnClickListener {

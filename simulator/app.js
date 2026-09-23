@@ -345,41 +345,94 @@ const ScoreParsers = {
       throw new Error("JSON 格式错误: " + e.message);
     }
 
-    let targetObj = null;
-    let songNotes = [];
     let title = defaultTitle;
     let bpm = 120;
-
-    if (Array.isArray(json) && json.length > 0) {
-      if (json[0].songNotes) {
-        targetObj = json[0];
-        songNotes = json[0].songNotes;
-      } else if (json[0].time !== undefined) {
-        songNotes = json;
-      }
-    } else if (json.songNotes) {
-      targetObj = json;
-      songNotes = json.songNotes;
-    }
-
-    if (targetObj) {
-      if (targetObj.name) title = targetObj.name;
-      if (targetObj.bpm) bpm = targetObj.bpm;
-    }
-
     const timeMap = new Map();
-    songNotes.forEach(item => {
-      const time = item.time || 0;
-      const keyStr = item.key || "";
-      const match = keyStr.match(/Key(\d+)/i) || keyStr.match(/(\d+)/);
-      if (match) {
-        const keyIndex = parseInt(match[1], 10);
-        if (keyIndex >= 0 && keyIndex <= 14) {
-          if (!timeMap.has(time)) timeMap.set(time, []);
-          const arr = timeMap.get(time);
-          if (!arr.includes(keyIndex)) arr.push(keyIndex);
+
+    // 辅助按键解析 (1..15 -> 0..14)
+    function parseKeyIdx(item) {
+      // 1. targetKey ("sky.key.8" -> 7, "8" -> 7)
+      if (item.targetKey !== undefined && item.targetKey !== null) {
+        const m = String(item.targetKey).match(/key\.(\d+)/i) || String(item.targetKey).match(/^(\d+)$/);
+        if (m) {
+          const k = parseInt(m[1], 10);
+          if (k >= 1 && k <= 15) return k - 1;
         }
       }
+      // 2. keyIndex (8 -> 7)
+      if (item.keyIndex !== undefined && item.keyIndex !== null) {
+        const k = parseInt(item.keyIndex, 10);
+        if (k >= 1 && k <= 15) return k - 1;
+      }
+      // 3. pitch (8 -> 7)
+      if (item.pitch !== undefined && item.pitch !== null) {
+        const k = parseInt(item.pitch, 10);
+        if (k >= 1 && k <= 15) return k - 1;
+      }
+      // 4. rawKey ("1Key7" -> 7)
+      if (item.rawKey !== undefined && item.rawKey !== null) {
+        const m = String(item.rawKey).match(/Key(\d+)/i);
+        if (m) {
+          const k = parseInt(m[1], 10);
+          if (k >= 0 && k <= 14) return k;
+        }
+        const d = parseInt(item.rawKey, 10);
+        if (d >= 1 && d <= 15) return d - 1;
+      }
+      // 5. 传统 key ("1Key7" -> 7)
+      if (item.key !== undefined && item.key !== null) {
+        const m = String(item.key).match(/Key(\d+)/i);
+        if (m) {
+          const k = parseInt(m[1], 10);
+          if (k >= 0 && k <= 14) return k;
+        }
+        const d = parseInt(item.key, 10);
+        if (d >= 1 && d <= 15) return d - 1;
+      }
+      return -1;
+    }
+
+    // 1. 解开音游伴侣包装 data.score
+    let target = json;
+    if (target && target.data) target = target.data;
+    if (target && target.score) target = target.score;
+
+    if (target) {
+      if (target.bpm) bpm = target.bpm;
+      if (target.metadata) {
+        if (target.metadata.title) title = target.metadata.title;
+        if (target.metadata.bpm) bpm = target.metadata.bpm;
+      }
+      if (target.name) title = target.name;
+    }
+
+    // 2. 提取音符列表
+    let notesArrays = [];
+    if (target && Array.isArray(target.tracks)) {
+      target.tracks.forEach(track => {
+        if (!track.muted) {
+          if (Array.isArray(track.notes)) notesArrays.push(track.notes);
+          else if (Array.isArray(track.songNotes)) notesArrays.push(track.songNotes);
+        }
+      });
+    } else if (target && Array.isArray(target.notes)) {
+      notesArrays.push(target.notes);
+    } else if (target && Array.isArray(target.songNotes)) {
+      notesArrays.push(target.songNotes);
+    } else if (Array.isArray(json)) {
+      notesArrays.push(json);
+    }
+
+    notesArrays.forEach(arr => {
+      arr.forEach(item => {
+        const time = item.startMs !== undefined ? item.startMs : (item.time || item.timeMs || 0);
+        const k = parseKeyIdx(item);
+        if (k >= 0 && k <= 14) {
+          if (!timeMap.has(time)) timeMap.set(time, []);
+          const list = timeMap.get(time);
+          if (!list.includes(k)) list.push(k);
+        }
+      });
     });
 
     const notes = Array.from(timeMap.entries()).map(([t, keys]) => ({
@@ -392,11 +445,11 @@ const ScoreParsers = {
     return {
       id: "song_" + Date.now(),
       title: title,
-      artist: "Sky 社区",
+      artist: "音游伴侣",
       bpm: bpm,
       notes: notes,
       durationMs: durationMs,
-      type: "SkyJSON"
+      type: "OnlineMGM"
     };
   },
 
