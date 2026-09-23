@@ -1,0 +1,3640 @@
+{
+  "success": true,
+  "data": {
+    "score": {
+      "format": "mgm.score",
+      "version": 1,
+      "durationMs": 92055,
+      "noteCount": 357,
+      "trackCount": 2,
+      "bpm": 73,
+      "metadata": {
+        "title": "春庭雪",
+        "artist": "网络",
+        "creator": "网络",
+        "description": "",
+        "sourceFormat": "compose_lab"
+      },
+      "timing": {
+        "timeBase": "milliseconds",
+        "bpm": 73,
+        "offsetMs": 0
+      },
+      "range": {
+        "code": "21",
+        "keyCount": 21
+      },
+      "preview": {
+        "defaultInstrument": "piano",
+        "metronome": false,
+        "countInBeats": 0
+      },
+      "target": {
+        "platform": "manual",
+        "game": "",
+        "layoutProfileId": "",
+        "clickMode": "tap"
+      },
+      "tracks": [
+        {
+          "id": "midi_t1_c0_p0",
+          "name": "MIDI 轨道 2",
+          "instrument": "sky_grand_piano",
+          "muted": false,
+          "solo": false,
+          "preview": {
+            "defaultInstrument": "piano",
+            "metronome": false,
+            "countInBeats": 0
+          },
+          "notes": [
+            {
+              "id": "midi_t1_c0_p0_n1",
+              "startMs": 0,
+              "durationMs": 822,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 114,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n2",
+              "startMs": 822,
+              "durationMs": 822,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n3",
+              "startMs": 1644,
+              "durationMs": 822,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 107,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n4",
+              "startMs": 2466,
+              "durationMs": 411,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n5",
+              "startMs": 2877,
+              "durationMs": 411,
+              "pitch": 71,
+              "keyIndex": 7,
+              "velocity": 101,
+              "rawKey": "midi.71",
+              "targetKey": "7"
+            },
+            {
+              "id": "midi_t1_c0_p0_n6",
+              "startMs": 3288,
+              "durationMs": 1233,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 114,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n7",
+              "startMs": 4521,
+              "durationMs": 205,
+              "pitch": 81,
+              "keyIndex": 13,
+              "velocity": 101,
+              "rawKey": "midi.81",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t1_c0_p0_n8",
+              "startMs": 4726,
+              "durationMs": 205,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 101,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n9",
+              "startMs": 4932,
+              "durationMs": 822,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 107,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n10",
+              "startMs": 5753,
+              "durationMs": 411,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 101,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n11",
+              "startMs": 6164,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n12",
+              "startMs": 6575,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 114,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n13",
+              "startMs": 6986,
+              "durationMs": 205,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 114,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n14",
+              "startMs": 7192,
+              "durationMs": 205,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 114,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n15",
+              "startMs": 7397,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n16",
+              "startMs": 7808,
+              "durationMs": 411,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 101,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n17",
+              "startMs": 8219,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 107,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n18",
+              "startMs": 8630,
+              "durationMs": 411,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 107,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n19",
+              "startMs": 9041,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n20",
+              "startMs": 9452,
+              "durationMs": 411,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 101,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n21",
+              "startMs": 9863,
+              "durationMs": 1644,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 114,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n22",
+              "startMs": 12740,
+              "durationMs": 411,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 101,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n23",
+              "startMs": 13151,
+              "durationMs": 822,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 114,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n24",
+              "startMs": 13973,
+              "durationMs": 411,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n25",
+              "startMs": 14384,
+              "durationMs": 411,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 101,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n26",
+              "startMs": 14795,
+              "durationMs": 616,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 107,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n27",
+              "startMs": 15411,
+              "durationMs": 205,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 107,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n28",
+              "startMs": 15616,
+              "durationMs": 411,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n29",
+              "startMs": 16027,
+              "durationMs": 411,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n30",
+              "startMs": 16438,
+              "durationMs": 1644,
+              "pitch": 69,
+              "keyIndex": 6,
+              "velocity": 114,
+              "rawKey": "midi.69",
+              "targetKey": "6"
+            },
+            {
+              "id": "midi_t1_c0_p0_n31",
+              "startMs": 19315,
+              "durationMs": 205,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n32",
+              "startMs": 19521,
+              "durationMs": 205,
+              "pitch": 71,
+              "keyIndex": 7,
+              "velocity": 101,
+              "rawKey": "midi.71",
+              "targetKey": "7"
+            },
+            {
+              "id": "midi_t1_c0_p0_n33",
+              "startMs": 19726,
+              "durationMs": 1233,
+              "pitch": 69,
+              "keyIndex": 6,
+              "velocity": 114,
+              "rawKey": "midi.69",
+              "targetKey": "6"
+            },
+            {
+              "id": "midi_t1_c0_p0_n34",
+              "startMs": 20959,
+              "durationMs": 205,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n35",
+              "startMs": 21164,
+              "durationMs": 205,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n36",
+              "startMs": 21370,
+              "durationMs": 1233,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 107,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n37",
+              "startMs": 22603,
+              "durationMs": 411,
+              "pitch": 77,
+              "keyIndex": 11,
+              "velocity": 101,
+              "rawKey": "midi.77",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t1_c0_p0_n38",
+              "startMs": 23014,
+              "durationMs": 1644,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 114,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n39",
+              "startMs": 25479,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n40",
+              "startMs": 25890,
+              "durationMs": 411,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 101,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n41",
+              "startMs": 26301,
+              "durationMs": 411,
+              "pitch": 69,
+              "keyIndex": 6,
+              "velocity": 114,
+              "rawKey": "midi.69",
+              "targetKey": "6"
+            },
+            {
+              "id": "midi_t1_c0_p0_n42",
+              "startMs": 26712,
+              "durationMs": 205,
+              "pitch": 81,
+              "keyIndex": 13,
+              "velocity": 114,
+              "rawKey": "midi.81",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t1_c0_p0_n43",
+              "startMs": 26918,
+              "durationMs": 205,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 114,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n44",
+              "startMs": 27123,
+              "durationMs": 411,
+              "pitch": 81,
+              "keyIndex": 13,
+              "velocity": 101,
+              "rawKey": "midi.81",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t1_c0_p0_n45",
+              "startMs": 27534,
+              "durationMs": 411,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 101,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n46",
+              "startMs": 27945,
+              "durationMs": 822,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 107,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n47",
+              "startMs": 28767,
+              "durationMs": 411,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 101,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n48",
+              "startMs": 29178,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n49",
+              "startMs": 29589,
+              "durationMs": 616,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 114,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n50",
+              "startMs": 30205,
+              "durationMs": 205,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 114,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n51",
+              "startMs": 30411,
+              "durationMs": 411,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 101,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n52",
+              "startMs": 30822,
+              "durationMs": 411,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 101,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n53",
+              "startMs": 31233,
+              "durationMs": 822,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 107,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n54",
+              "startMs": 32466,
+              "durationMs": 205,
+              "pitch": 69,
+              "keyIndex": 6,
+              "velocity": 101,
+              "rawKey": "midi.69",
+              "targetKey": "6"
+            },
+            {
+              "id": "midi_t1_c0_p0_n55",
+              "startMs": 32671,
+              "durationMs": 205,
+              "pitch": 71,
+              "keyIndex": 7,
+              "velocity": 101,
+              "rawKey": "midi.71",
+              "targetKey": "7"
+            },
+            {
+              "id": "midi_t1_c0_p0_n56",
+              "startMs": 32877,
+              "durationMs": 1233,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 114,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n57",
+              "startMs": 34110,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n58",
+              "startMs": 34521,
+              "durationMs": 411,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 107,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n59",
+              "startMs": 34932,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 107,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n60",
+              "startMs": 35342,
+              "durationMs": 411,
+              "pitch": 71,
+              "keyIndex": 7,
+              "velocity": 101,
+              "rawKey": "midi.71",
+              "targetKey": "7"
+            },
+            {
+              "id": "midi_t1_c0_p0_n61",
+              "startMs": 35753,
+              "durationMs": 411,
+              "pitch": 67,
+              "keyIndex": 5,
+              "velocity": 101,
+              "rawKey": "midi.67",
+              "targetKey": "5"
+            },
+            {
+              "id": "midi_t1_c0_p0_n62",
+              "startMs": 36164,
+              "durationMs": 3288,
+              "pitch": 69,
+              "keyIndex": 6,
+              "velocity": 114,
+              "rawKey": "midi.69",
+              "targetKey": "6"
+            },
+            {
+              "id": "midi_t1_c0_p0_n63",
+              "startMs": 39452,
+              "durationMs": 1233,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 114,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n64",
+              "startMs": 40685,
+              "durationMs": 205,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n65",
+              "startMs": 40890,
+              "durationMs": 205,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 101,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n66",
+              "startMs": 41096,
+              "durationMs": 822,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 107,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n67",
+              "startMs": 41918,
+              "durationMs": 411,
+              "pitch": 69,
+              "keyIndex": 6,
+              "velocity": 101,
+              "rawKey": "midi.69",
+              "targetKey": "6"
+            },
+            {
+              "id": "midi_t1_c0_p0_n68",
+              "startMs": 42329,
+              "durationMs": 411,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n69",
+              "startMs": 42740,
+              "durationMs": 616,
+              "pitch": 71,
+              "keyIndex": 14,
+              "velocity": 114,
+              "rawKey": "midi.71",
+              "targetKey": "14"
+            },
+            {
+              "id": "midi_t1_c0_p0_n70",
+              "startMs": 43356,
+              "durationMs": 205,
+              "pitch": 72,
+              "keyIndex": 15,
+              "velocity": 114,
+              "rawKey": "midi.72",
+              "targetKey": "15"
+            },
+            {
+              "id": "midi_t1_c0_p0_n71",
+              "startMs": 43562,
+              "durationMs": 411,
+              "pitch": 71,
+              "keyIndex": 14,
+              "velocity": 101,
+              "rawKey": "midi.71",
+              "targetKey": "14"
+            },
+            {
+              "id": "midi_t1_c0_p0_n72",
+              "startMs": 43973,
+              "durationMs": 411,
+              "pitch": 67,
+              "keyIndex": 12,
+              "velocity": 101,
+              "rawKey": "midi.67",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n73",
+              "startMs": 44384,
+              "durationMs": 822,
+              "pitch": 64,
+              "keyIndex": 10,
+              "velocity": 107,
+              "rawKey": "midi.64",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n74",
+              "startMs": 45616,
+              "durationMs": 205,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n75",
+              "startMs": 45822,
+              "durationMs": 205,
+              "pitch": 71,
+              "keyIndex": 7,
+              "velocity": 101,
+              "rawKey": "midi.71",
+              "targetKey": "7"
+            },
+            {
+              "id": "midi_t1_c0_p0_n76",
+              "startMs": 46027,
+              "durationMs": 1233,
+              "pitch": 69,
+              "keyIndex": 6,
+              "velocity": 114,
+              "rawKey": "midi.69",
+              "targetKey": "6"
+            },
+            {
+              "id": "midi_t1_c0_p0_n77",
+              "startMs": 47260,
+              "durationMs": 205,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n78",
+              "startMs": 47466,
+              "durationMs": 205,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n79",
+              "startMs": 47671,
+              "durationMs": 1233,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 107,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n80",
+              "startMs": 48904,
+              "durationMs": 411,
+              "pitch": 77,
+              "keyIndex": 11,
+              "velocity": 101,
+              "rawKey": "midi.77",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t1_c0_p0_n81",
+              "startMs": 49315,
+              "durationMs": 1644,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 114,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n82",
+              "startMs": 51781,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n83",
+              "startMs": 52192,
+              "durationMs": 411,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 101,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n84",
+              "startMs": 52603,
+              "durationMs": 411,
+              "pitch": 69,
+              "keyIndex": 6,
+              "velocity": 114,
+              "rawKey": "midi.69",
+              "targetKey": "6"
+            },
+            {
+              "id": "midi_t1_c0_p0_n85",
+              "startMs": 53014,
+              "durationMs": 205,
+              "pitch": 81,
+              "keyIndex": 13,
+              "velocity": 114,
+              "rawKey": "midi.81",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t1_c0_p0_n86",
+              "startMs": 53219,
+              "durationMs": 205,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 114,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n87",
+              "startMs": 53425,
+              "durationMs": 411,
+              "pitch": 81,
+              "keyIndex": 13,
+              "velocity": 101,
+              "rawKey": "midi.81",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t1_c0_p0_n88",
+              "startMs": 53836,
+              "durationMs": 411,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 101,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n89",
+              "startMs": 54247,
+              "durationMs": 822,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 107,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n90",
+              "startMs": 55068,
+              "durationMs": 411,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 101,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n91",
+              "startMs": 55479,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n92",
+              "startMs": 55890,
+              "durationMs": 616,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 114,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n93",
+              "startMs": 56507,
+              "durationMs": 205,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 114,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n94",
+              "startMs": 56712,
+              "durationMs": 411,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 101,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n95",
+              "startMs": 57123,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n96",
+              "startMs": 57534,
+              "durationMs": 822,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 107,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n97",
+              "startMs": 58767,
+              "durationMs": 205,
+              "pitch": 69,
+              "keyIndex": 6,
+              "velocity": 101,
+              "rawKey": "midi.69",
+              "targetKey": "6"
+            },
+            {
+              "id": "midi_t1_c0_p0_n98",
+              "startMs": 58973,
+              "durationMs": 205,
+              "pitch": 71,
+              "keyIndex": 7,
+              "velocity": 101,
+              "rawKey": "midi.71",
+              "targetKey": "7"
+            },
+            {
+              "id": "midi_t1_c0_p0_n99",
+              "startMs": 59178,
+              "durationMs": 1233,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 114,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n100",
+              "startMs": 60411,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n101",
+              "startMs": 60822,
+              "durationMs": 411,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 107,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n102",
+              "startMs": 61233,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 107,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n103",
+              "startMs": 61644,
+              "durationMs": 411,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 101,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n104",
+              "startMs": 62055,
+              "durationMs": 411,
+              "pitch": 83,
+              "keyIndex": 14,
+              "velocity": 101,
+              "rawKey": "midi.83",
+              "targetKey": "14"
+            },
+            {
+              "id": "midi_t1_c0_p0_n105",
+              "startMs": 62466,
+              "durationMs": 1644,
+              "pitch": 81,
+              "keyIndex": 13,
+              "velocity": 114,
+              "rawKey": "midi.81",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t1_c0_p0_n106",
+              "startMs": 64932,
+              "durationMs": 411,
+              "pitch": 64,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.64",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n107",
+              "startMs": 65342,
+              "durationMs": 411,
+              "pitch": 67,
+              "keyIndex": 12,
+              "velocity": 101,
+              "rawKey": "midi.67",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n108",
+              "startMs": 65753,
+              "durationMs": 1233,
+              "pitch": 69,
+              "keyIndex": 13,
+              "velocity": 114,
+              "rawKey": "midi.69",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t1_c0_p0_n109",
+              "startMs": 66986,
+              "durationMs": 411,
+              "pitch": 72,
+              "keyIndex": 15,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "15"
+            },
+            {
+              "id": "midi_t1_c0_p0_n110",
+              "startMs": 67397,
+              "durationMs": 411,
+              "pitch": 71,
+              "keyIndex": 14,
+              "velocity": 107,
+              "rawKey": "midi.71",
+              "targetKey": "14"
+            },
+            {
+              "id": "midi_t1_c0_p0_n111",
+              "startMs": 67808,
+              "durationMs": 205,
+              "pitch": 72,
+              "keyIndex": 15,
+              "velocity": 107,
+              "rawKey": "midi.72",
+              "targetKey": "15"
+            },
+            {
+              "id": "midi_t1_c0_p0_n112",
+              "startMs": 68014,
+              "durationMs": 205,
+              "pitch": 71,
+              "keyIndex": 14,
+              "velocity": 107,
+              "rawKey": "midi.71",
+              "targetKey": "14"
+            },
+            {
+              "id": "midi_t1_c0_p0_n113",
+              "startMs": 68219,
+              "durationMs": 411,
+              "pitch": 69,
+              "keyIndex": 13,
+              "velocity": 101,
+              "rawKey": "midi.69",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t1_c0_p0_n114",
+              "startMs": 68630,
+              "durationMs": 411,
+              "pitch": 67,
+              "keyIndex": 12,
+              "velocity": 101,
+              "rawKey": "midi.67",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n115",
+              "startMs": 69041,
+              "durationMs": 411,
+              "pitch": 64,
+              "keyIndex": 10,
+              "velocity": 114,
+              "rawKey": "midi.64",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n116",
+              "startMs": 69452,
+              "durationMs": 411,
+              "pitch": 67,
+              "keyIndex": 12,
+              "velocity": 114,
+              "rawKey": "midi.67",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n117",
+              "startMs": 69863,
+              "durationMs": 411,
+              "pitch": 67,
+              "keyIndex": 12,
+              "velocity": 101,
+              "rawKey": "midi.67",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n118",
+              "startMs": 70274,
+              "durationMs": 411,
+              "pitch": 62,
+              "keyIndex": 9,
+              "velocity": 101,
+              "rawKey": "midi.62",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n119",
+              "startMs": 70685,
+              "durationMs": 822,
+              "pitch": 64,
+              "keyIndex": 10,
+              "velocity": 107,
+              "rawKey": "midi.64",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n120",
+              "startMs": 71507,
+              "durationMs": 411,
+              "pitch": 64,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.64",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n121",
+              "startMs": 71918,
+              "durationMs": 411,
+              "pitch": 67,
+              "keyIndex": 12,
+              "velocity": 101,
+              "rawKey": "midi.67",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n122",
+              "startMs": 72329,
+              "durationMs": 1233,
+              "pitch": 69,
+              "keyIndex": 13,
+              "velocity": 114,
+              "rawKey": "midi.69",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t1_c0_p0_n123",
+              "startMs": 73562,
+              "durationMs": 411,
+              "pitch": 72,
+              "keyIndex": 15,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "15"
+            },
+            {
+              "id": "midi_t1_c0_p0_n124",
+              "startMs": 73973,
+              "durationMs": 411,
+              "pitch": 71,
+              "keyIndex": 14,
+              "velocity": 107,
+              "rawKey": "midi.71",
+              "targetKey": "14"
+            },
+            {
+              "id": "midi_t1_c0_p0_n125",
+              "startMs": 74384,
+              "durationMs": 411,
+              "pitch": 67,
+              "keyIndex": 12,
+              "velocity": 107,
+              "rawKey": "midi.67",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n126",
+              "startMs": 74795,
+              "durationMs": 411,
+              "pitch": 72,
+              "keyIndex": 15,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "15"
+            },
+            {
+              "id": "midi_t1_c0_p0_n127",
+              "startMs": 75205,
+              "durationMs": 411,
+              "pitch": 74,
+              "keyIndex": 16,
+              "velocity": 101,
+              "rawKey": "midi.74",
+              "targetKey": "16"
+            },
+            {
+              "id": "midi_t1_c0_p0_n128",
+              "startMs": 75616,
+              "durationMs": 616,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 114,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n129",
+              "startMs": 76233,
+              "durationMs": 1027,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 114,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n130",
+              "startMs": 78082,
+              "durationMs": 411,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n131",
+              "startMs": 78493,
+              "durationMs": 411,
+              "pitch": 71,
+              "keyIndex": 7,
+              "velocity": 101,
+              "rawKey": "midi.71",
+              "targetKey": "7"
+            },
+            {
+              "id": "midi_t1_c0_p0_n132",
+              "startMs": 78904,
+              "durationMs": 411,
+              "pitch": 69,
+              "keyIndex": 6,
+              "velocity": 114,
+              "rawKey": "midi.69",
+              "targetKey": "6"
+            },
+            {
+              "id": "midi_t1_c0_p0_n133",
+              "startMs": 79315,
+              "durationMs": 411,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 114,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n134",
+              "startMs": 79726,
+              "durationMs": 411,
+              "pitch": 79,
+              "keyIndex": 12,
+              "velocity": 101,
+              "rawKey": "midi.79",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t1_c0_p0_n135",
+              "startMs": 80137,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n136",
+              "startMs": 80548,
+              "durationMs": 822,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 107,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n137",
+              "startMs": 81370,
+              "durationMs": 411,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 101,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n138",
+              "startMs": 81781,
+              "durationMs": 411,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 101,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n139",
+              "startMs": 82192,
+              "durationMs": 411,
+              "pitch": 67,
+              "keyIndex": 5,
+              "velocity": 114,
+              "rawKey": "midi.67",
+              "targetKey": "5"
+            },
+            {
+              "id": "midi_t1_c0_p0_n140",
+              "startMs": 82603,
+              "durationMs": 411,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 114,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n141",
+              "startMs": 83014,
+              "durationMs": 411,
+              "pitch": 74,
+              "keyIndex": 9,
+              "velocity": 101,
+              "rawKey": "midi.74",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t1_c0_p0_n142",
+              "startMs": 83425,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n143",
+              "startMs": 83836,
+              "durationMs": 822,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 107,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n144",
+              "startMs": 85068,
+              "durationMs": 205,
+              "pitch": 69,
+              "keyIndex": 6,
+              "velocity": 101,
+              "rawKey": "midi.69",
+              "targetKey": "6"
+            },
+            {
+              "id": "midi_t1_c0_p0_n145",
+              "startMs": 85274,
+              "durationMs": 205,
+              "pitch": 71,
+              "keyIndex": 7,
+              "velocity": 101,
+              "rawKey": "midi.71",
+              "targetKey": "7"
+            },
+            {
+              "id": "midi_t1_c0_p0_n146",
+              "startMs": 85479,
+              "durationMs": 1233,
+              "pitch": 72,
+              "keyIndex": 8,
+              "velocity": 114,
+              "rawKey": "midi.72",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t1_c0_p0_n147",
+              "startMs": 86712,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 101,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n148",
+              "startMs": 87123,
+              "durationMs": 411,
+              "pitch": 76,
+              "keyIndex": 10,
+              "velocity": 107,
+              "rawKey": "midi.76",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t1_c0_p0_n149",
+              "startMs": 87534,
+              "durationMs": 411,
+              "pitch": 71,
+              "keyIndex": 7,
+              "velocity": 107,
+              "rawKey": "midi.71",
+              "targetKey": "7"
+            },
+            {
+              "id": "midi_t1_c0_p0_n150",
+              "startMs": 87945,
+              "durationMs": 411,
+              "pitch": 71,
+              "keyIndex": 7,
+              "velocity": 101,
+              "rawKey": "midi.71",
+              "targetKey": "7"
+            },
+            {
+              "id": "midi_t1_c0_p0_n151",
+              "startMs": 88356,
+              "durationMs": 822,
+              "pitch": 67,
+              "keyIndex": 5,
+              "velocity": 101,
+              "rawKey": "midi.67",
+              "targetKey": "5"
+            },
+            {
+              "id": "midi_t1_c0_p0_n152",
+              "startMs": 89178,
+              "durationMs": 2877,
+              "pitch": 69,
+              "keyIndex": 6,
+              "velocity": 114,
+              "rawKey": "midi.69",
+              "targetKey": "6"
+            }
+          ]
+        },
+        {
+          "id": "midi_t2_c0_p0",
+          "name": "MIDI 轨道 3",
+          "instrument": "sky_grand_piano",
+          "muted": false,
+          "solo": false,
+          "preview": {
+            "defaultInstrument": "piano",
+            "metronome": false,
+            "countInBeats": 0
+          },
+          "notes": [
+            {
+              "id": "midi_t2_c0_p0_n1",
+              "startMs": 0,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n2",
+              "startMs": 411,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 88,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n3",
+              "startMs": 822,
+              "durationMs": 822,
+              "pitch": 60,
+              "keyIndex": 15,
+              "velocity": 76,
+              "rawKey": "midi.60",
+              "targetKey": "15"
+            },
+            {
+              "id": "midi_t2_c0_p0_n4",
+              "startMs": 1644,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n5",
+              "startMs": 1644,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 82,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n6",
+              "startMs": 2055,
+              "durationMs": 411,
+              "pitch": 50,
+              "keyIndex": 9,
+              "velocity": 82,
+              "rawKey": "midi.50",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t2_c0_p0_n7",
+              "startMs": 2466,
+              "durationMs": 822,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 76,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n8",
+              "startMs": 3288,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n9",
+              "startMs": 3288,
+              "durationMs": 411,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 88,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n10",
+              "startMs": 3699,
+              "durationMs": 411,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 88,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n11",
+              "startMs": 4110,
+              "durationMs": 411,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 76,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n12",
+              "startMs": 4521,
+              "durationMs": 411,
+              "pitch": 60,
+              "keyIndex": 15,
+              "velocity": 76,
+              "rawKey": "midi.60",
+              "targetKey": "15"
+            },
+            {
+              "id": "midi_t2_c0_p0_n13",
+              "startMs": 4932,
+              "durationMs": 1644,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 82,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n14",
+              "startMs": 6575,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n15",
+              "startMs": 6575,
+              "durationMs": 411,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 88,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n16",
+              "startMs": 6986,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n17",
+              "startMs": 7397,
+              "durationMs": 822,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 76,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n18",
+              "startMs": 8219,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n19",
+              "startMs": 8219,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 82,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n20",
+              "startMs": 8630,
+              "durationMs": 411,
+              "pitch": 50,
+              "keyIndex": 9,
+              "velocity": 82,
+              "rawKey": "midi.50",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t2_c0_p0_n21",
+              "startMs": 9041,
+              "durationMs": 822,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 76,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n22",
+              "startMs": 9863,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n23",
+              "startMs": 9863,
+              "durationMs": 411,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 88,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n24",
+              "startMs": 10274,
+              "durationMs": 411,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 88,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n25",
+              "startMs": 10685,
+              "durationMs": 411,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 76,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n26",
+              "startMs": 11096,
+              "durationMs": 411,
+              "pitch": 60,
+              "keyIndex": 15,
+              "velocity": 76,
+              "rawKey": "midi.60",
+              "targetKey": "15"
+            },
+            {
+              "id": "midi_t2_c0_p0_n27",
+              "startMs": 11507,
+              "durationMs": 1644,
+              "pitch": 64,
+              "keyIndex": 17,
+              "velocity": 82,
+              "rawKey": "midi.64",
+              "targetKey": "17"
+            },
+            {
+              "id": "midi_t2_c0_p0_n28",
+              "startMs": 13151,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n29",
+              "startMs": 13562,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 88,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n30",
+              "startMs": 13973,
+              "durationMs": 822,
+              "pitch": 60,
+              "keyIndex": 15,
+              "velocity": 76,
+              "rawKey": "midi.60",
+              "targetKey": "15"
+            },
+            {
+              "id": "midi_t2_c0_p0_n31",
+              "startMs": 14795,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n32",
+              "startMs": 14795,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 82,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n33",
+              "startMs": 15205,
+              "durationMs": 411,
+              "pitch": 50,
+              "keyIndex": 9,
+              "velocity": 82,
+              "rawKey": "midi.50",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t2_c0_p0_n34",
+              "startMs": 15616,
+              "durationMs": 822,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 76,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n35",
+              "startMs": 16438,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n36",
+              "startMs": 16438,
+              "durationMs": 411,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 88,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n37",
+              "startMs": 16849,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n38",
+              "startMs": 17260,
+              "durationMs": 411,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 76,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n39",
+              "startMs": 17671,
+              "durationMs": 411,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 76,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n40",
+              "startMs": 18082,
+              "durationMs": 1644,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n41",
+              "startMs": 19726,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n42",
+              "startMs": 19726,
+              "durationMs": 411,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 88,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n43",
+              "startMs": 20137,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n44",
+              "startMs": 20548,
+              "durationMs": 822,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 76,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n45",
+              "startMs": 21370,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n46",
+              "startMs": 21370,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 82,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n47",
+              "startMs": 21781,
+              "durationMs": 411,
+              "pitch": 50,
+              "keyIndex": 9,
+              "velocity": 82,
+              "rawKey": "midi.50",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t2_c0_p0_n48",
+              "startMs": 22192,
+              "durationMs": 822,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 76,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n49",
+              "startMs": 23014,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n50",
+              "startMs": 23425,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 88,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n51",
+              "startMs": 23836,
+              "durationMs": 411,
+              "pitch": 60,
+              "keyIndex": 15,
+              "velocity": 76,
+              "rawKey": "midi.60",
+              "targetKey": "15"
+            },
+            {
+              "id": "midi_t2_c0_p0_n52",
+              "startMs": 24247,
+              "durationMs": 411,
+              "pitch": 62,
+              "keyIndex": 16,
+              "velocity": 76,
+              "rawKey": "midi.62",
+              "targetKey": "16"
+            },
+            {
+              "id": "midi_t2_c0_p0_n53",
+              "startMs": 24658,
+              "durationMs": 1644,
+              "pitch": 64,
+              "keyIndex": 17,
+              "velocity": 82,
+              "rawKey": "midi.64",
+              "targetKey": "17"
+            },
+            {
+              "id": "midi_t2_c0_p0_n54",
+              "startMs": 26301,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n55",
+              "startMs": 26301,
+              "durationMs": 411,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 88,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n56",
+              "startMs": 26712,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n57",
+              "startMs": 27123,
+              "durationMs": 822,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 76,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n58",
+              "startMs": 27945,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n59",
+              "startMs": 27945,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 82,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n60",
+              "startMs": 28356,
+              "durationMs": 411,
+              "pitch": 50,
+              "keyIndex": 9,
+              "velocity": 82,
+              "rawKey": "midi.50",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t2_c0_p0_n61",
+              "startMs": 28767,
+              "durationMs": 822,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 76,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n62",
+              "startMs": 29589,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n63",
+              "startMs": 29589,
+              "durationMs": 411,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 88,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n64",
+              "startMs": 30000,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n65",
+              "startMs": 30000,
+              "durationMs": 411,
+              "pitch": 59,
+              "keyIndex": 14,
+              "velocity": 88,
+              "rawKey": "midi.59",
+              "targetKey": "14"
+            },
+            {
+              "id": "midi_t2_c0_p0_n66",
+              "startMs": 30411,
+              "durationMs": 822,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 76,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n67",
+              "startMs": 31233,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n68",
+              "startMs": 31233,
+              "durationMs": 411,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 82,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n69",
+              "startMs": 31644,
+              "durationMs": 411,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 82,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n70",
+              "startMs": 32055,
+              "durationMs": 822,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 76,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n71",
+              "startMs": 32877,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n72",
+              "startMs": 32877,
+              "durationMs": 411,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 88,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n73",
+              "startMs": 33288,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n74",
+              "startMs": 33699,
+              "durationMs": 822,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 76,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n75",
+              "startMs": 34521,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n76",
+              "startMs": 34521,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 82,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n77",
+              "startMs": 34932,
+              "durationMs": 411,
+              "pitch": 50,
+              "keyIndex": 9,
+              "velocity": 82,
+              "rawKey": "midi.50",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t2_c0_p0_n78",
+              "startMs": 35342,
+              "durationMs": 822,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 76,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n79",
+              "startMs": 36164,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n80",
+              "startMs": 36164,
+              "durationMs": 411,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 88,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n81",
+              "startMs": 36575,
+              "durationMs": 411,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 88,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n82",
+              "startMs": 36986,
+              "durationMs": 411,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 76,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n83",
+              "startMs": 37397,
+              "durationMs": 411,
+              "pitch": 59,
+              "keyIndex": 14,
+              "velocity": 76,
+              "rawKey": "midi.59",
+              "targetKey": "14"
+            },
+            {
+              "id": "midi_t2_c0_p0_n84",
+              "startMs": 37808,
+              "durationMs": 1644,
+              "pitch": 60,
+              "keyIndex": 15,
+              "velocity": 82,
+              "rawKey": "midi.60",
+              "targetKey": "15"
+            },
+            {
+              "id": "midi_t2_c0_p0_n85",
+              "startMs": 39452,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n86",
+              "startMs": 39863,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 88,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n87",
+              "startMs": 40274,
+              "durationMs": 822,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 76,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n88",
+              "startMs": 41096,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n89",
+              "startMs": 41096,
+              "durationMs": 411,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 82,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n90",
+              "startMs": 41507,
+              "durationMs": 411,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 82,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n91",
+              "startMs": 41918,
+              "durationMs": 822,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 76,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n92",
+              "startMs": 42740,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n93",
+              "startMs": 42740,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 88,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n94",
+              "startMs": 43151,
+              "durationMs": 411,
+              "pitch": 50,
+              "keyIndex": 9,
+              "velocity": 88,
+              "rawKey": "midi.50",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t2_c0_p0_n95",
+              "startMs": 43562,
+              "durationMs": 822,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 76,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n96",
+              "startMs": 44384,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n97",
+              "startMs": 44384,
+              "durationMs": 411,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 82,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n98",
+              "startMs": 44795,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n99",
+              "startMs": 44795,
+              "durationMs": 411,
+              "pitch": 59,
+              "keyIndex": 14,
+              "velocity": 82,
+              "rawKey": "midi.59",
+              "targetKey": "14"
+            },
+            {
+              "id": "midi_t2_c0_p0_n100",
+              "startMs": 45205,
+              "durationMs": 822,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 76,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n101",
+              "startMs": 46027,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n102",
+              "startMs": 46027,
+              "durationMs": 411,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 88,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n103",
+              "startMs": 46438,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n104",
+              "startMs": 46849,
+              "durationMs": 822,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 76,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n105",
+              "startMs": 47671,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n106",
+              "startMs": 47671,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 82,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n107",
+              "startMs": 48082,
+              "durationMs": 411,
+              "pitch": 50,
+              "keyIndex": 9,
+              "velocity": 82,
+              "rawKey": "midi.50",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t2_c0_p0_n108",
+              "startMs": 48493,
+              "durationMs": 822,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 76,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n109",
+              "startMs": 49315,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n110",
+              "startMs": 49726,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 88,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n111",
+              "startMs": 50137,
+              "durationMs": 411,
+              "pitch": 60,
+              "keyIndex": 15,
+              "velocity": 76,
+              "rawKey": "midi.60",
+              "targetKey": "15"
+            },
+            {
+              "id": "midi_t2_c0_p0_n112",
+              "startMs": 50548,
+              "durationMs": 411,
+              "pitch": 62,
+              "keyIndex": 16,
+              "velocity": 76,
+              "rawKey": "midi.62",
+              "targetKey": "16"
+            },
+            {
+              "id": "midi_t2_c0_p0_n113",
+              "startMs": 50959,
+              "durationMs": 1644,
+              "pitch": 64,
+              "keyIndex": 17,
+              "velocity": 82,
+              "rawKey": "midi.64",
+              "targetKey": "17"
+            },
+            {
+              "id": "midi_t2_c0_p0_n114",
+              "startMs": 52603,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n115",
+              "startMs": 52603,
+              "durationMs": 411,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 88,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n116",
+              "startMs": 53014,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n117",
+              "startMs": 53425,
+              "durationMs": 822,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 76,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n118",
+              "startMs": 54247,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n119",
+              "startMs": 54247,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 82,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n120",
+              "startMs": 54658,
+              "durationMs": 411,
+              "pitch": 50,
+              "keyIndex": 9,
+              "velocity": 82,
+              "rawKey": "midi.50",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t2_c0_p0_n121",
+              "startMs": 55068,
+              "durationMs": 822,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 76,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n122",
+              "startMs": 55890,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n123",
+              "startMs": 55890,
+              "durationMs": 411,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 88,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n124",
+              "startMs": 56301,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n125",
+              "startMs": 56301,
+              "durationMs": 411,
+              "pitch": 59,
+              "keyIndex": 14,
+              "velocity": 88,
+              "rawKey": "midi.59",
+              "targetKey": "14"
+            },
+            {
+              "id": "midi_t2_c0_p0_n126",
+              "startMs": 56712,
+              "durationMs": 822,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 76,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n127",
+              "startMs": 57534,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n128",
+              "startMs": 57534,
+              "durationMs": 411,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 82,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n129",
+              "startMs": 57945,
+              "durationMs": 411,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 82,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n130",
+              "startMs": 58356,
+              "durationMs": 822,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 76,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n131",
+              "startMs": 59178,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n132",
+              "startMs": 59178,
+              "durationMs": 411,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 88,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n133",
+              "startMs": 59589,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n134",
+              "startMs": 60000,
+              "durationMs": 822,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 76,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n135",
+              "startMs": 60822,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n136",
+              "startMs": 60822,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 82,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n137",
+              "startMs": 61233,
+              "durationMs": 411,
+              "pitch": 50,
+              "keyIndex": 9,
+              "velocity": 82,
+              "rawKey": "midi.50",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t2_c0_p0_n138",
+              "startMs": 61644,
+              "durationMs": 822,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 76,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n139",
+              "startMs": 62466,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n140",
+              "startMs": 62466,
+              "durationMs": 411,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 88,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n141",
+              "startMs": 62877,
+              "durationMs": 411,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 88,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n142",
+              "startMs": 63288,
+              "durationMs": 411,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 76,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n143",
+              "startMs": 63699,
+              "durationMs": 411,
+              "pitch": 59,
+              "keyIndex": 14,
+              "velocity": 76,
+              "rawKey": "midi.59",
+              "targetKey": "14"
+            },
+            {
+              "id": "midi_t2_c0_p0_n144",
+              "startMs": 64110,
+              "durationMs": 1644,
+              "pitch": 60,
+              "keyIndex": 15,
+              "velocity": 82,
+              "rawKey": "midi.60",
+              "targetKey": "15"
+            },
+            {
+              "id": "midi_t2_c0_p0_n145",
+              "startMs": 65753,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n146",
+              "startMs": 65753,
+              "durationMs": 411,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 88,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n147",
+              "startMs": 66164,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n148",
+              "startMs": 66575,
+              "durationMs": 822,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 76,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n149",
+              "startMs": 67397,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n150",
+              "startMs": 67397,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 82,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n151",
+              "startMs": 67808,
+              "durationMs": 411,
+              "pitch": 50,
+              "keyIndex": 9,
+              "velocity": 82,
+              "rawKey": "midi.50",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t2_c0_p0_n152",
+              "startMs": 68219,
+              "durationMs": 822,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 76,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n153",
+              "startMs": 69041,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n154",
+              "startMs": 69041,
+              "durationMs": 411,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 88,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n155",
+              "startMs": 69452,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n156",
+              "startMs": 69452,
+              "durationMs": 411,
+              "pitch": 59,
+              "keyIndex": 14,
+              "velocity": 88,
+              "rawKey": "midi.59",
+              "targetKey": "14"
+            },
+            {
+              "id": "midi_t2_c0_p0_n157",
+              "startMs": 69863,
+              "durationMs": 822,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 76,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n158",
+              "startMs": 70685,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n159",
+              "startMs": 70685,
+              "durationMs": 411,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 82,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n160",
+              "startMs": 71096,
+              "durationMs": 411,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 82,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n161",
+              "startMs": 71507,
+              "durationMs": 822,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 76,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n162",
+              "startMs": 72329,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n163",
+              "startMs": 72329,
+              "durationMs": 411,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 88,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n164",
+              "startMs": 72740,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n165",
+              "startMs": 73151,
+              "durationMs": 822,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 76,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n166",
+              "startMs": 73973,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n167",
+              "startMs": 73973,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 82,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n168",
+              "startMs": 74384,
+              "durationMs": 411,
+              "pitch": 50,
+              "keyIndex": 9,
+              "velocity": 82,
+              "rawKey": "midi.50",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t2_c0_p0_n169",
+              "startMs": 74795,
+              "durationMs": 822,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 76,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n170",
+              "startMs": 75616,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n171",
+              "startMs": 76027,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 88,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n172",
+              "startMs": 76438,
+              "durationMs": 411,
+              "pitch": 60,
+              "keyIndex": 15,
+              "velocity": 76,
+              "rawKey": "midi.60",
+              "targetKey": "15"
+            },
+            {
+              "id": "midi_t2_c0_p0_n173",
+              "startMs": 76849,
+              "durationMs": 411,
+              "pitch": 62,
+              "keyIndex": 16,
+              "velocity": 76,
+              "rawKey": "midi.62",
+              "targetKey": "16"
+            },
+            {
+              "id": "midi_t2_c0_p0_n174",
+              "startMs": 77260,
+              "durationMs": 1644,
+              "pitch": 64,
+              "keyIndex": 17,
+              "velocity": 82,
+              "rawKey": "midi.64",
+              "targetKey": "17"
+            },
+            {
+              "id": "midi_t2_c0_p0_n175",
+              "startMs": 78904,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n176",
+              "startMs": 78904,
+              "durationMs": 411,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 88,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n177",
+              "startMs": 79315,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n178",
+              "startMs": 79726,
+              "durationMs": 822,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 76,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n179",
+              "startMs": 80548,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n180",
+              "startMs": 80548,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 82,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n181",
+              "startMs": 80959,
+              "durationMs": 411,
+              "pitch": 50,
+              "keyIndex": 9,
+              "velocity": 82,
+              "rawKey": "midi.50",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t2_c0_p0_n182",
+              "startMs": 81370,
+              "durationMs": 822,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 76,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n183",
+              "startMs": 82192,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n184",
+              "startMs": 82192,
+              "durationMs": 411,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 88,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n185",
+              "startMs": 82603,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n186",
+              "startMs": 82603,
+              "durationMs": 411,
+              "pitch": 59,
+              "keyIndex": 14,
+              "velocity": 88,
+              "rawKey": "midi.59",
+              "targetKey": "14"
+            },
+            {
+              "id": "midi_t2_c0_p0_n187",
+              "startMs": 83014,
+              "durationMs": 822,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 76,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n188",
+              "startMs": 83836,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n189",
+              "startMs": 83836,
+              "durationMs": 411,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 82,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n190",
+              "startMs": 84247,
+              "durationMs": 411,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 82,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n191",
+              "startMs": 84658,
+              "durationMs": 822,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 76,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n192",
+              "startMs": 85479,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n193",
+              "startMs": 85479,
+              "durationMs": 411,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 88,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n194",
+              "startMs": 85890,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n195",
+              "startMs": 86301,
+              "durationMs": 822,
+              "pitch": 53,
+              "keyIndex": 11,
+              "velocity": 76,
+              "rawKey": "midi.53",
+              "targetKey": "11"
+            },
+            {
+              "id": "midi_t2_c0_p0_n196",
+              "startMs": 87123,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 82,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n197",
+              "startMs": 87123,
+              "durationMs": 411,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 82,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n198",
+              "startMs": 87534,
+              "durationMs": 411,
+              "pitch": 50,
+              "keyIndex": 9,
+              "velocity": 82,
+              "rawKey": "midi.50",
+              "targetKey": "9"
+            },
+            {
+              "id": "midi_t2_c0_p0_n199",
+              "startMs": 87945,
+              "durationMs": 822,
+              "pitch": 55,
+              "keyIndex": 12,
+              "velocity": 76,
+              "rawKey": "midi.55",
+              "targetKey": "12"
+            },
+            {
+              "id": "midi_t2_c0_p0_n200",
+              "startMs": 88767,
+              "durationMs": 411,
+              "pitch": 48,
+              "keyIndex": 8,
+              "velocity": 88,
+              "rawKey": "midi.48",
+              "targetKey": "8"
+            },
+            {
+              "id": "midi_t2_c0_p0_n201",
+              "startMs": 88767,
+              "durationMs": 411,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 88,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            },
+            {
+              "id": "midi_t2_c0_p0_n202",
+              "startMs": 89178,
+              "durationMs": 411,
+              "pitch": 52,
+              "keyIndex": 10,
+              "velocity": 88,
+              "rawKey": "midi.52",
+              "targetKey": "10"
+            },
+            {
+              "id": "midi_t2_c0_p0_n203",
+              "startMs": 89589,
+              "durationMs": 411,
+              "pitch": 60,
+              "keyIndex": 15,
+              "velocity": 76,
+              "rawKey": "midi.60",
+              "targetKey": "15"
+            },
+            {
+              "id": "midi_t2_c0_p0_n204",
+              "startMs": 90000,
+              "durationMs": 411,
+              "pitch": 59,
+              "keyIndex": 14,
+              "velocity": 76,
+              "rawKey": "midi.59",
+              "targetKey": "14"
+            },
+            {
+              "id": "midi_t2_c0_p0_n205",
+              "startMs": 90411,
+              "durationMs": 1644,
+              "pitch": 57,
+              "keyIndex": 13,
+              "velocity": 82,
+              "rawKey": "midi.57",
+              "targetKey": "13"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
