@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 音游伴侣 - 本地同步服务 (Local Sync Bridge)
-配合油猴脚本使用：接收浏览器下载请求，自动保存乐谱到 scores 目录，并同步维护 downloaded_ids.json
+配合油猴脚本使用：接收浏览器下载请求，自动保存乐谱与简谱到 scores 目录，并同步维护 downloaded_ids.json
 """
 
 import os
@@ -27,6 +27,12 @@ INDEX_FILE = os.path.join(SCRIPT_DIR, "downloaded_ids.json")
 PORT = 18088
 
 os.makedirs(SCORES_DIR, exist_ok=True)
+
+# 尝试导入简谱生成器
+try:
+    from scrape_scores import generate_jianpu_content
+except Exception as e:
+    generate_jianpu_content = None
 
 
 def sanitize_filename(name: str) -> str:
@@ -84,19 +90,30 @@ class SyncHandler(BaseHTTPRequestHandler):
                 payload = json.loads(body)
                 sid = int(payload.get("id"))
                 title = sanitize_filename(payload.get("title", f"score_{sid}"))
-                content = payload.get("content", "")
+                content = payload.get("content", {})
 
                 json_filename = f"{sid}_{title}.json"
-                file_path = os.path.join(SCORES_DIR, json_filename)
+                txt_filename = f"{sid}_{title}_简谱.txt"
+                json_path = os.path.join(SCORES_DIR, json_filename)
+                txt_path = os.path.join(SCORES_DIR, txt_filename)
 
-                # 1. 保存乐谱 JSON 到 scores 目录
-                with open(file_path, "w", encoding="utf-8") as f:
+                # 1. 保存乐谱 JSON 到 scores 目录 (格式与 scores 文件夹内完全一致)
+                with open(json_path, "w", encoding="utf-8") as f:
                     if isinstance(content, (dict, list)):
                         json.dump(content, f, ensure_ascii=False, indent=2)
                     else:
                         f.write(str(content))
 
-                # 2. 更新维护 downloaded_ids.json
+                # 2. 生成并保存简谱 .txt 文件 (如可调用生成算法)
+                if generate_jianpu_content and isinstance(content, dict):
+                    try:
+                        jianpu_text = generate_jianpu_content(content, sid, title)
+                        with open(txt_path, "w", encoding="utf-8") as f:
+                            f.write(jianpu_text)
+                    except Exception as ex:
+                        print(f"  [*] 简谱生成跳过: {ex}")
+
+                # 3. 更新维护 downloaded_ids.json
                 index_data = load_index()
                 id_set = set(index_data.get("ids", []))
                 id_set.add(sid)
@@ -108,12 +125,16 @@ class SyncHandler(BaseHTTPRequestHandler):
                 records[str(sid)] = {
                     "title": title,
                     "json_file": json_filename,
+                    "txt_file": txt_filename,
                     "download_time": index_data["last_updated"]
                 }
 
                 save_index(index_data)
 
-                print(f"[✓ 已同步] ID {sid} 《{title}》 -> {json_filename} (当前总计: {index_data['total_downloaded']} 首)")
+                print(f"[✓ 已保存] ID {sid} 《{title}》")
+                print(f"    ├─ 乐谱文件: {json_filename}")
+                print(f"    ├─ 简谱文件: {txt_filename}")
+                print(f"    └─ 索引更新: 总收录 {index_data['total_downloaded']} 首")
 
                 self._set_headers(200)
                 self.wfile.write(json.dumps({
@@ -122,7 +143,7 @@ class SyncHandler(BaseHTTPRequestHandler):
                     "title": title,
                     "filename": json_filename,
                     "total_downloaded": index_data["total_downloaded"],
-                    "saved_path": file_path
+                    "saved_path": json_path
                 }, ensure_ascii=False).encode("utf-8"))
 
             except Exception as e:
