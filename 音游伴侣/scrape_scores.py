@@ -264,7 +264,7 @@ def interact_score(context: BrowserContext, sid: int, title: str, common_headers
     下载成功 3 秒后执行，全链路异常保护，绝不抛出异常或阻塞主流程，日志实时输出到控制台。
     """
     try:
-        if random.random() >= 0.30:
+        if random.random() >= 0.20:
             return
 
         action_type = random.choice(["like", "favorite"])
