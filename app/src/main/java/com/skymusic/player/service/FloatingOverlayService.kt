@@ -862,14 +862,20 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
             (dm.heightPixels * 0.82f).toInt().coerceAtMost((560f * dm.density).toInt())
         }
 
+        val flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
+
         onlineParams = WindowManager.LayoutParams(
             width,
             height,
             layoutType,
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            flags,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.CENTER
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN or
+                    WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN
         }
 
         onlineView = themedInflater.inflate(R.layout.layout_floating_online_music, null)
@@ -885,6 +891,19 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         val pbLoading = v.findViewById<ProgressBar>(R.id.pbWebLoading)
         val webView = v.findViewById<WebView>(R.id.wvOnlineMusic)
         onlineWebView = webView
+
+        // 焦点与触摸处理：确保在悬浮窗内点击网页输入框能稳定获取焦点并弹出软键盘，避免闪烁和焦点循环
+        webView.isFocusable = true
+        webView.isFocusableInTouchMode = true
+        webView.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
+        webView.setOnTouchListener { v, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                if (!v.hasFocus()) {
+                    v.requestFocus()
+                }
+            }
+            false
+        }
 
         setupOnlineDrag(header)
 
@@ -1022,6 +1041,11 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
     private fun hideOnlineOverlay() {
         if (isOnlineAdded && onlineView != null) {
             try {
+                // 收起可能打开的软键盘，防止输入法残留在前台
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+                onlineWebView?.windowToken?.let { token ->
+                    imm?.hideSoftInputFromWindow(token, 0)
+                }
                 windowManager.removeView(onlineView)
                 isOnlineAdded = false
             } catch (e: Throwable) {

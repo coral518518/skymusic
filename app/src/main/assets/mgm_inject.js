@@ -56,6 +56,158 @@
         return false;
     }
 
+    // ----------------------------------------------------------------
+    // 关键优化：解决 Android 悬浮窗中输入密码触发系统安全键盘导致窗口疯狂闪烁、输入法弹不出来的系统级冲突 Bug
+    // 原理：各品牌手机系统安全键盘（防窥屏/防录屏）对 TYPE_APPLICATION_OVERLAY 悬浮窗层级有保护机制，
+    //       检测到 input[type="password"] 会强制抢夺窗口焦点，导致悬浮窗与输入法发生高频焦点争抢并剧烈闪烁。
+    // 方案：将密码框转换为 text + -webkit-text-security: disc，视觉上依然是标准圆点安全掩码 ●●●●，
+    //       但向 Android IME 呈现为常规输入框，完美绕过系统安全键盘互斥，且对前端框架(Vue/React)表单校验透明兼容！
+    // ----------------------------------------------------------------
+    try {
+        const style = document.createElement('style');
+        style.id = 'skymusic-pwd-style';
+        style.textContent = `
+            input[data-sky-safe-input="true"],
+            input[type="password"] {
+                -webkit-text-security: disc !important;
+            }
+        `;
+        (document.head || document.documentElement).appendChild(style);
+    } catch (_) {}
+
+    const originalTypeDesc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'type');
+    const originalSetAttribute = Element.prototype.setAttribute;
+    const originalGetAttribute = Element.prototype.getAttribute;
+
+    function sanitizePasswordInput(input) {
+        if (!input || input.tagName !== 'INPUT') return;
+        const rawAttr = (originalGetAttribute.call(input, 'type') || '').toLowerCase();
+        const propType = (originalTypeDesc && originalTypeDesc.get ? originalTypeDesc.get.call(input) : input.type || '').toLowerCase();
+
+        if (rawAttr === 'password' || propType === 'password' || input.dataset.skySafeInput === 'true') {
+            input.dataset.skySafeInput = 'true';
+            input.style.setProperty('-webkit-text-security', 'disc', 'important');
+            input.setAttribute('autocomplete', 'off');
+            input.setAttribute('autocorrect', 'off');
+            input.setAttribute('autocapitalize', 'off');
+            input.setAttribute('spellcheck', 'false');
+
+            // 关键：底层 DOM 属性与 Chromium Blink 引擎必须同步改为 text，杜绝 Android 识别为密码框触发系统安全键盘
+            if (rawAttr === 'password') {
+                try {
+                    originalSetAttribute.call(input, 'type', 'text');
+                } catch (_) {
+                    try { input.setAttribute('type', 'text'); } catch (_) {}
+                }
+            }
+            if (propType === 'password') {
+                try {
+                    if (originalTypeDesc && originalTypeDesc.set) {
+                        originalTypeDesc.set.call(input, 'text');
+                    }
+                } catch (_) {}
+            }
+        }
+    }
+
+    try {
+        if (originalTypeDesc && originalTypeDesc.set) {
+            Object.defineProperty(HTMLInputElement.prototype, 'type', {
+                get: function () {
+                    if (this.dataset && this.dataset.skySafeInput === 'true') {
+                        return 'password'; // 对前端框架表单验证读取依然伪装成 password
+                    }
+                    return originalTypeDesc.get.call(this);
+                },
+                set: function (newVal) {
+                    if (String(newVal).toLowerCase() === 'password') {
+                        this.dataset.skySafeInput = 'true';
+                        this.style.setProperty('-webkit-text-security', 'disc', 'important');
+                        this.setAttribute('autocomplete', 'off');
+                        try {
+                            originalSetAttribute.call(this, 'type', 'text');
+                        } catch (_) {}
+                        originalTypeDesc.set.call(this, 'text');
+                    } else {
+                        if (this.dataset && this.dataset.skySafeInput === 'true' && String(newVal).toLowerCase() !== 'text') {
+                            this.style.removeProperty('-webkit-text-security');
+                            delete this.dataset.skySafeInput;
+                        }
+                        originalTypeDesc.set.call(this, newVal);
+                    }
+                },
+                configurable: true,
+                enumerable: true
+            });
+        }
+
+        Element.prototype.setAttribute = function (name, val) {
+            if (this instanceof HTMLInputElement && String(name).toLowerCase() === 'type') {
+                if (String(val).toLowerCase() === 'password') {
+                    this.dataset.skySafeInput = 'true';
+                    this.style.setProperty('-webkit-text-security', 'disc', 'important');
+                    this.setAttribute('autocomplete', 'off');
+                    if (originalTypeDesc && originalTypeDesc.set) {
+                        try { originalTypeDesc.set.call(this, 'text'); } catch (_) {}
+                    }
+                    return originalSetAttribute.call(this, 'type', 'text');
+                } else if (this.dataset && this.dataset.skySafeInput === 'true' && String(val).toLowerCase() !== 'text') {
+                    this.style.removeProperty('-webkit-text-security');
+                    delete this.dataset.skySafeInput;
+                }
+            }
+            return originalSetAttribute.apply(this, arguments);
+        };
+
+        Element.prototype.getAttribute = function (name) {
+            if (this instanceof HTMLInputElement && String(name).toLowerCase() === 'type') {
+                if (this.dataset && this.dataset.skySafeInput === 'true') {
+                    return 'password';
+                }
+            }
+            return originalGetAttribute.apply(this, arguments);
+        };
+    } catch (e) {
+        console.warn('[SkyMusic] Hook input.type error:', e);
+    }
+
+    function scanAndSanitize() {
+        try {
+            document.querySelectorAll('input').forEach(function (input) {
+                const t = (originalGetAttribute.call(input, 'type') || '').toLowerCase();
+                const rawAttr = (input.getAttribute('type') || '').toLowerCase();
+                if (t === 'password' || rawAttr === 'password' || input.dataset.skySafeInput === 'true') {
+                    sanitizePasswordInput(input);
+                }
+            });
+        } catch (_) {}
+    }
+
+    ['focusin', 'pointerdown', 'touchstart', 'mousedown', 'focus'].forEach(function (evtName) {
+        document.addEventListener(evtName, function (e) {
+            if (e.target && e.target.tagName === 'INPUT') {
+                sanitizePasswordInput(e.target);
+            }
+        }, true);
+    });
+
+    if (document.documentElement) {
+        const inputObserver = new MutationObserver(function () {
+            scanAndSanitize();
+        });
+        inputObserver.observe(document.documentElement, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['type']
+        });
+    }
+
+    scanAndSanitize();
+    [50, 150, 300, 600, 1200, 2500].forEach(function (delay) {
+        setTimeout(scanAndSanitize, delay);
+    });
+
     // 3. 核心解密拦截：Hook WebCrypto AES-GCM
     if (window.crypto && window.crypto.subtle) {
         const originalDecrypt = window.crypto.subtle.decrypt.bind(window.crypto.subtle);
