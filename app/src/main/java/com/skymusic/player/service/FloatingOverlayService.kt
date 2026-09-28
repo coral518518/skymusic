@@ -15,6 +15,7 @@ import android.view.*
 import android.widget.*
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import android.text.Editable
 import android.text.TextWatcher
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -95,6 +96,7 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
     private var songPickerView: View? = null
     private var songPickerParams: WindowManager.LayoutParams? = null
     private var isSongPickerAdded = false
+    private var songPickerAdapter: FloatingSongPickerAdapter? = null
 
     // 音游伴侣内嵌网页浮层视图与参数
     private var onlineView: View? = null
