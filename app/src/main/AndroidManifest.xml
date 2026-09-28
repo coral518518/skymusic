@@ -30,6 +30,7 @@
         android:name=".SkyMusicApp"
         android:allowBackup="true"
         android:requestLegacyExternalStorage="true"
+        android:usesCleartextTraffic="true"
         android:icon="@drawable/ic_music_note"
         android:label="@string/app_name"
         android:roundIcon="@drawable/bg_floating_ball"

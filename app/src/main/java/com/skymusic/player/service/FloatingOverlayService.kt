@@ -15,8 +15,20 @@ import android.view.*
 import android.widget.*
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
+import android.text.Editable
+import android.text.TextWatcher
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import android.graphics.Color
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.graphics.Bitmap
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import com.skymusic.player.web.SkyMusicWebBridge
 import com.skymusic.player.MainActivity
 import com.skymusic.player.R
 import com.skymusic.player.SkyMusicApp
@@ -25,13 +37,10 @@ import com.skymusic.player.engine.PlayEngine
 import com.skymusic.player.engine.PlayState
 import com.skymusic.player.engine.RootTouchController
 import com.skymusic.player.model.Song
-import com.skymusic.player.network.MGMClient
-import com.skymusic.player.network.MGMSongItem
 import com.skymusic.player.parser.JianpuGenerator
 import com.skymusic.player.parser.OnlineScoreParser
 import com.skymusic.player.parser.SheetImporter
 import com.skymusic.player.ui.KeyVisualizerView
-import com.skymusic.player.ui.OnlineSongAdapter
 import com.skymusic.player.util.PresetSongs
 import kotlinx.coroutines.*
 import java.io.File
@@ -82,13 +91,16 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
     private var isPickerAdded = false
     private var currentBrowseDir: File = getInitialDownloadDir()
 
-    // 音游伴侣在线曲库浮层视图与参数
+    // 乐谱曲库（内置与已下载）可搜索选择浮层
+    private var songPickerView: View? = null
+    private var songPickerParams: WindowManager.LayoutParams? = null
+    private var isSongPickerAdded = false
+
+    // 音游伴侣内嵌网页浮层视图与参数
     private var onlineView: View? = null
     private var onlineParams: WindowManager.LayoutParams? = null
     private var isOnlineAdded = false
-    private lateinit var mgmClient: com.skymusic.player.network.MGMClient
-    private var onlineSongAdapter: com.skymusic.player.ui.OnlineSongAdapter? = null
-    private var currentOnlineSort = "hot"
+    private var onlineWebView: WebView? = null
 
     // 悬浮窗控件引用
     private var tvSongTitle: TextView? = null
@@ -113,7 +125,6 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         instance = this
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         layoutManager = KeyLayoutManager.getInstance(this)
-        mgmClient = com.skymusic.player.network.MGMClient.getInstance(this)
         playEngine.listener = this
 
         // 读取防检测延迟设置
@@ -524,47 +535,156 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         }
     }
 
+    // ----------------------------------------------------------------
+    // 2.4 悬浮窗内置乐谱曲库（内置与已下载）可搜索选择浮层
+    // ----------------------------------------------------------------
     private fun showSongPickerMenu() {
-        val anchor = panelView?.findViewById<View>(R.id.btnFloatSelectSong) ?: return
-        val popup = PopupMenu(themedContext, anchor)
+        showSongPickerOverlay()
+    }
 
-        // 顶部第一项：直接浏览本地文件
-        popup.menu.add(0, -1, 0, "📁 浏览本地MIDI/乐谱 (Download目录)...")
-
-        currentSongList.forEachIndexed { index, song ->
-            popup.menu.add(0, index, index + 1, "${index + 1}. ${song.title}")
+    private fun initSongPickerOverlay() {
+        val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
         }
-        popup.setOnMenuItemClickListener { item ->
-            if (item.itemId == -1) {
-                hideControlPanel()
-                showFileManagerOverlay()
+
+        val dm = resources.displayMetrics
+        val width = (340f * dm.density).toInt().coerceAtMost((dm.widthPixels * 0.92f).toInt())
+        val height = (410f * dm.density).toInt().coerceAtMost((dm.heightPixels * 0.88f).toInt())
+
+        songPickerParams = WindowManager.LayoutParams(
+            width,
+            height,
+            layoutType,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.CENTER
+        }
+
+        songPickerView = themedInflater.inflate(R.layout.layout_floating_song_picker, null)
+
+        songPickerView?.findViewById<View>(R.id.btnSongPickerClose)?.setOnClickListener {
+            hideSongPickerOverlay()
+            showControlPanel()
+        }
+
+        songPickerView?.findViewById<View>(R.id.btnSongPickerBrowseFiles)?.setOnClickListener {
+            hideSongPickerOverlay()
+            showFileManagerOverlay()
+        }
+
+        val rv = songPickerView?.findViewById<RecyclerView>(R.id.rvSongPickerList)
+        val etSearch = songPickerView?.findViewById<EditText>(R.id.etSongPickerSearch)
+        val btnClear = songPickerView?.findViewById<View>(R.id.btnSongPickerClear)
+        val tvEmpty = songPickerView?.findViewById<View>(R.id.tvSongPickerEmpty)
+        val tvCount = songPickerView?.findViewById<TextView>(R.id.tvSongPickerCount)
+
+        rv?.layoutManager = LinearLayoutManager(themedContext)
+        val adapter = FloatingSongPickerAdapter(currentSongList) { song ->
+            playEngine.loadSong(song)
+            updatePanelSongInfo(song)
+            playEngine.play()
+            hideSongPickerOverlay()
+            showControlPanel()
+            Toast.makeText(this@FloatingOverlayService, "正在弹奏: 《${song.title}》", Toast.LENGTH_SHORT).show()
+        }
+        songPickerAdapter = adapter
+        rv?.adapter = adapter
+
+        fun filterSongs(query: String) {
+            val q = query.trim()
+            val filtered = if (q.isEmpty()) {
+                currentSongList
             } else {
-                val song = currentSongList.getOrNull(item.itemId)
-                if (song != null) {
-                    playEngine.loadSong(song)
-                    updatePanelSongInfo(song)
-                    playEngine.play()
+                currentSongList.filter {
+                    it.title.contains(q, ignoreCase = true) ||
+                    it.artist.contains(q, ignoreCase = true) ||
+                    it.id.contains(q, ignoreCase = true)
                 }
             }
-            true
+            adapter.updateList(filtered)
+            tvCount?.text = "${filtered.size}首"
+            tvEmpty?.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
+            rv?.visibility = if (filtered.isEmpty()) View.GONE else View.VISIBLE
         }
-        popup.show()
+
+        etSearch?.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val q = s?.toString() ?: ""
+                btnClear?.visibility = if (q.isNotEmpty()) View.VISIBLE else View.GONE
+                filterSongs(q)
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        btnClear?.setOnClickListener {
+            etSearch?.setText("")
+        }
+    }
+
+    private fun showSongPickerOverlay() {
+        if (currentSongList.isEmpty()) {
+            currentSongList.addAll(PresetSongs.getPresetList(this))
+        }
+        if (songPickerView == null) {
+            initSongPickerOverlay()
+        }
+        if (!isSongPickerAdded && songPickerView != null && songPickerParams != null) {
+            try {
+                songPickerView?.findViewById<EditText>(R.id.etSongPickerSearch)?.setText("")
+                songPickerAdapter?.updateList(currentSongList)
+                songPickerView?.findViewById<TextView>(R.id.tvSongPickerCount)?.text = "${currentSongList.size}首"
+                songPickerView?.findViewById<View>(R.id.tvSongPickerEmpty)?.visibility = View.GONE
+                songPickerView?.findViewById<View>(R.id.rvSongPickerList)?.visibility = View.VISIBLE
+
+                hideControlPanel()
+                windowManager.addView(songPickerView, songPickerParams)
+                isSongPickerAdded = true
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to show song picker overlay", e)
+            }
+        }
+    }
+
+    private fun hideSongPickerOverlay() {
+        if (isSongPickerAdded && songPickerView != null) {
+            try {
+                windowManager.removeView(songPickerView)
+                isSongPickerAdded = false
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to hide song picker overlay", e)
+            }
+        }
     }
 
     // ----------------------------------------------------------------
     // 2.5 悬浮窗内置本地文件管理器浮层 (支持在游戏悬浮窗内直接选MIDI并秒切播放)
     // ----------------------------------------------------------------
     private fun getInitialDownloadDir(): File {
-        val downloadDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
-        if (downloadDir != null && downloadDir.exists() && downloadDir.canRead()) {
-            return downloadDir
+        val pub = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+        if (pub != null && pub.exists()) {
+            val filesssDir = File(pub, "filesss")
+            if (filesssDir.exists() && filesssDir.canRead()) {
+                return filesssDir
+            }
+            if (pub.canRead()) return pub
         }
         val sdcard = android.os.Environment.getExternalStorageDirectory()
-        val altDownload = File(sdcard, "Download")
-        if (altDownload.exists() && altDownload.canRead()) {
-            return altDownload
+        if (sdcard != null) {
+            val altFilesss = File(File(sdcard, "Download"), "filesss")
+            if (altFilesss.exists() && altFilesss.canRead()) {
+                return altFilesss
+            }
+            val altDownload = File(sdcard, "Download")
+            if (altDownload.exists() && altDownload.canRead()) {
+                return altDownload
+            }
         }
-        return sdcard
+        return sdcard ?: filesDir
     }
 
     private fun initFileManagerOverlay() {
@@ -717,7 +837,7 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
     }
 
     // ----------------------------------------------------------------
-    // 2.6 音游伴侣在线曲库浮层 (支持在线搜索、登录配置、下载、自动转简谱并秒切播放)
+    // 2.6 音游伴侣内嵌网页浮层 (集成油猴脚本截获、双向已下载标记、直接弹奏与本地保存)
     // ----------------------------------------------------------------
     private fun initOnlineOverlay() {
         val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -728,8 +848,17 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         }
 
         val dm = resources.displayMetrics
-        val width = (350f * dm.density).toInt().coerceAtMost((dm.widthPixels * 0.94f).toInt())
-        val height = (420f * dm.density).toInt().coerceAtMost((dm.heightPixels * 0.90f).toInt())
+        val isLandscape = dm.widthPixels > dm.heightPixels
+        val width = if (isLandscape) {
+            (dm.widthPixels * 0.72f).toInt().coerceAtMost((720f * dm.density).toInt())
+        } else {
+            (dm.widthPixels * 0.94f).toInt()
+        }
+        val height = if (isLandscape) {
+            (dm.heightPixels * 0.88f).toInt().coerceAtMost((500f * dm.density).toInt())
+        } else {
+            (dm.heightPixels * 0.82f).toInt().coerceAtMost((560f * dm.density).toInt())
+        }
 
         onlineParams = WindowManager.LayoutParams(
             width,
@@ -744,93 +873,131 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         onlineView = themedInflater.inflate(R.layout.layout_floating_online_music, null)
 
         val v = onlineView ?: return
+        val header = v.findViewById<View>(R.id.llOnlineHeader)
+        val tvTitle = v.findViewById<TextView>(R.id.tvOnlineTitle)
+        val btnBack = v.findViewById<ImageButton>(R.id.btnWebBack)
+        val btnForward = v.findViewById<ImageButton>(R.id.btnWebForward)
+        val btnRefresh = v.findViewById<ImageButton>(R.id.btnWebRefresh)
+        val btnHome = v.findViewById<ImageButton>(R.id.btnWebHome)
         val btnClose = v.findViewById<ImageButton>(R.id.btnOnlineClose)
-        val btnAccountToggle = v.findViewById<Button>(R.id.btnOnlineAccountToggle)
-        val drawer = v.findViewById<LinearLayout>(R.id.llOnlineAccountDrawer)
-        val etUser = v.findViewById<EditText>(R.id.etOnlineUsername)
-        val etPass = v.findViewById<EditText>(R.id.etOnlinePassword)
-        val btnSaveLogin = v.findViewById<Button>(R.id.btnOnlineSaveLogin)
-        val tvStatus = v.findViewById<TextView>(R.id.tvOnlineAccountStatus)
+        val pbLoading = v.findViewById<ProgressBar>(R.id.pbWebLoading)
+        val webView = v.findViewById<WebView>(R.id.wvOnlineMusic)
+        onlineWebView = webView
 
-        val etKeyword = v.findViewById<EditText>(R.id.etOnlineKeyword)
-        val btnSearch = v.findViewById<Button>(R.id.btnOnlineSearch)
-        val btnSort = v.findViewById<Button>(R.id.btnOnlineSortToggle)
-        val rvList = v.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rvOnlineSongList)
+        setupOnlineDrag(header)
 
-        // 初始化账号与密码回显
-        etUser.setText(mgmClient.getSavedUsername())
-        etPass.setText(mgmClient.getSavedPassword())
-        tvStatus.text = if (mgmClient.isLoggedIn()) "账号状态: 已保存登录凭据" else "账号状态: 未登录 (默认内置 lolloll)"
-
-        // 展开/折叠账号配置抽屉
-        btnAccountToggle.setOnClickListener {
-            drawer.visibility = if (drawer.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        // 配置 WebView 属性与 JS 桥接
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            useWideViewPort = true
+            loadWithOverviewMode = true
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            allowFileAccess = true
+            userAgentString = "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 SkyMusic/1.0"
         }
 
-        // 保存账密并执行登录验证
-        btnSaveLogin.setOnClickListener {
-            val u = etUser.text.toString().trim()
-            val p = etPass.text.toString().trim()
-            if (u.isEmpty() || p.isEmpty()) {
-                Toast.makeText(this, "请输入用户名与密码", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
+        // 注入 Android 原生 JSBridge，彻底免除外部 PC Python 依赖
+        webView.addJavascriptInterface(com.skymusic.player.web.SkyMusicWebBridge(this), "SkyMusicBridge")
+
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                pbLoading?.visibility = View.VISIBLE
+                injectUserScript(view)
             }
-            tvStatus.text = "正在登录验证中..."
-            btnSaveLogin.isEnabled = false
-            serviceScope.launch {
-                val res = mgmClient.login(u, p)
-                btnSaveLogin.isEnabled = true
-                if (res.isSuccess) {
-                    tvStatus.text = "账号状态: 登录成功并已持久化保存"
-                    Toast.makeText(this@FloatingOverlayService, "音游伴侣账号登录成功！", Toast.LENGTH_SHORT).show()
-                    drawer.visibility = View.GONE
-                    performOnlineSearch(etKeyword.text.toString().trim())
-                } else {
-                    val err = res.exceptionOrNull()?.message ?: "未知异常"
-                    tvStatus.text = "登录失败: $err"
-                    Toast.makeText(this@FloatingOverlayService, "登录失败: $err", Toast.LENGTH_LONG).show()
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                pbLoading?.visibility = View.GONE
+                injectUserScript(view)
+            }
+
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                return false
+            }
+        }
+
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                pbLoading?.progress = newProgress
+                if (newProgress >= 100) {
+                    pbLoading?.visibility = View.GONE
+                }
+            }
+
+            override fun onReceivedTitle(view: WebView?, title: String?) {
+                super.onReceivedTitle(view, title)
+                if (!title.isNullOrBlank() && !title.contains("http", ignoreCase = true)) {
+                    tvTitle?.text = title
                 }
             }
         }
 
-        // 关闭浮层并恢复主控制面板
-        btnClose.setOnClickListener {
+        btnBack?.setOnClickListener {
+            if (webView.canGoBack()) webView.goBack()
+        }
+
+        btnForward?.setOnClickListener {
+            if (webView.canGoForward()) webView.goForward()
+        }
+
+        btnRefresh?.setOnClickListener {
+            webView.reload()
+        }
+
+        btnHome?.setOnClickListener {
+            webView.loadUrl("https://mgm.jie-you.cn/scores")
+        }
+
+        btnClose?.setOnClickListener {
             hideOnlineOverlay()
             showControlPanel()
         }
+    }
 
-        // 排序切换 (最热 / 最新)
-        btnSort.setOnClickListener {
-            if (currentOnlineSort == "hot") {
-                currentOnlineSort = "latest"
-                btnSort.text = "🕒最新"
-            } else {
-                currentOnlineSort = "hot"
-                btnSort.text = "🔥最热"
+    private fun injectUserScript(view: WebView?) {
+        if (view == null) return
+        try {
+            val script = assets.open("mgm_inject.js").bufferedReader(Charsets.UTF_8).use { it.readText() }
+            view.evaluateJavascript(script, null)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to inject mgm_inject.js", e)
+        }
+    }
+
+    private fun setupOnlineDrag(header: View?) {
+        if (header == null) return
+        var startX = 0
+        var startY = 0
+        var touchDownX = 0f
+        var touchDownY = 0f
+
+        header.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    startX = onlineParams?.x ?: 0
+                    startY = onlineParams?.y ?: 0
+                    touchDownX = event.rawX
+                    touchDownY = event.rawY
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = (event.rawX - touchDownX).toInt()
+                    val dy = (event.rawY - touchDownY).toInt()
+                    onlineParams?.x = startX + dx
+                    onlineParams?.y = startY + dy
+                    if (isOnlineAdded && onlineView != null && onlineParams != null) {
+                        try {
+                            windowManager.updateViewLayout(onlineView, onlineParams)
+                        } catch (_: Throwable) {}
+                    }
+                    true
+                }
+                else -> false
             }
-            performOnlineSearch(etKeyword.text.toString().trim())
         }
-
-        // 搜索触发
-        btnSearch.setOnClickListener {
-            performOnlineSearch(etKeyword.text.toString().trim())
-        }
-
-        etKeyword.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
-                performOnlineSearch(etKeyword.text.toString().trim())
-                true
-            } else {
-                false
-            }
-        }
-
-        // 列表与适配器配置
-        rvList.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
-        onlineSongAdapter = com.skymusic.player.ui.OnlineSongAdapter(emptyList()) { songItem ->
-            downloadAndPlayOnlineSong(songItem)
-        }
-        rvList.adapter = onlineSongAdapter
     }
 
     private fun showOnlineOverlay() {
@@ -841,8 +1008,9 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
             try {
                 windowManager.addView(onlineView, onlineParams)
                 isOnlineAdded = true
-                val etKeyword = onlineView?.findViewById<EditText>(R.id.etOnlineKeyword)
-                performOnlineSearch(etKeyword?.text?.toString()?.trim() ?: "")
+                if (onlineWebView?.url == null) {
+                    onlineWebView?.loadUrl("https://mgm.jie-you.cn/scores")
+                }
             } catch (e: Throwable) {
                 Log.e(TAG, "Failed to show online overlay", e)
             }
@@ -860,201 +1028,157 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
         }
     }
 
-    private fun performOnlineSearch(keyword: String) {
-        val view = onlineView ?: return
-        val pbLoading = view.findViewById<ProgressBar>(R.id.pbOnlineLoading)
-        val tvEmpty = view.findViewById<TextView>(R.id.tvOnlineEmpty)
-        val rvList = view.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.rvOnlineSongList)
+    // ----------------------------------------------------------------
+    // JSBridge 供网页油猴脚本调用的原生接口
+    // ----------------------------------------------------------------
+    fun getDownloadedIdsJson(): String {
+        return com.skymusic.player.parser.JianpuGenerator.getDownloadedIndexJson(this)
+    }
 
-        pbLoading.visibility = View.VISIBLE
-        tvEmpty.visibility = View.GONE
+    fun isScoreDownloaded(scoreId: Long, title: String): Boolean {
+        return com.skymusic.player.parser.JianpuGenerator.isScoreDownloaded(this, scoreId, title)
+    }
 
-        serviceScope.launch {
-            val result = mgmClient.searchScores(keyword = keyword, page = 1, pageSize = 30, sort = currentOnlineSort)
-            pbLoading.visibility = View.GONE
-            if (result.isSuccess) {
-                val searchData = result.getOrNull()
-                val items = searchData?.items ?: emptyList()
-                if (items.isEmpty()) {
-                    tvEmpty.text = if (keyword.isBlank()) "暂无乐谱推荐" else "未找到与「$keyword」相关的乐谱"
-                    tvEmpty.visibility = View.VISIBLE
-                    rvList.visibility = View.GONE
-                } else {
-                    tvEmpty.visibility = View.GONE
-                    rvList.visibility = View.VISIBLE
-                    onlineSongAdapter?.submitList(items)
-                }
-            } else {
-                val err = result.exceptionOrNull()?.message ?: "网络请求异常"
-                tvEmpty.text = "获取失败: $err\n请检查网络或点击【🔑 账号】登录验证"
-                tvEmpty.visibility = View.VISIBLE
-                rvList.visibility = View.GONE
+    fun copyToClipboard(text: String) {
+        serviceScope.launch(Dispatchers.Main) {
+            try {
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newPlainText("SkyMusic", text)
+                cm.setPrimaryClip(clip)
+                Toast.makeText(this@FloatingOverlayService, "已复制弹琴 JSON 到剪贴板！", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@FloatingOverlayService, "复制失败: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun downloadAndPlayOnlineSong(songItem: com.skymusic.player.network.MGMSongItem) {
-        val view = onlineView
-        val tvTip = view?.findViewById<TextView>(R.id.tvOnlineBottomTip)
+    fun showToastFromWeb(msg: String) {
+        serviceScope.launch(Dispatchers.Main) {
+            Toast.makeText(this@FloatingOverlayService, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
 
+    /**
+     * 核心逻辑：处理从内嵌音游伴侣网页提取的曲谱
+     * 1. 优先检查本地内置预设或手机 Download/filesss/ 目录：若存在则免下载直接播放
+     * 2. 若本地不存在：将网页端提取的原版 JSON 与自动生成的简谱保存至 Download/filesss/，再开始演奏
+     */
+    fun handleScoreFromWeb(
+        scoreId: Long,
+        title: String,
+        rawJson: String,
+        autoPlay: Boolean
+    ) {
         serviceScope.launch(Dispatchers.IO) {
             try {
-                // 1. 优先检查本地是否已经存在已保存的乐谱 (Download/filesss/ 目录或媒体库)
-                withContext(Dispatchers.Main) {
-                    tvTip?.text = "🔍 正在检查本地是否有《${songItem.title}》已存文件..."
-                }
+                val cleanTitle = title.trim().ifBlank { "乐谱_$scoreId" }
 
+                // 1. 优先检查本地是否已经存在已保存的乐谱 (内置 assets / Download/filesss/ 目录等)
                 val localScore = com.skymusic.player.parser.JianpuGenerator.findLocalScore(
                     this@FloatingOverlayService,
-                    songItem.id,
-                    songItem.title
+                    scoreId,
+                    cleanTitle
                 )
 
-                var rawJson = ""
+                var finalJson = rawJson
                 var isLocalHit = false
 
                 if (localScore != null && localScore.jsonContent.isNotBlank()) {
-                    Log.i(TAG, "Local cache hit for 《${songItem.title}》 (id=${songItem.id})! Skipping network download.")
-                    withContext(Dispatchers.Main) {
-                        tvTip?.text = "⚡ 发现本地已有保存文件，免下载直接解析载入..."
-                        Toast.makeText(this@FloatingOverlayService, "⚡ 读取本地文件: 《${songItem.title}》", Toast.LENGTH_SHORT).show()
-                    }
-                    rawJson = localScore.jsonContent
+                    Log.i(TAG, "⚡ Local cache hit for 《$cleanTitle》 (id=$scoreId)! 免下载直接播放")
+                    finalJson = localScore.jsonContent
                     isLocalHit = true
-                } else {
-                    // 本地未找到，通过网络拉取
-                    withContext(Dispatchers.Main) {
-                        tvTip?.text = "⏳ 正在连接音游伴侣下载《${songItem.title}》..."
-                        Toast.makeText(this@FloatingOverlayService, "正在下载《${songItem.title}》全量乐谱...", Toast.LENGTH_SHORT).show()
-                    }
-
-                    // 确保 Session Cookie 处于可用状态 (若未登录则先用已配置账密静默登录)
-                    if (!mgmClient.isLoggedIn()) {
-                        withContext(Dispatchers.Main) {
-                            tvTip?.text = "⏳ 正在进行音游伴侣账号身份校验..."
-                        }
-                        val loginRes = mgmClient.login()
-                        Log.d(TAG, "Auto-login result: ${loginRes.isSuccess}")
-                    }
-
-                    // 调用 GET /scores/{id}/file?variant=full 下载全量 JSON
-                    withContext(Dispatchers.Main) {
-                        tvTip?.text = "⏳ 正在从服务器拉取《${songItem.title}》全量音符数据..."
-                    }
-                    val downloadRes = mgmClient.downloadScoreFile(songItem.id)
-                    if (downloadRes.isFailure) {
-                        val errMsg = downloadRes.exceptionOrNull()?.message ?: "网络请求失败"
-                        Log.e(TAG, "Download score file failed: $errMsg", downloadRes.exceptionOrNull())
-                        withContext(Dispatchers.Main) {
-                            tvTip?.text = "❌ 下载失败: $errMsg"
-                            Toast.makeText(this@FloatingOverlayService, "下载乐谱失败: $errMsg", Toast.LENGTH_LONG).show()
-                        }
-                        return@launch
-                    }
-
-                    rawJson = downloadRes.getOrNull() ?: ""
-                    Log.d(TAG, "Downloaded score rawJson length: ${rawJson.length}")
-                    Log.i("MGM_DEBUG", "Downloaded score for 《${songItem.title}》 (${rawJson.length} bytes):\n$rawJson")
-
-                    // 落地调试报文
-                    com.skymusic.player.parser.JianpuGenerator.saveDebugFile(this@FloatingOverlayService, "last_download_debug.json", rawJson)
                 }
 
-                // 2. 智能解析为 App 原生 Song 模型 (15 键 NoteEvent 时间轴)
-                withContext(Dispatchers.Main) {
-                    tvTip?.text = "⚙️ 正在解析 15 键按键时间轴..."
-                }
-                var song = com.skymusic.player.parser.OnlineScoreParser.parse(rawJson, songItem.title, songItem.bpm)
-
-                // 若本地缓存解析出 0 音符 (可能被意外截断)，自动 fallback 到网络重新下载
-                if (song.notes.isEmpty() && isLocalHit) {
-                    Log.w(TAG, "Local file for 《${songItem.title}》 had 0 notes, falling back to network download...")
+                // 若本地未命中且前端未传入 JSON (例如刚点进页面还未解密完)，提示稍候
+                if (finalJson.isBlank()) {
                     withContext(Dispatchers.Main) {
-                        tvTip?.text = "⚠️ 本地文件异常，正在从服务器重新拉取..."
-                    }
-                    if (!mgmClient.isLoggedIn()) mgmClient.login()
-                    val downloadRes = mgmClient.downloadScoreFile(songItem.id)
-                    if (downloadRes.isSuccess) {
-                        rawJson = downloadRes.getOrNull() ?: ""
-                        isLocalHit = false
-                        song = com.skymusic.player.parser.OnlineScoreParser.parse(rawJson, songItem.title, songItem.bpm)
-                    }
-                }
-
-                if (song.notes.isEmpty()) {
-                    Log.e(TAG, "Parsed song has 0 notes! Raw JSON preview: ${rawJson.take(500)}")
-                    withContext(Dispatchers.Main) {
-                        tvTip?.text = "❌ 乐谱未包含有效音符 (已写入 filesss 调试文件)"
-                        Toast.makeText(
-                            this@FloatingOverlayService,
-                            "未识别到有效按键音符\n原始报文已保存至:\nDownload/filesss/last_download_debug.json",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        Toast.makeText(this@FloatingOverlayService, "⏳ 正在提取曲谱音符数据，请稍候...", Toast.LENGTH_SHORT).show()
                     }
                     return@launch
                 }
 
-                // 3. 核心需求：后台按音游伴侣 16 槽位量化算法自动转成标准简谱，并保存至 Download/filesss/ 目录
-                var saveMsg = "读取自本地: Download/filesss/"
-                if (!isLocalHit || localScore?.jianpuFile == null) {
+                // 2. 智能解析为 App 原生 Song 模型 (15 键 NoteEvent 时间轴)
+                var song = com.skymusic.player.parser.OnlineScoreParser.parse(finalJson, cleanTitle)
+
+                // 若本地缓存解析出 0 音符 (可能被意外截断)，回退到网页提取的 rawJson
+                if (song.notes.isEmpty() && isLocalHit && rawJson.isNotBlank()) {
+                    Log.w(TAG, "Local file for 《$cleanTitle》 had 0 notes, falling back to web captured JSON...")
+                    finalJson = rawJson
+                    isLocalHit = false
+                    song = com.skymusic.player.parser.OnlineScoreParser.parse(finalJson, cleanTitle)
+                }
+
+                if (song.notes.isEmpty()) {
                     withContext(Dispatchers.Main) {
-                        tvTip?.text = "💾 正在自动生成标准简谱并保存至 Download/filesss..."
+                        Toast.makeText(this@FloatingOverlayService, "❌ 乐谱未包含有效音符，无法演奏", Toast.LENGTH_LONG).show()
                     }
+                    return@launch
+                }
+
+                // 3. 核心需求：若本地未保存，自动按标准算法转为简谱并保存至 Download/filesss/ 目录
+                var saveMsg = "读取自本地: Download/filesss/"
+                if (!isLocalHit) {
                     val saveResult = com.skymusic.player.parser.JianpuGenerator.convertAndSaveToFilesss(
                         this@FloatingOverlayService,
                         song,
-                        rawJson,
-                        songItem.id
+                        finalJson,
+                        scoreId
                     )
                     saveMsg = if (saveResult.isSuccess) {
-                        "简谱已自动生成至:\nDownload/filesss/${song.title}_简谱.txt"
+                        "已自动存入: Download/filesss/${song.title}_简谱.txt"
                     } else {
-                        "简谱保存提示: ${saveResult.exceptionOrNull()?.message}"
+                        "保存提示: ${saveResult.exceptionOrNull()?.message}"
                     }
                     Log.i(TAG, "Save result: $saveMsg")
                 }
 
+                // 通知网页端更新已下载状态与卡片打标
                 withContext(Dispatchers.Main) {
-                    tvTip?.text = "🎹 正在载入弹奏引擎并开始演奏..."
+                    val safeJsTitle = song.title.replace("'", "\\'").replace("\"", "\\\"")
+                    onlineWebView?.evaluateJavascript("window.onScoreSavedFromApp?.($scoreId, '$safeJsTitle');", null)
 
-                    // 4. 接入现有弹奏逻辑：载入 PlayEngine 并无缝触发钢琴演奏
-                    val existingIndex = currentSongList.indexOfFirst { it.id == song.id || it.title == song.title }
-                    if (existingIndex >= 0) {
-                        currentSongList[existingIndex] = song
+                    if (autoPlay) {
+                        // 4. 接入弹奏逻辑：载入 PlayEngine 并无缝触发钢琴演奏
+                        val existingIndex = currentSongList.indexOfFirst { it.id == song.id || it.title == song.title }
+                        if (existingIndex >= 0) {
+                            currentSongList[existingIndex] = song
+                        } else {
+                            currentSongList.add(0, song)
+                        }
+
+                        playEngine.loadSong(song)
+                        updatePanelSongInfo(song)
+                        playEngine.play()
+
+                        // 关闭网页浮层，唤出控制面板
+                        hideOnlineOverlay()
+                        showControlPanel()
+
+                        // 检查无障碍或 Root 授权状态
+                        val isRoot = RootTouchController.isRootModeEnabled(this@FloatingOverlayService)
+                        val isAccessibility = SkyAccessibilityService.instance != null
+                        val modeWarning = if (!isRoot && !isAccessibility) {
+                            "\n⚠️ 提示：未开启「无障碍服务」或「Root模式」，屏幕钢琴无法自动点击！"
+                        } else ""
+
+                        val sourceTag = if (isLocalHit) "【⚡ 本地直读·免下载】" else "【💾 已下载并保存】"
+                        Toast.makeText(
+                            this@FloatingOverlayService,
+                            "$sourceTag\n已开始演奏《${song.title}》 (${song.noteCount}音符)\n$saveMsg$modeWarning",
+                            Toast.LENGTH_LONG
+                        ).show()
                     } else {
-                        currentSongList.add(0, song)
+                        Toast.makeText(
+                            this@FloatingOverlayService,
+                            "【💾 已存入 Download/filesss】\n《${song.title}》保存成功",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
-
-                    playEngine.loadSong(song)
-                    updatePanelSongInfo(song)
-                    playEngine.play()
-
-                    // 关闭在线浮层，唤出控制面板
-                    hideOnlineOverlay()
-                    showControlPanel()
-
-                    // 刷新在线列表已缓存状态
-                    onlineSongAdapter?.notifyDataSetChanged()
-
-                    // 检查无障碍或 Root 授权状态，若未开启给予明确提示
-                    val isRoot = RootTouchController.isRootModeEnabled(this@FloatingOverlayService)
-                    val isAccessibility = SkyAccessibilityService.instance != null
-                    val modeWarning = if (!isRoot && !isAccessibility) {
-                        "\n⚠️ 提示：未开启「无障碍服务」或「Root模式」，屏幕钢琴无法自动点击！"
-                    } else ""
-
-                    val sourceTag = if (isLocalHit) "【⚡ 本地直读·免下载】" else "【在线下载成功】"
-                    Toast.makeText(
-                        this@FloatingOverlayService,
-                        "$sourceTag\n已开始演奏《${song.title}》 (${song.noteCount}音符)\n$saveMsg$modeWarning",
-                        Toast.LENGTH_LONG
-                    ).show()
                 }
             } catch (e: Throwable) {
-                Log.e(TAG, "Unexpected error in downloadAndPlayOnlineSong", e)
+                Log.e(TAG, "Unexpected error in handleScoreFromWeb", e)
                 withContext(Dispatchers.Main) {
-                    tvTip?.text = "❌ 运行异常: ${e.message}"
-                    Toast.makeText(this@FloatingOverlayService, "弹奏处理异常: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@FloatingOverlayService, "乐谱处理异常: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -1288,10 +1412,22 @@ class FloatingOverlayService : Service(), PlayEngine.PlaybackListener {
             try { windowManager.removeView(filePickerView) } catch (_: Throwable) {}
             isPickerAdded = false
         }
+        if (isSongPickerAdded && songPickerView != null) {
+            try { windowManager.removeView(songPickerView) } catch (_: Throwable) {}
+            isSongPickerAdded = false
+        }
         if (isOnlineAdded && onlineView != null) {
             try { windowManager.removeView(onlineView) } catch (_: Throwable) {}
             isOnlineAdded = false
         }
+        try {
+            onlineWebView?.apply {
+                stopLoading()
+                loadUrl("about:blank")
+                destroy()
+            }
+        } catch (_: Throwable) {}
+        onlineWebView = null
     }
 }
 
@@ -1348,4 +1484,43 @@ class FloatingFileAdapter(
     }
 
     override fun getItemCount(): Int = files.size
+}
+
+class FloatingSongPickerAdapter(
+    private var items: List<Song>,
+    private val onSelect: (Song) -> Unit
+) : RecyclerView.Adapter<FloatingSongPickerAdapter.ViewHolder>() {
+
+    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val tvIndex: TextView = view.findViewById(R.id.tvSongIndex)
+        val tvTitle: TextView = view.findViewById(R.id.tvSongTitle)
+        val tvSubtitle: TextView = view.findViewById(R.id.tvSongSubtitle)
+        val btnPlay: View = view.findViewById(R.id.btnSongPlay)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val v = LayoutInflater.from(parent.context).inflate(R.layout.layout_item_floating_picker_song, parent, false)
+        return ViewHolder(v)
+    }
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val song = items[position]
+        holder.tvIndex.text = "${position + 1}"
+        holder.tvTitle.text = song.title
+        val typeStr = if (song.isPreset) "内置" else "下载"
+        val bpmStr = if (song.bpm > 0) "${song.bpm} BPM" else ""
+        val notesStr = if (song.noteCount > 0) "${song.noteCount}音符" else ""
+        holder.tvSubtitle.text = listOf(typeStr, notesStr, bpmStr).filter { it.isNotBlank() }.joinToString(" · ")
+
+        val clickListener = View.OnClickListener { onSelect(song) }
+        holder.itemView.setOnClickListener(clickListener)
+        holder.btnPlay.setOnClickListener(clickListener)
+    }
+
+    override fun getItemCount(): Int = items.size
+
+    fun updateList(newItems: List<Song>) {
+        items = newItems
+        notifyDataSetChanged()
+    }
 }

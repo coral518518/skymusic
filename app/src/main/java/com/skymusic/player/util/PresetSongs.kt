@@ -26,7 +26,7 @@ object PresetSongs {
         }
 
         val loadedSongs = mutableListOf<Song>()
-        val assetDirs = listOf("preset_scores", "songs")
+        val assetDirs = listOf("preset_scores", "scores", "songs")
 
         for (dir in assetDirs) {
             try {

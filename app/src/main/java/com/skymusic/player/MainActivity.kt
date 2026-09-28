@@ -22,6 +22,11 @@ import com.skymusic.player.ui.FileManagerDialog
 import com.skymusic.player.ui.SongAdapter
 import com.skymusic.player.util.PermissionHelper
 import com.skymusic.player.util.PresetSongs
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.View
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -34,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private val importedSongs = mutableListOf<Song>()
     private var selectedSong: Song? = null
     private var currentTabIndex = 0
+    private var searchQuery = ""
 
     // 文件选择器：支持 MIDI (.mid, .midi)、JSON (.json)、文本 (.txt)
     private val filePickerLauncher = registerForActivityResult(
@@ -52,12 +58,14 @@ class MainActivity : AppCompatActivity() {
         initData()
         initViews()
         initScreenInfo()
+        scanDownloadedSongs()
     }
 
     override fun onResume() {
         super.onResume()
         updatePermissionStatus()
         updateFloatingServiceButton()
+        scanDownloadedSongs()
     }
 
     private fun initData() {
@@ -160,6 +168,21 @@ class MainActivity : AppCompatActivity() {
 
         selectedSong?.let { songAdapter.setSelected(it.id) }
 
+        // 乐谱库快速搜索框监听
+        binding.etSearchSong.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                searchQuery = s?.toString()?.trim() ?: ""
+                binding.btnSearchClear.visibility = if (searchQuery.isNotEmpty()) View.VISIBLE else View.GONE
+                refreshSongListDisplay()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        binding.btnSearchClear.setOnClickListener {
+            binding.etSearchSong.setText("")
+        }
+
         // TabLayout 切换
         binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
@@ -172,13 +195,64 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshSongListDisplay() {
-        val currentList = if (currentTabIndex == 0) presetSongs else importedSongs
+        val baseList = if (currentTabIndex == 0) presetSongs else importedSongs
+        val currentList = if (searchQuery.isBlank()) {
+            baseList
+        } else {
+            baseList.filter {
+                it.title.contains(searchQuery, ignoreCase = true) ||
+                it.artist.contains(searchQuery, ignoreCase = true) ||
+                it.id.contains(searchQuery, ignoreCase = true)
+            }
+        }
         songAdapter.updateData(currentList, selectedSong?.id)
+
+        binding.tvEmptySearchResult.visibility = if (currentList.isEmpty()) View.VISIBLE else View.GONE
+        binding.rvSongList.visibility = if (currentList.isEmpty()) View.GONE else View.VISIBLE
 
         FloatingOverlayService.currentSongList.clear()
         FloatingOverlayService.currentSongList.addAll(
             if (importedSongs.isNotEmpty()) importedSongs + presetSongs else presetSongs
         )
+    }
+
+    /**
+     * 自动扫描 Download/filesss 目录下已下载的乐谱并加入到“我的导入”列表
+     */
+    private fun scanDownloadedSongs() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val filesssDirs = com.skymusic.player.parser.JianpuGenerator.getFilesssSaveDirectories(this@MainActivity)
+            val newImported = mutableListOf<Song>()
+            for (dir in filesssDirs) {
+                if (!dir.exists() || !dir.isDirectory) continue
+                dir.listFiles()?.forEach { file ->
+                    if (file.isFile && file.name.endsWith(".json", ignoreCase = true)) {
+                        try {
+                            val song = SheetImporter.importFromFile(file)
+                            if (song != null && song.notes.isNotEmpty()) {
+                                if (newImported.none { it.id == song.id || it.title == song.title }) {
+                                    newImported.add(song)
+                                }
+                            }
+                        } catch (_: Exception) {}
+                    }
+                }
+            }
+            if (newImported.isNotEmpty()) {
+                withContext(Dispatchers.Main) {
+                    var added = false
+                    for (song in newImported) {
+                        if (importedSongs.none { it.id == song.id || it.title == song.title }) {
+                            importedSongs.add(song)
+                            added = true
+                        }
+                    }
+                    if (added) {
+                        refreshSongListDisplay()
+                    }
+                }
+            }
+        }
     }
 
     private fun initScreenInfo() {

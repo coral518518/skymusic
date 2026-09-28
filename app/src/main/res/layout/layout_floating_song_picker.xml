@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/bg_floating_panel"
+    android:padding="12dp">
+
+    <!-- 顶部标题栏与关闭按钮 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="10dp">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_music_note"
+            app:tint="@color/sky_primary" />
+
+        <TextView
+            android:id="@+id/tvSongPickerTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="🎵 乐谱曲库"
+            android:textColor="@color/sky_text_primary"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginStart="8dp" />
+
+        <TextView
+            android:id="@+id/tvSongPickerCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="157首"
+            android:textColor="@color/sky_primary"
+            android:textSize="11sp"
+            android:layout_marginEnd="10dp" />
+
+        <ImageView
+            android:id="@+id/btnSongPickerClose"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/ic_close"
+            app:tint="@color/sky_text_secondary"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:padding="5dp" />
+    </LinearLayout>
+
+    <!-- 搜索输入框 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="38dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_search_box"
+        android:paddingStart="10dp"
+        android:paddingEnd="6dp"
+        android:layout_marginBottom="8dp">
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_search"
+            app:tint="@color/sky_text_hint" />
+
+        <EditText
+            android:id="@+id/etSongPickerSearch"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@null"
+            android:hint="输入歌名/关键词快速搜索..."
+            android:textColor="@color/sky_text_primary"
+            android:textColorHint="@color/sky_text_hint"
+            android:textSize="12sp"
+            android:singleLine="true"
+            android:imeOptions="actionSearch"
+            android:paddingStart="6dp"
+            android:paddingEnd="4dp" />
+
+        <ImageView
+            android:id="@+id/btnSongPickerClear"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_close"
+            app:tint="@color/sky_text_hint"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:padding="5dp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- 快捷操作项：打开文件管理器 -->
+    <LinearLayout
+        android:id="@+id/btnSongPickerBrowseFiles"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="?android:attr/selectableItemBackground"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:layout_marginBottom="6dp">
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_folder"
+            app:tint="@color/sky_accent" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="📁 浏览手机本地存储 (Download/filesss)..."
+            android:textColor="@color/sky_accent"
+            android:textSize="11sp"
+            android:layout_marginStart="6dp" />
+    </LinearLayout>
+
+    <!-- 分隔线 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/sky_card_dark_stroke"
+        android:layout_marginBottom="6dp" />
+
+    <!-- 搜索无结果提示 -->
+    <TextView
+        android:id="@+id/tvSongPickerEmpty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:text="🔍 未找到匹配的曲目"
+        android:textColor="@color/sky_text_hint"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+    <!-- 乐谱列表 -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvSongPickerList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:scrollbars="vertical" />
+
+</LinearLayout>

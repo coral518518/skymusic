@@ -295,6 +295,62 @@
                     android:text="我的导入" />
             </com.google.android.material.tabs.TabLayout>
 
+            <!-- 乐谱库快速搜索框 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_search_box"
+                android:paddingStart="12dp"
+                android:paddingEnd="8dp"
+                android:layout_marginBottom="12dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_search"
+                    app:tint="@color/sky_text_hint" />
+
+                <EditText
+                    android:id="@+id/etSearchSong"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@null"
+                    android:hint="搜索曲目名称/拼音/作者/ID..."
+                    android:textColor="@color/sky_text_primary"
+                    android:textColorHint="@color/sky_text_hint"
+                    android:textSize="13sp"
+                    android:imeOptions="actionSearch"
+                    android:inputType="text"
+                    android:singleLine="true"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="4dp" />
+
+                <ImageView
+                    android:id="@+id/btnSearchClear"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:src="@drawable/ic_close"
+                    app:tint="@color/sky_text_hint"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:padding="6dp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- 搜索无结果提示 -->
+            <TextView
+                android:id="@+id/tvEmptySearchResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🔍 未找到匹配的乐谱"
+                android:textColor="@color/sky_text_hint"
+                android:textSize="13sp"
+                android:gravity="center"
+                android:padding="24dp"
+                android:visibility="gone" />
+
             <!-- 乐谱列表 -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvSongList"
