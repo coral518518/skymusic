@@ -162,10 +162,10 @@ class PlayEngine {
                     break
                 }
 
-                // 计算下一跳休眠时间：按下一个音符时刻与 25ms 取较小值，保证高帧率平滑进度与精准起音
+                // 计算下一跳休眠时间：按下一个音符时刻与 20ms 取较小值，保证高帧率平滑进度与高精度起音
                 val nextTargetTime = if (nextNoteIndex < notes.size) notes[nextNoteIndex].timeMs else song.durationMs
                 val diffToNext = ((nextTargetTime - currentMs) / speed).toLong()
-                val sleepMs = diffToNext.coerceIn(2L, 25L)
+                val sleepMs = diffToNext.coerceIn(1L, 20L)
                 delay(sleepMs)
             }
 
